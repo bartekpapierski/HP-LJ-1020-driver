@@ -31,3 +31,11 @@ _Avoid_: All features, full support
 **capability matrix**:
 The evidence-backed record that maps every behavior in the verified capability envelope to its support and validation status.
 _Avoid_: Feature list, checklist
+
+**personal-use installation**:
+The currently supported deployment boundary: a locally built installation used only by the project owner on the reference Mac.
+_Avoid_: Public release, generally available build
+
+**public binary release**:
+A prebuilt distribution intended for installation by people other than the project owner through the normal macOS trust and installation experience.
+_Avoid_: Personal-use installation, source build
