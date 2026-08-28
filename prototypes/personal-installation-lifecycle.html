@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Personal installation lifecycle proof — throwaway prototype</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17202a;
+      --muted: #65717d;
+      --paper: #f5f7f4;
+      --panel: #ffffff;
+      --line: #d8ddd6;
+      --accent: #175d50;
+      --accent-soft: #e3f1ed;
+      --success: #17643c;
+      --success-soft: #e5f3e9;
+      --warning: #8a5b00;
+      --warning-soft: #fff3d7;
+      --danger: #9c2f32;
+      --danger-soft: #fde9e8;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { width: min(1160px, calc(100% - 32px)); margin: 46px auto 80px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 900px; font-size: clamp(2rem, 4vw, 3.4rem); line-height: 1.06; }
+    h2 { margin-bottom: 14px; font-size: 1.3rem; }
+    h3 { margin: 18px 0 8px; font-size: .95rem; }
+    .lede { max-width: 900px; color: var(--muted); font-size: 1.06rem; }
+    .prototype-mark {
+      color: var(--danger);
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .notice {
+      margin: 24px 0 30px;
+      border-left: 4px solid var(--warning);
+      background: var(--warning-soft);
+      padding: 16px 18px;
+    }
+    .panel {
+      margin-top: 20px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+      padding: 22px;
+      box-shadow: 0 4px 18px rgb(24 34 29 / 4%);
+    }
+    .verdict { border-width: 2px; }
+    .verdict[data-tone="blocked"] { border-color: #d3a63b; background: var(--warning-soft); }
+    .verdict[data-tone="invalid"] { border-color: #d36b6d; background: var(--danger-soft); }
+    .verdict[data-tone="valid"] { border-color: #59a978; background: var(--success-soft); }
+    .verdict[data-tone="open"] { border-color: var(--accent); background: var(--accent-soft); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+    .fact {
+      min-height: 86px;
+      margin: 0;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 13px 14px;
+    }
+    .fact dt {
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 750;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    .fact dd { margin: 5px 0 0; font-weight: 650; }
+    .fact dd small { display: block; margin-top: 3px; color: var(--muted); font-weight: 450; }
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(300px, 1fr);
+      gap: 22px;
+    }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    button {
+      appearance: none;
+      border: 1px solid #b8c3bc;
+      border-radius: 9px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 650;
+      padding: 9px 12px;
+    }
+    button:hover { border-color: var(--accent); color: var(--accent); }
+    button:focus-visible { outline: 3px solid #8bc5b9; outline-offset: 2px; }
+    button.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+    button.danger { border-color: #d4a2a4; color: var(--danger); }
+    button[disabled] { cursor: not-allowed; opacity: .42; }
+    .checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+    .checklist li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; }
+    .yes { color: var(--success); }
+    .no { color: var(--muted); }
+    .fail { color: var(--danger); }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
+    .tab { border: 0; border-radius: 8px 8px 0 0; color: var(--muted); }
+    .tab[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); }
+    .walkthrough-description { max-width: 820px; color: var(--muted); }
+    .steps { display: grid; gap: 9px; }
+    .step { display: grid; grid-template-columns: 36px 1fr; align-items: center; gap: 9px; }
+    .step-number { color: var(--muted); font-size: .85rem; text-align: center; }
+    .step button { width: 100%; text-align: left; }
+    .log { max-height: 300px; overflow: auto; margin: 0; padding-left: 22px; }
+    .log li { padding: 4px 0; }
+    .log .rejected { color: var(--danger); }
+    footer { margin-top: 32px; color: var(--muted); font-size: .9rem; }
+    @media (max-width: 780px) { main { margin-top: 28px; } .split { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="prototype-mark">Throwaway logic prototype</p>
+    <h1>Can the personal-use installation cross every lifecycle boundary cleanly?</h1>
+    <p class="lede">This demo turns the installation decision into observable gates: an ad-hoc-signed app-bundled service, a dedicated unprivileged account, loopback-only standard macOS printing, transactional tagged-source upgrades, bounded local diagnostics, complete removal, and clean reinstall.</p>
+
+    <div class="notice">
+      <strong>Clicks are not platform or hardware evidence.</strong> Press an observation only after performing it on the reference Mac. This file records the state in memory so the human driving the experiment can spot illegal transitions and decide whether the selected lifecycle survives. It never installs, removes, signs, or elevates anything itself.
+    </div>
+
+    <section id="verdict" class="panel verdict" data-tone="blocked" aria-live="polite"></section>
+
+    <section class="panel">
+      <h2>Current lifecycle state</h2>
+      <div id="state" class="grid"></div>
+    </section>
+
+    <section class="panel split">
+      <div>
+        <h2>Free play</h2>
+        <p class="lede">Record real observations in any order. The model rejects actions that would make the evidence ambiguous.</p>
+        <div id="actions" class="actions"></div>
+      </div>
+      <div>
+        <h2>Decision gates</h2>
+        <ul id="gates" class="checklist"></ul>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Guided walkthroughs</h2>
+      <div id="tabs" class="tabs" role="tablist"></div>
+      <div id="walkthrough"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Observation log</h2>
+      <ol id="log" class="log" aria-live="polite"></ol>
+    </section>
+
+    <footer>Disposable artifact for “Prove the personal installation lifecycle.” State disappears when this file closes.</footer>
+  </main>
+
+  <script>
+    // Portable state machine. It intentionally has no DOM, storage, shell, or platform access.
+    const LifecycleModel = (() => {
+      const gateNames = [
+        "cleanStart", "adHocSignature", "approvalTransition", "dedicatedAccount",
+        "usbBoundary", "nonAdminPrint", "localBoundary", "disablePreservesData",
+        "activeJobRefusal", "rollbackRestores", "boundedDiagnostics",
+        "privateDiagnostics", "completeUninstall", "cleanReinstall"
+      ];
+
+      function blankEvidence() {
+        return Object.fromEntries(gateNames.map(name => [name, null]));
+      }
+
+      function initialState() {
+        return {
+          product: "unknown",
+          sourceTag: null,
+          signature: "none",
+          approval: "not-requested",
+          service: "absent",
+          identity: "none",
+          listener: "absent",
+          discovery: "absent",
+          queue: "absent",
+          usb: "untested",
+          helper: "not-indicated",
+          job: "none",
+          version: "none",
+          stagedVersion: null,
+          rollbackVersion: null,
+          data: "absent",
+          diagnostics: "untested",
+          uninstall: "not-started",
+          cycle: 0,
+          evidence: blankEvidence(),
+          failures: [],
+          events: []
+        };
+      }
+
+      function clone(state, changes = {}) {
+        return { ...state, ...changes };
+      }
+
+      function append(state, message, rejected = false) {
+        return clone(state, { events: [...state.events, { message, rejected }] });
+      }
+
+      function reject(state, message) {
+        return append(state, `Rejected: ${message}`, true);
+      }
+
+      function record(state, gate, value = true) {
+        return clone(state, { evidence: { ...state.evidence, [gate]: value } });
+      }
+
+      function fail(state, code, gate, message) {
+        let next = clone(state, { failures: [...new Set([...state.failures, code])] });
+        if (gate) next = record(next, gate, false);
+        return append(next, message);
+      }
+
+      function readyForQueue(state) {
+        return state.service === "running" && state.listener === "loopback-only" && state.discovery === "local-only";
+      }
+
+      function transition(state, action) {
+        switch (action.type) {
+          case "RESET": return initialState();
+          case "VERIFY_CLEAN":
+            if (!["unknown", "absent"].includes(state.product)) return reject(state, "the product is still present; a clean product state cannot be claimed.");
+            return append(record(clone(state, { product: "absent", data: "absent" }), "cleanStart"), "Observed no product-owned service, queue, account, files, data, logs, cache, or receipts.");
+          case "BUILD_TAG":
+            if (state.product !== "absent") return reject(state, "verify the clean product state before building the selected source tag.");
+            return append(clone(state, { sourceTag: action.tag || "selected-tag", stagedVersion: action.tag || "selected-tag" }), "Observed a pinned tagged source version build without privilege.");
+          case "SIGN_ADHOC":
+            if (!state.stagedVersion) return reject(state, "build a tagged source version before signing the staged provider.");
+            return append(record(clone(state, { signature: "ad-hoc+hardened" }), "adHocSignature"), "Observed every installed code object ad-hoc signed with hardened runtime in the future release layout.");
+          case "INSTALL":
+            if (state.product !== "absent" || state.signature !== "ad-hoc+hardened") return reject(state, "installation requires a clean product state and a signed staged build.");
+            return append(clone(state, { product: "installed", service: "registered", identity: "dedicated-account", approval: "awaiting-user", data: "present", version: state.stagedVersion, stagedVersion: null, uninstall: "not-started" }), "Observed administrator authorization limited to machine-wide changes; the provider registered but reported installed, awaiting approval.");
+          case "APPROVE":
+            if (state.approval !== "awaiting-user") return reject(state, "Background Items approval must be pending before it can be observed.");
+            return append(record(clone(state, { approval: "approved", service: "running" }), "approvalTransition"), "Observed explicit Background Items approval followed by service activation.");
+          case "VERIFY_DEDICATED":
+            if (state.service !== "running") return reject(state, "the service must be running before its process identity is checked.");
+            return append(record(state, "dedicatedAccount"), "Observed PAPPL running as the project-created dedicated account, never as root.");
+          case "VERIFY_LOCAL":
+            if (state.service !== "running") return reject(state, "the service must be running before listener and discovery boundaries are probed.");
+            return append(record(clone(state, { listener: "loopback-only", discovery: "local-only" }), "localBoundary"), "Observed IPP bound only to loopback, local-only discovery, and no general PAPPL web administration.");
+          case "CREATE_QUEUE":
+            if (!readyForQueue(state)) return reject(state, "the local service boundary must pass before creating the standard macOS queue.");
+            return append(clone(state, { queue: "standard-macos-queue" }), "Observed the loopback Printer Application added as a standard macOS printer queue.");
+          case "USB_PASS":
+            if (state.identity !== "dedicated-account" || state.service !== "running") return reject(state, "USB must be probed from the running dedicated-account service.");
+            return append(record(clone(state, { usb: "claimed-unprivileged", helper: "unnecessary" }), "usbBoundary"), "Observed the dedicated account open and exclusively claim the reference printer; no privileged helper is necessary.");
+          case "USB_FAIL":
+            if (state.identity !== "dedicated-account" || state.service !== "running") return reject(state, "USB must be probed from the running dedicated-account service.");
+            return append(clone(state, { usb: "dedicated-claim-failed", helper: "investigate-minimal" }), "Observed the dedicated-account USB claim fail; this triggers, but does not yet justify, a minimal helper investigation.");
+          case "HELPER_PASS":
+            if (state.helper !== "investigate-minimal") return reject(state, "a helper probe is allowed only after an observed dedicated-account USB failure.");
+            return append(record(clone(state, { usb: "claimed-through-minimal-helper", helper: "necessary-on-reference-mac" }), "usbBoundary"), "Observed a fixed, typed, authenticated USB/firmware-only helper succeed where the dedicated account failed. A privileged boundary is evidenced as necessary for this host.");
+          case "HELPER_FAIL":
+            if (state.helper !== "investigate-minimal") return reject(state, "a helper probe is allowed only after an observed dedicated-account USB failure.");
+            return fail(clone(state, { helper: "unsupported", usb: "unavailable" }), "usb-boundary", "usbBoundary", "Observed the minimal helper fail; installation is unsupported rather than broadened to a root printing service.");
+          case "PRINT_NONADMIN":
+            if (state.queue !== "standard-macos-queue" || !["claimed-unprivileged", "claimed-through-minimal-helper"].includes(state.usb)) return reject(state, "a standard queue and a successful USB boundary are required before a non-admin print can be observed.");
+            return append(record(clone(state, { job: "completed" }), "nonAdminPrint"), "Observed a non-admin local user print successfully through the standard macOS experience.");
+          case "START_JOB":
+            if (state.service !== "running" || state.queue !== "standard-macos-queue") return reject(state, "a running installed service and queue are required before an active job can exist.");
+            return append(clone(state, { job: "active" }), "Observed an active print job.");
+          case "STAGE_UPDATE":
+            if (state.product !== "installed" || state.signature !== "ad-hoc+hardened") return reject(state, "a valid installed product is required before staging a replacement.");
+            return append(clone(state, { stagedVersion: action.tag || "next-tag", rollbackVersion: state.version }), "Observed a selected tagged source upgrade staged and validated before live modification.");
+          case "REQUEST_UPDATE":
+            if (!state.stagedVersion) return reject(state, "stage and validate a tagged replacement before requesting activation.");
+            if (state.job === "active") return append(record(state, "activeJobRefusal"), "Observed activation refuse to interrupt the active print job; the staged version remains inactive.");
+            return append(clone(state, { version: state.stagedVersion, stagedVersion: null, service: "activating" }), "Observed atomic activation begin after configuration and persistent-state backup.");
+          case "FINISH_JOB":
+            if (state.job !== "active") return reject(state, "there is no active job to finish.");
+            return append(clone(state, { job: "completed" }), "Observed the active job finish without update interruption.");
+          case "ACTIVATION_PASS":
+            if (state.service !== "activating") return reject(state, "an activated replacement must be awaiting its health check.");
+            return append(clone(state, { service: "running", rollbackVersion: null, sourceTag: state.version }), "Observed the replacement pass health checks while preserving the queue and compatible state.");
+          case "ACTIVATION_FAIL":
+            if (state.service !== "activating" || !state.rollbackVersion) return reject(state, "rollback requires an activating replacement and a recorded previous version.");
+            return append(record(clone(state, { version: state.rollbackVersion, stagedVersion: null, rollbackVersion: null, service: "running" }), "rollbackRestores"), "Observed injected activation failure restore the previous version, queue, configuration, and service health.");
+          case "DISABLE":
+            if (state.product !== "installed" || !["running", "registered"].includes(state.service)) return reject(state, "an installed integration must be active or registered before it can be disabled.");
+            return append(record(clone(state, { service: "disabled", data: "preserved" }), "disablePreservesData"), "Observed disable stop integration while preserving product data for reactivation.");
+          case "REENABLE":
+            if (state.service !== "disabled" || state.approval !== "approved") return reject(state, "only an approved, disabled service can be re-enabled.");
+            return append(clone(state, { service: "running" }), "Observed explicit reactivation restore the existing queue and preserved state.");
+          case "VERIFY_BOUNDS":
+            return append(record(clone(state, { diagnostics: "bounded" }), "boundedDiagnostics"), "Observed completed-job metadata capped at 20 and logs rotated at 14 days or 10 MiB, whichever came first.");
+          case "VERIFY_REDACTION":
+            return append(record(clone(state, { diagnostics: "bounded+redacted" }), "privateDiagnostics"), "Observed an explicit local diagnostic bundle exclude document/raster/ZjStream content, filenames, usernames, credentials, and firmware contents.");
+          case "LEAK_DIAGNOSTICS":
+            return fail(clone(state, { diagnostics: "privacy-failure" }), "diagnostic-privacy", "privateDiagnostics", "Observed excluded private or proprietary content in logs or the diagnostic bundle; the lifecycle is invalid.");
+          case "PREVIEW_UNINSTALL":
+            if (state.product !== "installed") return reject(state, "only an installed product can produce an uninstall preview.");
+            return append(clone(state, { uninstall: "previewed" }), "Observed an exact preview of product-owned artifacts; unrelated printers and system CUPS components were absent.");
+          case "UNINSTALL":
+            if (state.uninstall !== "previewed") return reject(state, "complete uninstall requires an observed preview and explicit confirmation.");
+            return append(clone(state, { product: "absent", service: "absent", identity: "none", listener: "absent", discovery: "absent", queue: "absent", usb: "untested", helper: "not-indicated", data: "absent", version: "none", uninstall: "removed" }), "Observed administrator-authorized removal finish idempotently after disabling the service.");
+          case "VERIFY_REMOVAL":
+            if (state.uninstall !== "removed") return reject(state, "run the confirmed uninstall before checking for residue.");
+            return append(record(clone(state, { uninstall: "clean" }), "completeUninstall"), "Observed no product-owned service, queue, account, files, data, logs, cache, or receipt after removal.");
+          case "FIND_RESIDUE":
+            if (state.uninstall !== "removed") return reject(state, "run the confirmed uninstall before checking for residue.");
+            return fail(clone(state, { uninstall: "incomplete", service: "disabled" }), "uninstall-residue", "completeUninstall", "Observed product-owned residue. The service remains disabled and uninstall must report the exact artifacts instead of claiming success.");
+          case "REINSTALL":
+            if (state.uninstall !== "clean" || state.signature !== "ad-hoc+hardened") return reject(state, "clean reinstall requires verified complete removal and a valid staged or prior signed build.");
+            return append(record(clone(state, { product: "installed", service: "registered", identity: "dedicated-account", approval: "awaiting-user", data: "present", version: state.sourceTag, uninstall: "not-started", cycle: state.cycle + 1 }), "cleanReinstall"), "Observed clean reinstall recreate only the expected product artifacts and return to installed, awaiting approval.");
+          case "FAIL_EXPOSURE":
+            return fail(clone(state, { listener: "externally-visible" }), "network-boundary", "localBoundary", "Observed the IPP or administration listener outside loopback/local-only scope; the installation model is invalid.");
+          case "FAIL_ROOT_SERVICE":
+            return fail(clone(state, { identity: "root" }), "privilege-boundary", "dedicatedAccount", "Observed the complete PAPPL service run as root; the selected least-privilege boundary is invalid.");
+          default: return reject(state, "unknown observation.");
+        }
+      }
+
+      function evaluate(state) {
+        if (state.failures.length) return { tone: "invalid", title: "Lifecycle boundary invalidated", detail: `Observed failure: ${state.failures.join(", ")}. Keep the integration disabled and investigate the named boundary before making a support claim.` };
+        const passed = gateNames.filter(name => state.evidence[name] === true);
+        const failed = gateNames.filter(name => state.evidence[name] === false);
+        if (failed.length) return { tone: "open", title: "Fallback evidence is still incomplete", detail: `${failed.join(", ")} did not pass. A narrow fallback may be investigated, but the selected lifecycle is not yet validated.` };
+        if (passed.length === gateNames.length) return { tone: "valid", title: "Personal installation lifecycle validated", detail: "Every selected boundary has observed evidence, including a clean install, least-privileged printing, rollback, bounded diagnostics, complete uninstall, and clean reinstall." };
+        return { tone: passed.length ? "open" : "blocked", title: passed.length ? "Lifecycle experiment in progress" : "No lifecycle verdict yet", detail: `${passed.length} of ${gateNames.length} decision gates have observed evidence. The privileged helper verdict is: ${state.helper.replaceAll("-", " ")}.` };
+      }
+
+      return { initialState, transition, evaluate, gateNames };
+    })();
+
+    const actionGroups = [
+      ["Install and approve", [
+        ["Verify clean product state", { type: "VERIFY_CLEAN" }],
+        ["Build selected source tag", { type: "BUILD_TAG", tag: "v0-prototype" }],
+        ["Verify ad-hoc hardened signature", { type: "SIGN_ADHOC" }],
+        ["Install machine-wide", { type: "INSTALL" }],
+        ["Approve Background Item", { type: "APPROVE" }],
+        ["Verify dedicated service account", { type: "VERIFY_DEDICATED" }],
+        ["Verify loopback/local-only boundary", { type: "VERIFY_LOCAL" }],
+        ["Create standard macOS queue", { type: "CREATE_QUEUE" }]
+      ]],
+      ["USB and printing", [
+        ["Dedicated account claims USB", { type: "USB_PASS" }],
+        ["Dedicated account cannot claim USB", { type: "USB_FAIL" }, "danger"],
+        ["Minimal helper probe succeeds", { type: "HELPER_PASS" }],
+        ["Minimal helper probe fails", { type: "HELPER_FAIL" }, "danger"],
+        ["Non-admin user prints", { type: "PRINT_NONADMIN" }]
+      ]],
+      ["Disable and upgrade", [
+        ["Disable and preserve data", { type: "DISABLE" }],
+        ["Re-enable existing installation", { type: "REENABLE" }],
+        ["Start active print job", { type: "START_JOB" }],
+        ["Stage next tagged source", { type: "STAGE_UPDATE", tag: "v1-prototype" }],
+        ["Request staged activation", { type: "REQUEST_UPDATE" }],
+        ["Finish active print job", { type: "FINISH_JOB" }],
+        ["Replacement passes health check", { type: "ACTIVATION_PASS" }],
+        ["Injected activation failure rolls back", { type: "ACTIVATION_FAIL" }, "danger"]
+      ]],
+      ["Diagnostics and removal", [
+        ["Verify retention bounds", { type: "VERIFY_BOUNDS" }],
+        ["Verify diagnostic redaction", { type: "VERIFY_REDACTION" }],
+        ["Preview complete uninstall", { type: "PREVIEW_UNINSTALL" }],
+        ["Confirm complete uninstall", { type: "UNINSTALL" }],
+        ["Verify no product residue", { type: "VERIFY_REMOVAL" }],
+        ["Observe product residue", { type: "FIND_RESIDUE" }, "danger"],
+        ["Reinstall from clean state", { type: "REINSTALL" }]
+      ]],
+      ["Invalidate a boundary", [
+        ["Service is externally visible", { type: "FAIL_EXPOSURE" }, "danger"],
+        ["Complete service runs as root", { type: "FAIL_ROOT_SERVICE" }, "danger"],
+        ["Diagnostics leak excluded content", { type: "LEAK_DIAGNOSTICS" }, "danger"]
+      ]]
+    ];
+
+    const walkthroughs = [
+      {
+        name: "Least-privilege install",
+        description: "Start from a clean product state and prove the preferred path. The helper verdict should become unnecessary only after the dedicated account really claims USB.",
+        actions: ["VERIFY_CLEAN", "BUILD_TAG", "SIGN_ADHOC", "INSTALL", "APPROVE", "VERIFY_DEDICATED", "VERIFY_LOCAL", "CREATE_QUEUE", "USB_PASS", "PRINT_NONADMIN"]
+      },
+      {
+        name: "USB fallback fork",
+        description: "Exercise the evidence trigger. A dedicated-account failure permits only a fixed USB/firmware helper probe; it never permits the complete printing service to run as root.",
+        seed: "installed",
+        actions: ["USB_FAIL", "HELPER_PASS", "PRINT_NONADMIN"]
+      },
+      {
+        name: "Upgrade refusal and rollback",
+        description: "Show that a staged update refuses an active job, waits, activates transactionally, and restores the prior version after an injected health-check failure.",
+        seed: "ready",
+        actions: ["START_JOB", "STAGE_UPDATE", "REQUEST_UPDATE", "FINISH_JOB", "REQUEST_UPDATE", "ACTIVATION_FAIL"]
+      },
+      {
+        name: "Disable, remove, reinstall",
+        description: "Prove reversible disable separately from complete removal, then verify the clean product state before recreating the installation.",
+        seed: "ready",
+        actions: ["DISABLE", "REENABLE", "VERIFY_BOUNDS", "VERIFY_REDACTION", "PREVIEW_UNINSTALL", "UNINSTALL", "VERIFY_REMOVAL", "REINSTALL"]
+      },
+      {
+        name: "Honest incomplete uninstall",
+        description: "An uninstall that leaves residue must keep the service disabled and report the exact remainder; it cannot claim a clean product state or proceed to reinstall.",
+        seed: "ready",
+        actions: ["PREVIEW_UNINSTALL", "UNINSTALL", "FIND_RESIDUE"]
+      }
+    ];
+
+    const actionIndex = new Map();
+    actionGroups.forEach(([, actions]) => actions.forEach(([label, action]) => actionIndex.set(action.type, { label, action })));
+
+    function seedState(name) {
+      let seeded = LifecycleModel.initialState();
+      const apply = action => { seeded = LifecycleModel.transition(seeded, action); };
+      [
+        { type: "VERIFY_CLEAN" }, { type: "BUILD_TAG", tag: "v0-prototype" }, { type: "SIGN_ADHOC" },
+        { type: "INSTALL" }, { type: "APPROVE" }, { type: "VERIFY_DEDICATED" }, { type: "VERIFY_LOCAL" }, { type: "CREATE_QUEUE" }
+      ].forEach(apply);
+      if (name === "ready") {
+        apply({ type: "USB_PASS" });
+        apply({ type: "PRINT_NONADMIN" });
+      }
+      return seeded;
+    }
+
+    let state = LifecycleModel.initialState();
+    let activeWalkthrough = 0;
+    let completedSteps = 0;
+
+    function human(value) {
+      return String(value).replaceAll("-", " ").replace(/\b\w/g, letter => letter.toUpperCase());
+    }
+
+    function resetForWalkthrough() {
+      const seed = walkthroughs[activeWalkthrough].seed;
+      state = seed ? seedState(seed) : LifecycleModel.initialState();
+      completedSteps = 0;
+    }
+
+    function dispatch(action, fromWalkthrough = false) {
+      const before = state.events.length;
+      state = LifecycleModel.transition(state, action);
+      if (fromWalkthrough && state.events.length > before && !state.events.at(-1).rejected) completedSteps += 1;
+      render();
+    }
+
+    function renderVerdict() {
+      const verdict = LifecycleModel.evaluate(state);
+      const root = document.querySelector("#verdict");
+      root.dataset.tone = verdict.tone;
+      root.innerHTML = `<h2>${verdict.title}</h2><p>${verdict.detail}</p>`;
+    }
+
+    function renderState() {
+      const facts = [
+        ["Product", human(state.product), `Lifecycle cycle ${state.cycle}`],
+        ["Installed version", human(state.version), state.stagedVersion ? `Staged: ${state.stagedVersion}` : "No staged replacement"],
+        ["Code signature", human(state.signature), "Personal build; no public-trust claim"],
+        ["Background approval", human(state.approval), "Approval is distinct from installation"],
+        ["Service", human(state.service), `Identity: ${human(state.identity)}`],
+        ["Network boundary", human(state.listener), `Discovery: ${human(state.discovery)}`],
+        ["macOS queue", human(state.queue), "Standard loopback printer queue"],
+        ["USB boundary", human(state.usb), `Helper: ${human(state.helper)}`],
+        ["Print job", human(state.job), "Updates must not interrupt active work"],
+        ["Product data", human(state.data), "Disable preserves; uninstall removes"],
+        ["Diagnostics", human(state.diagnostics), "Local, bounded, explicitly generated"],
+        ["Uninstall", human(state.uninstall), "Clean state requires a residue check"]
+      ];
+      document.querySelector("#state").innerHTML = facts.map(([term, value, note]) => `<dl class="fact"><dt>${term}</dt><dd>${value}<small>${note}</small></dd></dl>`).join("");
+    }
+
+    function renderActions() {
+      const root = document.querySelector("#actions");
+      root.innerHTML = "";
+      const reset = document.createElement("button");
+      reset.textContent = "Reset all observed state";
+      reset.className = "primary";
+      reset.addEventListener("click", () => { state = LifecycleModel.initialState(); completedSteps = 0; render(); });
+      root.append(reset);
+      actionGroups.forEach(([group, actions]) => {
+        const heading = document.createElement("h3");
+        heading.textContent = group;
+        heading.style.flexBasis = "100%";
+        root.append(heading);
+        actions.forEach(([label, action, className]) => {
+          const button = document.createElement("button");
+          button.textContent = label;
+          if (className) button.className = className;
+          button.addEventListener("click", () => dispatch(action));
+          root.append(button);
+        });
+      });
+    }
+
+    function renderGates() {
+      const labels = {
+        cleanStart: "Clean product state before install",
+        adHocSignature: "Ad-hoc hardened signature layout",
+        approvalTransition: "Distinct approval transition",
+        dedicatedAccount: "Complete service never runs as root",
+        usbBoundary: "Least-privileged USB boundary resolved",
+        nonAdminPrint: "Non-admin standard printing",
+        localBoundary: "Loopback/local-only boundary",
+        disablePreservesData: "Disable preserves product data",
+        activeJobRefusal: "Upgrade refuses active job",
+        rollbackRestores: "Failed activation restores prior version",
+        boundedDiagnostics: "Logs and metadata are bounded",
+        privateDiagnostics: "Diagnostic bundle excludes private content",
+        completeUninstall: "Complete product-owned artifact removal",
+        cleanReinstall: "Clean reinstall succeeds"
+      };
+      document.querySelector("#gates").innerHTML = LifecycleModel.gateNames.map(name => {
+        const value = state.evidence[name];
+        const mark = value === true ? "✓" : value === false ? "×" : "○";
+        const cls = value === true ? "yes" : value === false ? "fail" : "no";
+        return `<li><span class="${cls}">${mark}</span><span>${labels[name]}</span></li>`;
+      }).join("");
+    }
+
+    function renderWalkthrough() {
+      const tabs = document.querySelector("#tabs");
+      tabs.innerHTML = "";
+      walkthroughs.forEach((walkthrough, index) => {
+        const button = document.createElement("button");
+        button.className = "tab";
+        button.textContent = walkthrough.name;
+        button.setAttribute("role", "tab");
+        button.setAttribute("aria-selected", String(index === activeWalkthrough));
+        button.addEventListener("click", () => { activeWalkthrough = index; resetForWalkthrough(); render(); });
+        tabs.append(button);
+      });
+      const walkthrough = walkthroughs[activeWalkthrough];
+      const root = document.querySelector("#walkthrough");
+      root.innerHTML = `<p class="walkthrough-description">${walkthrough.description}</p><div class="steps"></div>`;
+      const steps = root.querySelector(".steps");
+      walkthrough.actions.forEach((type, index) => {
+        const entry = actionIndex.get(type);
+        const row = document.createElement("div");
+        row.className = "step";
+        row.innerHTML = `<span class="step-number">${index + 1}</span>`;
+        const button = document.createElement("button");
+        button.textContent = entry.label;
+        button.disabled = index !== completedSteps;
+        button.addEventListener("click", () => dispatch(entry.action, true));
+        row.append(button);
+        steps.append(row);
+      });
+    }
+
+    function renderLog() {
+      document.querySelector("#log").innerHTML = state.events.map(event => `<li class="${event.rejected ? "rejected" : ""}">${event.message}</li>`).join("");
+    }
+
+    function render() {
+      renderVerdict();
+      renderState();
+      renderActions();
+      renderGates();
+      renderWalkthrough();
+      renderLog();
+    }
+
+    render();
+  </script>
+</body>
+</html>
