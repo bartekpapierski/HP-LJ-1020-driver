@@ -271,6 +271,41 @@ remove_hidden_account() {
   fi
 }
 
+cleanup_prototype() {
+  local cleanup_log="$EVIDENCE_DIR/cleanup.txt"
+  local controller="$INSTALL_APP/Contents/MacOS/hplj1020-lifecycle"
+  if [[ -x "$controller" ]]; then
+    "$controller" unregister >>"$cleanup_log" 2>&1 || true
+  fi
+  sudo launchctl bootout "system/$SERVICE_LABEL" >>"$cleanup_log" 2>&1 || true
+  sudo lpadmin -x HPLJ1020Lifecycle >/dev/null 2>&1 || true
+  sudo rm -rf "$INSTALL_APP"
+  sudo rm -rf "/Library/Application Support/HP-LJ-1020"
+  sudo rm -rf "$LOG_ROOT"
+  remove_hidden_account "$TEST_USER" "HP LaserJet 1020 Non-Admin Test"
+  remove_hidden_account "$SERVICE_USER" "HP LaserJet 1020 Service"
+  printf 'cleanup=completed\n' | tee -a "$cleanup_log"
+}
+
+if [[ "${1:-}" == "--cleanup-only" ]]; then
+  TOTAL_STAGES=1
+  banner "HP LaserJet 1020 interrupted-run cleanup"
+  stage "Preview and remove prototype artifacts"
+  say "This recovers an interrupted lifecycle run. It removes only:"
+  step "$INSTALL_APP"
+  step "CUPS queue HPLJ1020Lifecycle"
+  step "$STATE_ROOT, $LOG_ROOT, and $CAPTURE_ROOT"
+  step "Matching prototype accounts $SERVICE_USER and $TEST_USER"
+  note "Cleanup evidence will remain at $EVIDENCE_DIR."
+  if ! confirm "Unregister and remove those exact prototype artifacts now?"; then
+    warn "Cleanup cancelled. No changes made."
+    exit 0
+  fi
+  cleanup_prototype
+  finish
+  exit 0
+fi
+
 banner "HP LaserJet 1020 lifecycle feasibility proof"
 
 stage "Build the pinned ad-hoc provider"
@@ -345,6 +380,9 @@ else
   if [[ -z "$SERVICE_PID" ]]; then
     warn "The registered daemon is not running."
     printf 'daemon_running=false\n' | tee -a "$BOUNDARY_LOG"
+    launchctl print "system/$SERVICE_LABEL" 2>/dev/null | \
+      awk '/last exit code|job state/ {sub(/^\t+/, ""); print}' | \
+      tee -a "$BOUNDARY_LOG" || true
   else
     ps -o user=,uid=,pid=,command= -p "$SERVICE_PID" | tee -a "$BOUNDARY_LOG"
     if /usr/sbin/lsof -nP -a -p "$SERVICE_PID" -iTCP:8631 -sTCP:LISTEN | tee -a "$BOUNDARY_LOG"; then
@@ -413,8 +451,12 @@ else
       sleep 3
     fi
   fi
-  CAPTURE_COUNT=$(find "$CAPTURE_ROOT" -type f | wc -l | tr -d ' ')
-  printf 'captured_jobs=%s\n' "$CAPTURE_COUNT" | tee -a "$BOUNDARY_LOG"
+  if CAPTURE_COUNT=$(sudo -u "$SERVICE_USER" find "$CAPTURE_ROOT" -type f -print | wc -l | tr -d ' '); then
+    printf 'captured_jobs=%s\n' "$CAPTURE_COUNT" | tee -a "$BOUNDARY_LOG"
+  else
+    printf 'captured_jobs=unavailable\n' | tee -a "$BOUNDARY_LOG"
+    warn "Could not count captured jobs as the dedicated service account."
+  fi
 
   USB_PROBE="$INSTALL_APP/Contents/MacOS/hplj1020-usb-probe"
   USB_PROBE_LOG="$EVIDENCE_DIR/usb-probe.txt"
@@ -440,17 +482,7 @@ step "$STATE_ROOT, $LOG_ROOT, and $CAPTURE_ROOT"
 step "Local accounts $SERVICE_USER and $TEST_USER"
 note "Evidence remains at $EVIDENCE_DIR."
 if confirm "Unregister and remove those exact prototype artifacts now?"; then
-  if [[ -x "$CONTROLLER" ]]; then
-    "$CONTROLLER" unregister >>"$EVIDENCE_DIR/cleanup.txt" 2>&1 || true
-  fi
-  sudo launchctl bootout "system/$SERVICE_LABEL" >>"$EVIDENCE_DIR/cleanup.txt" 2>&1 || true
-  sudo lpadmin -x HPLJ1020Lifecycle >/dev/null 2>&1 || true
-  sudo rm -rf "$INSTALL_APP"
-  sudo rm -rf "/Library/Application Support/HP-LJ-1020"
-  sudo rm -rf "$LOG_ROOT"
-  remove_hidden_account "$TEST_USER" "HP LaserJet 1020 Non-Admin Test"
-  remove_hidden_account "$SERVICE_USER" "HP LaserJet 1020 Service"
-  printf 'cleanup=completed\n' | tee -a "$EVIDENCE_DIR/cleanup.txt"
+  cleanup_prototype
 else
   warn "Cleanup skipped. The installed prototype remains on the Mac."
   SKIPPED+=("prototype cleanup")

@@ -35,6 +35,13 @@ through the reference UGREEN dock when prompted.
 The final stage previews cleanup. The evidence directory remains under
 `/private/tmp/hplj1020-lifecycle-evidence.*`; return that path with the result.
 
+If a run stops before the cleanup stage, recover the exact prototype-owned
+artifacts without rebuilding:
+
+```sh
+./prototypes/personal-installation-lifecycle/wizard.sh --cleanup-only
+```
+
 ## Scope and safety
 
 - Downloads checksum-pinned OpenSSL and libusb archives and a commit-pinned
