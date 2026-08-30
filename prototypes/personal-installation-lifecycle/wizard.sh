@@ -211,15 +211,23 @@ next_free_system_id() {
 }
 
 prototype_account_matches() {
-  local account="$1" real_name="$2" uid user_gid group_gid
-  uid=$(dscl . -read "/Users/$account" UniqueID 2>/dev/null | awk '{print $2}') || return 1
-  user_gid=$(dscl . -read "/Users/$account" PrimaryGroupID 2>/dev/null | awk '{print $2}') || return 1
-  group_gid=$(dscl . -read "/Groups/$account" PrimaryGroupID 2>/dev/null | awk '{print $2}') || return 1
+  local account="$1" real_name="$2" user_record group_record
+  local name uid user_gid group_gid home shell gecos
+  user_record=$(dscacheutil -q user -a name "$account") || return 1
+  group_record=$(dscacheutil -q group -a name "$account") || return 1
+  name=$(printf '%s\n' "$user_record" | awk '$1 == "name:" {print $2; exit}')
+  uid=$(printf '%s\n' "$user_record" | awk '$1 == "uid:" {print $2; exit}')
+  user_gid=$(printf '%s\n' "$user_record" | awk '$1 == "gid:" {print $2; exit}')
+  group_gid=$(printf '%s\n' "$group_record" | awk '$1 == "gid:" {print $2; exit}')
+  home=$(printf '%s\n' "$user_record" | awk '$1 == "dir:" {print $2; exit}')
+  shell=$(printf '%s\n' "$user_record" | awk '$1 == "shell:" {print $2; exit}')
+  gecos=$(printf '%s\n' "$user_record" | awk 'index($0, "gecos: ") == 1 {print substr($0, 8); exit}')
+  [[ "$name" == "$account" ]] || return 1
   [[ "$uid" =~ ^[0-9]+$ && "$uid" -ge 450 && "$uid" -le 499 ]] || return 1
   [[ "$user_gid" == "$group_gid" ]] || return 1
-  dscl . -read "/Users/$account" RealName 2>/dev/null | grep -Fqx "RealName: $real_name" || return 1
-  dscl . -read "/Users/$account" IsHidden 2>/dev/null | grep -Fqx 'IsHidden: 1' || return 1
-  dscl . -read "/Users/$account" UserShell 2>/dev/null | grep -Fqx 'UserShell: /usr/bin/false'
+  [[ "$home" == "/var/empty" ]] || return 1
+  [[ "$shell" == "/usr/bin/false" ]] || return 1
+  [[ "$gecos" == "$real_name" ]]
 }
 
 create_hidden_account() {
