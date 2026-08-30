@@ -28,17 +28,19 @@ guard CommandLine.arguments.count == 2 else {
     exit(2)
 }
 
+let command = CommandLine.arguments[1]
+
 do {
-    switch CommandLine.arguments[1] {
+    switch command {
     case "status":
         printStatus()
     case "register":
-        if service.status == .notRegistered {
+        if service.status == .notRegistered || service.status == .notFound {
             try service.register()
         }
         printStatus()
     case "unregister":
-        if service.status != .notRegistered {
+        if service.status == .enabled || service.status == .requiresApproval {
             try service.unregister()
         }
         printStatus()
@@ -50,6 +52,12 @@ do {
         exit(2)
     }
 } catch {
+    if command == "register" && service.status == .requiresApproval {
+        print("service_registration=pending-approval")
+        printStatus()
+        exit(0)
+    }
+
     let nsError = error as NSError
     fputs("service_error_domain=\(nsError.domain)\n", stderr)
     fputs("service_error_code=\(nsError.code)\n", stderr)
