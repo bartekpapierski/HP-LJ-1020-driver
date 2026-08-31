@@ -17,7 +17,7 @@
     <string>-o</string>
     <string>server-options=no-web-interface,no-tls</string>
     <string>-o</string>
-    <string>spool-directory=/Library/Application Support/HP-LJ-1020/State/Spool</string>
+    <string>spool-directory="/Library/Application Support/HP-LJ-1020/State/Spool"</string>
     <string>-o</string>
     <string>log-file=/Library/Logs/HP-LJ-1020/launch-boundary.log</string>
     <string>-o</string>
