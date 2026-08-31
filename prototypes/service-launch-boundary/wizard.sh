@@ -108,6 +108,8 @@ install_payload() {
   sudo install -d -o root -g wheel -m 755 "$BIN_ROOT"
   sudo install -d -o "$SERVICE_USER" -g "$SERVICE_USER" -m 700 \
     "$STATE_ROOT" "$STATE_ROOT/Home" "$STATE_ROOT/Spool" "$CAPTURE_ROOT" "$LOG_ROOT"
+  sudo install -d -o "$SERVICE_USER" -g "$SERVICE_USER" -m 700 \
+    "$STATE_ROOT/Home/Library" "$STATE_ROOT/Home/Library/Application Support"
   sudo install -o root -g wheel -m 755 \
     "$APP_PATH/Contents/MacOS/hplj1020-pappl" "$BIN_ROOT/hplj1020-pappl"
   sudo install -o root -g wheel -m 755 \
@@ -170,10 +172,19 @@ service_pid() {
 }
 
 wait_for_service() {
-  local attempt pid
+  local attempt pid expected_uid observed_uid listeners
+  expected_uid=$(id -u "$SERVICE_USER")
   for attempt in {1..60}; do
     pid=$(service_pid || true)
     if [[ "$pid" =~ ^[0-9]+$ ]]; then
+      observed_uid=$(ps -o uid= -p "$pid" 2>/dev/null | tr -d ' ')
+      listeners=$(sudo /usr/sbin/lsof -nP -a -p "$pid" -iTCP:8631 -sTCP:LISTEN 2>/dev/null || true)
+    else
+      observed_uid=""
+      listeners=""
+    fi
+    if [[ "$observed_uid" == "$expected_uid" ]] &&
+       printf '%s\n' "$listeners" | grep -Eq '(127\.0\.0\.1|\[::1\]):8631'; then
       return 0
     fi
     sleep 0.5
