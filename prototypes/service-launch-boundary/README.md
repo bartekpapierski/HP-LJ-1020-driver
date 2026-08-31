@@ -39,6 +39,11 @@ with:
 ./prototypes/service-launch-boundary/wizard.sh --cleanup-only
 ```
 
+After a failed gate, the wizard captures the daemon logs and automatically
+cleans up while the same administrator authorization is active. A known-good
+pinned build from an earlier run can be reused without recompilation by setting
+`HPLJ1020_BUILD_APP_PATH` to its `.app` path.
+
 ## Safety boundary
 
 - The probe never transmits firmware or print data to the USB printer. The

@@ -17,6 +17,8 @@ LOG_ROOT="/Library/Logs/HP-LJ-1020"
 QUEUE="HPLJ1020LaunchBoundary"
 EVIDENCE_DIR=$(mktemp -d /private/tmp/hplj1020-launch-boundary-evidence.XXXXXX)
 APP_PATH=""
+SYSTEM_CHANGES_STARTED=0
+CLEANUP_FINISHED=0
 
 say() { printf '%s\n' "$*"; }
 warn() { printf 'WARNING: %s\n' "$*" >&2; }
@@ -110,6 +112,12 @@ install_payload() {
     "$APP_PATH/Contents/MacOS/hplj1020-pappl" "$BIN_ROOT/hplj1020-pappl"
   sudo install -o root -g wheel -m 755 \
     "$APP_PATH/Contents/MacOS/hplj1020-usb-probe" "$BIN_ROOT/hplj1020-usb-probe"
+  sudo install -o "$SERVICE_USER" -g "$SERVICE_USER" -m 600 \
+    /dev/null "$LOG_ROOT/daemon.stdout.log"
+  sudo install -o "$SERVICE_USER" -g "$SERVICE_USER" -m 600 \
+    /dev/null "$LOG_ROOT/daemon.stderr.log"
+  sudo install -o "$SERVICE_USER" -g "$SERVICE_USER" -m 600 \
+    /dev/null "$LOG_ROOT/launch-boundary.log"
 }
 
 install_daemon() {
@@ -130,6 +138,15 @@ cleanup_prototype() {
   sudo rm -rf "$LOG_ROOT"
   remove_hidden_account "$TEST_USER" "HP LaserJet 1020 Non-Admin Test"
   remove_hidden_account "$SERVICE_USER" "HP LaserJet 1020 Service"
+}
+
+capture_installed_logs() {
+  local phase="$1" name
+  for name in daemon.stdout.log daemon.stderr.log launch-boundary.log; do
+    if sudo test -f "$LOG_ROOT/$name"; then
+      sudo cat "$LOG_ROOT/$name" >"$EVIDENCE_DIR/$phase-$name" 2>/dev/null || true
+    fi
+  done
 }
 
 audit_absence() {
@@ -169,6 +186,7 @@ verify_runtime() {
   record "phase=$phase"
   if ! wait_for_service; then
     record "daemon_running=false"
+    capture_installed_logs "$phase"
     sudo launchctl print "system/$SERVICE_LABEL" >"$EVIDENCE_DIR/$phase-launchctl.txt" 2>&1 || true
     log show --last 2m --style compact \
       --predicate "process == 'launchd' OR process == 'amfid'" \
@@ -243,7 +261,23 @@ verify_runtime() {
     record "dedicated_account_usb_claim=blocked-printer-not-discovered"
     return 1
   fi
+  capture_installed_logs "$phase"
 }
+
+cleanup_after_failure() {
+  local status=$?
+  trap - EXIT
+  if (( status != 0 && SYSTEM_CHANGES_STARTED == 1 && CLEANUP_FINISHED == 0 )); then
+    warn "A validation gate failed. Capturing logs and removing the exact prototype artifacts."
+    capture_installed_logs failure || true
+    cleanup_prototype >"$EVIDENCE_DIR/failure-cleanup.txt" 2>&1 || true
+    audit_absence || true
+    warn "Failure evidence and cleanup results remain at $EVIDENCE_DIR"
+  fi
+  exit "$status"
+}
+
+trap cleanup_after_failure EXIT
 
 say "HP LaserJet 1020 personal service launch-boundary probe"
 say "Evidence: $EVIDENCE_DIR"
@@ -274,15 +308,21 @@ if [[ "$(uname -m)" != "arm64" ]]; then
   exit 1
 fi
 
-say "Building pinned dependencies. This stage makes no system changes."
-BUILD_LOG="$EVIDENCE_DIR/build.log"
-"$PREVIOUS_PROTOTYPE_DIR/build.sh" 2>&1 | tee "$BUILD_LOG"
-APP_PATH=$(sed -n 's/^APP_PATH=//p' "$BUILD_LOG" | tail -n 1)
+if [[ -n "${HPLJ1020_BUILD_APP_PATH:-}" ]]; then
+  APP_PATH="$HPLJ1020_BUILD_APP_PATH"
+  say "Reusing the explicitly supplied pinned build: $APP_PATH"
+else
+  say "Building pinned dependencies. This stage makes no system changes."
+  BUILD_LOG="$EVIDENCE_DIR/build.log"
+  "$PREVIOUS_PROTOTYPE_DIR/build.sh" 2>&1 | tee "$BUILD_LOG"
+  APP_PATH=$(sed -n 's/^APP_PATH=//p' "$BUILD_LOG" | tail -n 1)
+fi
 [[ -d "$APP_PATH" ]] || { warn "Build did not produce the expected app."; exit 1; }
 cp "$APP_PATH/Contents/Resources/build-manifest.txt" "$EVIDENCE_DIR/build-manifest.txt"
 
 say "Administrator access is required from this point. The wizard never reads or stores the password."
 sudo -v
+SYSTEM_CHANGES_STARTED=1
 
 say "Checking for stale prototype state."
 cleanup_prototype 2>&1 | tee "$EVIDENCE_DIR/preflight-cleanup.txt"
@@ -319,6 +359,7 @@ cleanup_prototype 2>&1 | tee "$EVIDENCE_DIR/final-uninstall.txt"
 audit_absence
 record "final_cleanup=passed"
 record "prototype_verdict=legacy-launchdaemon-viable"
+CLEANUP_FINISHED=1
 
 say "Probe complete. Return this evidence directory for review:"
 say "$EVIDENCE_DIR"
