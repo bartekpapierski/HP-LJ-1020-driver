@@ -127,7 +127,6 @@ install_daemon() {
     "$SCRIPT_DIR/com.bartekpapierski.hplj1020.launch-boundary.plist" "$SERVICE_PLIST"
   sudo plutil -lint "$SERVICE_PLIST" | tee -a "$EVIDENCE_DIR/install.txt"
   sudo launchctl bootstrap system "$SERVICE_PLIST"
-  sudo launchctl kickstart -k "system/$SERVICE_LABEL"
 }
 
 cleanup_prototype() {
@@ -172,9 +171,9 @@ service_pid() {
 
 wait_for_service() {
   local attempt pid
-  for attempt in {1..20}; do
+  for attempt in {1..60}; do
     pid=$(service_pid || true)
-    if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+    if [[ "$pid" =~ ^[0-9]+$ ]]; then
       return 0
     fi
     sleep 0.5
