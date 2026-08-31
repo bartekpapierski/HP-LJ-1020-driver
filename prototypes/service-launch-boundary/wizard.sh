@@ -165,10 +165,16 @@ audit_absence() {
   fi
 }
 
+service_pid() {
+  sudo launchctl print "system/$SERVICE_LABEL" 2>/dev/null | \
+    awk '$1 == "pid" && $2 == "=" {print $3; exit}'
+}
+
 wait_for_service() {
-  local attempt
+  local attempt pid
   for attempt in {1..20}; do
-    if pgrep -x hplj1020-pappl >/dev/null 2>&1; then
+    pid=$(service_pid || true)
+    if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
       return 0
     fi
     sleep 0.5
@@ -182,7 +188,7 @@ run_pappl_cli() {
 }
 
 verify_runtime() {
-  local phase="$1" pid listeners capture_count usb_log
+  local phase="$1" pid expected_uid observed_uid listeners capture_count usb_log
   record "phase=$phase"
   if ! wait_for_service; then
     record "daemon_running=false"
@@ -194,16 +200,18 @@ verify_runtime() {
     return 1
   fi
 
-  pid=$(pgrep -x hplj1020-pappl | head -n 1)
+  pid=$(service_pid)
   ps -o user=,uid=,pid=,command= -p "$pid" | tee "$EVIDENCE_DIR/$phase-process.txt"
-  if [[ "$(ps -o user= -p "$pid" | tr -d ' ')" == "$SERVICE_USER" ]]; then
+  expected_uid=$(id -u "$SERVICE_USER")
+  observed_uid=$(ps -o uid= -p "$pid" | tr -d ' ')
+  if [[ "$observed_uid" == "$expected_uid" ]]; then
     record "process_identity=passed"
   else
     record "process_identity=failed"
     return 1
   fi
 
-  listeners=$(/usr/sbin/lsof -nP -a -p "$pid" -iTCP -sTCP:LISTEN || true)
+  listeners=$(sudo /usr/sbin/lsof -nP -a -p "$pid" -iTCP -sTCP:LISTEN || true)
   printf '%s\n' "$listeners" | tee "$EVIDENCE_DIR/$phase-listeners.txt"
   if printf '%s\n' "$listeners" | grep -Eq '(127\.0\.0\.1|\[::1\]):8631' &&
      ! printf '%s\n' "$listeners" | grep -Ev '(^COMMAND|127\.0\.0\.1|\[::1\])' | grep -q .; then
@@ -220,7 +228,7 @@ verify_runtime() {
   fi
   record "pappl_file_printer=passed"
 
-  sudo launchctl kickstart -k system/org.cups.cupsd
+  sudo launchctl kickstart -k system/org.cups.cupsd >/dev/null 2>&1 || true
   sudo lpadmin -x "$QUEUE" >/dev/null 2>&1 || true
   sudo lpadmin -p "$QUEUE" -E \
     -v ipp://localhost:8631/ipp/print/LaunchBoundary -m everywhere
