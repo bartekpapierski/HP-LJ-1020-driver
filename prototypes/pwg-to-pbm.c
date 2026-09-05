@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // THROWAWAY PROTOTYPE: extract PAPPL's one-bit PWG raster for foo2zjs.
 // This is evidence plumbing, not production conversion code.
 

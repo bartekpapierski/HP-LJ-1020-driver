@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Host-only conformance check for the normative implementation specification."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -32,6 +34,13 @@ ALLOWED_VERIFICATION = {
 }
 REQUIRED_DECISIONS = set(range(1, 16))
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
+GPL_IDENTIFIER = "SPDX-License-Identifier: GPL-2.0-or-later"
+FOO2ZJS_COMMIT = "80499ed5bf6caa2963ad337e37cfda78a80aab1e"
+SOURCE_SUFFIXES = {".c", ".h", ".m", ".mm", ".py", ".sh", ".swift", ".html", ".plist"}
+SKIPPED_DIRECTORY_NAMES = {".git", "__pycache__"}
+PROHIBITED_FIRMWARE_NAMES = {"sihp1020.dl", "sihp1020.img"}
+PROHIBITED_BINARY_SUFFIXES = {".a", ".bin", ".dylib", ".exe", ".fw", ".o", ".so"}
+PROHIBITED_BINARY_MAGICS = (b"\x7fELF", b"MZ", b"\xca\xfe\xba\xbe", b"\xcf\xfa\xed\xfe", b"\xfe\xed\xfa\xcf")
 REQUIRED_HEADINGS = {
     "## Problem Statement",
     "## Solution",
@@ -390,6 +399,133 @@ def check_instance_references(
             )
 
 
+def _repository_files(root: Path) -> Iterable[Path]:
+    for path in root.rglob("*"):
+        if not path.is_file() or any(part in SKIPPED_DIRECTORY_NAMES for part in path.parts):
+            continue
+        yield path
+
+
+def _read_text(path: Path, description: str) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise CheckError(f"{description}: cannot read {path}: {error}") from error
+
+
+def check_licensing_and_provenance(root: Path) -> None:
+    license_text = _read_text(root / "LICENSE", "GPL-2.0 license text")
+    if "GNU GENERAL PUBLIC LICENSE" not in license_text or "Version 2, June 1991" not in license_text:
+        raise CheckError("GPL-2.0 license text is missing or incomplete")
+
+    notices = _read_text(root / "THIRD_PARTY_NOTICES.md", "third-party notices")
+    for notice in (
+        "## foo2zjs and bundled JBIG",
+        "Robert Szalai",
+        "Markus Kuhn",
+        "GPL version 2 or later",
+        "## PAPPL",
+        "Michael R Sweet",
+        "embedded portions",
+        "Combined Software",
+        "## libusb",
+        "Johannes Erdfelt",
+        "relinking rights",
+        "GPL-2.0-or-later",
+    ):
+        if notice not in notices:
+            raise CheckError(f"third-party notices omit {notice}")
+    for path, marker in (
+        (root / "LICENSES/Apache-2.0.txt", "Apache License"),
+        (root / "LICENSES/LGPL-2.1-or-later.txt", "GNU LESSER GENERAL PUBLIC LICENSE"),
+    ):
+        if marker not in _read_text(path, "third-party license text"):
+            raise CheckError(f"third-party license text is missing or incomplete: {path}")
+
+    for path in _repository_files(root):
+        if path.suffix not in SOURCE_SUFFIXES:
+            continue
+        if GPL_IDENTIFIER not in _read_text(path, "original source")[:1024]:
+            raise CheckError(f"{path}: missing SPDX-License-Identifier: GPL-2.0-or-later")
+
+    provenance_path = root / "third_party/foo2zjs/adaptations.json"
+    provenance = load_json(provenance_path)
+    expected_fields = {"schemaVersion", "upstream", "adaptations"}
+    if not isinstance(provenance, dict) or set(provenance) != expected_fields:
+        raise CheckError(f"{provenance_path}: invalid provenance record")
+    upstream = provenance["upstream"]
+    if not isinstance(upstream, dict) or upstream != {
+        "repository": "https://github.com/OpenPrinting/foo2zjs.git",
+        "commit": FOO2ZJS_COMMIT,
+        "license": "GPL-2.0-or-later",
+    }:
+        raise CheckError(f"{provenance_path}: pinned foo2zjs commit or source is inconsistent")
+    adaptations = provenance["adaptations"]
+    if not isinstance(adaptations, list):
+        raise CheckError(f"{provenance_path}: adaptations must be an array")
+    upstream_files_path = root / "third_party/foo2zjs/upstream-files.json"
+    upstream_files = load_json(upstream_files_path)
+    if not isinstance(upstream_files, dict) or set(upstream_files) != {"schemaVersion", "commit", "files"}:
+        raise CheckError(f"{upstream_files_path}: invalid pinned upstream file record")
+    files = upstream_files["files"]
+    if upstream_files["schemaVersion"] != "1.0.0" or upstream_files["commit"] != FOO2ZJS_COMMIT or not isinstance(files, dict):
+        raise CheckError(f"{upstream_files_path}: invalid pinned upstream file record")
+    if not files or any(
+        not isinstance(path, str) or not path or Path(path).is_absolute() or ".." in Path(path).parts
+        or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)
+        for path, digest in files.items()
+    ):
+        raise CheckError(f"{upstream_files_path}: invalid pinned upstream file record")
+    risk_text = _read_text(root / "third_party/foo2zjs/PROVENANCE.md", "accepted foo2zjs provenance risk")
+    for statement in (
+        "Upstream `zjs.h`",
+        "unidentified `zjrca.h`",
+        "accepted only for a personal-use\ninstallation",
+        "public binary release is blocked",
+    ):
+        if statement not in risk_text:
+            raise CheckError("accepted foo2zjs provenance risk is missing or inconsistent")
+    seen_paths: set[str] = set()
+    for adaptation in adaptations:
+        required = {"path", "upstreamPath", "sha256", "modifiedNotice"}
+        if not isinstance(adaptation, dict) or set(adaptation) != required:
+            raise CheckError(f"{provenance_path}: invalid adaptation record")
+        path = adaptation["path"]
+        if not isinstance(path, str) or path in seen_paths or Path(path).is_absolute() or ".." in Path(path).parts:
+            raise CheckError(f"{provenance_path}: invalid adaptation path")
+        upstream_path = adaptation["upstreamPath"]
+        if not isinstance(upstream_path, str) or not upstream_path or Path(upstream_path).is_absolute() or ".." in Path(upstream_path).parts:
+            raise CheckError(f"{provenance_path}: invalid upstream adaptation path")
+        if upstream_path not in files:
+            raise CheckError(f"{provenance_path}: unknown pinned upstream file {upstream_path}")
+        digest = adaptation["sha256"]
+        if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+            raise CheckError(f"{provenance_path}: invalid adaptation sha256")
+        modified_notice = adaptation["modifiedNotice"]
+        if modified_notice != "Modified by HP-LJ-1020-driver contributors":
+            raise CheckError(f"{provenance_path}: invalid adaptation modified notice")
+        seen_paths.add(path)
+        adapted_path = root / "third_party/foo2zjs" / path
+        if not adapted_path.is_file() or modified_notice not in _read_text(adapted_path, "adapted foo2zjs source"):
+            raise CheckError(f"{adapted_path}: adapted foo2zjs source is not marked as modified")
+        if hashlib.sha256(adapted_path.read_bytes()).hexdigest() != digest:
+            raise CheckError(f"{adapted_path}: adaptation sha256 is inconsistent")
+
+    foo2zjs_root = root / "third_party/foo2zjs"
+    metadata = {foo2zjs_root / "PROVENANCE.md", provenance_path, upstream_files_path}
+    undeclared = [path for path in _repository_files(foo2zjs_root) if path not in metadata and str(path.relative_to(foo2zjs_root)) not in seen_paths]
+    if undeclared:
+        raise CheckError(f"{undeclared[0]}: foo2zjs source or patch is not recorded in adaptations.json")
+
+    for path in _repository_files(root):
+        name = path.name.lower()
+        data = path.read_bytes()[:4]
+        if name in PROHIBITED_FIRMWARE_NAMES or name in {"hp_laserjet_1020.fw.gz", "sihp1020.dl.gz"} or path.suffix.lower() == ".firmware":
+            raise CheckError(f"{path}: prohibited firmware artifact")
+        if path.suffix.lower() in PROHIBITED_BINARY_SUFFIXES or data.startswith(PROHIBITED_BINARY_MAGICS):
+            raise CheckError(f"{path}: prohibited third-party binary artifact")
+
+
 def run(root: Path) -> None:
     spec_path = root / "docs/IMPLEMENTATION-SPEC.md"
     try:
@@ -404,6 +540,7 @@ def run(root: Path) -> None:
     check_catalog_pins(text, schemas.values())
     check_diagnostic_inventory(root, allowed_schema_ids)
     check_instance_references(root, set(known), allowed_schema_ids)
+    check_licensing_and_provenance(root)
 
 
 def main(argv: list[str]) -> int:

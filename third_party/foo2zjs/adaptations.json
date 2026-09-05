@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0.0",
+  "upstream": {
+    "repository": "https://github.com/OpenPrinting/foo2zjs.git",
+    "commit": "80499ed5bf6caa2963ad337e37cfda78a80aab1e",
+    "license": "GPL-2.0-or-later"
+  },
+  "adaptations": []
+}

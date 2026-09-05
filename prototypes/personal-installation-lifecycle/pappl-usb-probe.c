@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // THROWAWAY PROTOTYPE: enumerate and claim the reference printer through
 // PAPPL's public USB device API without transmitting firmware or print data.
 

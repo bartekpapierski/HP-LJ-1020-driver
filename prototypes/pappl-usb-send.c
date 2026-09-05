@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // THROWAWAY PROTOTYPE: send an explicitly selected firmware or ZjStream file
 // through PAPPL's USB device layer. This is not a production spooler.
 

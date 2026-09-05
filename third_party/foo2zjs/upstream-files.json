@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0.0",
+  "commit": "80499ed5bf6caa2963ad337e37cfda78a80aab1e",
+  "files": {
+    "foo2zjs.c": "7859dcf2d5af4c1dba63807a8d791c5af936c26a6a1dfec164eff897e1a8c1fa",
+    "jbig.c": "835ce9b964a6735187b6e064562695063a65f35fe29924de1d60db660c3e21b3",
+    "jbig_ar.c": "a51552d2f839ce8b758400660bd423b95b4b25cde11e65cc4e7d6c63c1a19d6f",
+    "jbig.h": "0c016a8c69e349c510630edbf5b96057be952c2ac19c1a9b8488ad8c9864d7a4",
+    "jbig_ar.h": "292c4c43c944e2573b558d89b7004cec6c59c70dbbfd7b9890868a2291d1250a",
+    "zjs.h": "d62b56934283fdccfb9137bbf98d8faeab2c6b032b8b4a9732b963c8d5a9cc89"
+  }
+}

@@ -1,6 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import shutil
 import sys
@@ -123,9 +125,103 @@ class LicensingAndProvenanceChecks(unittest.TestCase):
         with self.assertRaisesRegex(checker.CheckError, "pinned foo2zjs commit"):
             checker.check_licensing_and_provenance(root)
 
+    def test_missing_accepted_foo2zjs_provenance_risk_is_rejected(self) -> None:
+        _, root = self.copy_repository()
+        (root / "third_party/foo2zjs/PROVENANCE.md").unlink()
+
+        with self.assertRaisesRegex(checker.CheckError, "accepted foo2zjs provenance risk"):
+            checker.check_licensing_and_provenance(root)
+
+    def test_missing_required_third_party_notice_is_rejected(self) -> None:
+        _, root = self.copy_repository()
+        notices = root / "THIRD_PARTY_NOTICES.md"
+        notices.write_text(notices.read_text(encoding="utf-8").replace("## PAPPL", "", 1), encoding="utf-8")
+
+        with self.assertRaisesRegex(checker.CheckError, "third-party notices omit ## PAPPL"):
+            checker.check_licensing_and_provenance(root)
+
+    def test_missing_pappl_license_exception_is_rejected(self) -> None:
+        _, root = self.copy_repository()
+        notices = root / "THIRD_PARTY_NOTICES.md"
+        notices.write_text(
+            notices.read_text(encoding="utf-8").replace("embedded portions", "removed exception", 1),
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(checker.CheckError, "third-party notices omit embedded portions"):
+            checker.check_licensing_and_provenance(root)
+
+    def test_unmarked_foo2zjs_adaptation_is_rejected(self) -> None:
+        _, root = self.copy_repository()
+        adapted = root / "third_party/foo2zjs/foo2zjs.c"
+        adapted.write_text("/* SPDX-License-Identifier: GPL-2.0-or-later */\n", encoding="utf-8")
+        record = root / "third_party/foo2zjs/adaptations.json"
+        provenance = json.loads(record.read_text(encoding="utf-8"))
+        provenance["adaptations"] = [{
+            "path": "foo2zjs.c",
+            "upstreamPath": "foo2zjs.c",
+            "sha256": "0" * 64,
+            "modifiedNotice": "Modified by HP-LJ-1020-driver contributors",
+        }]
+        record.write_text(json.dumps(provenance), encoding="utf-8")
+
+        with self.assertRaisesRegex(checker.CheckError, "not marked as modified"):
+            checker.check_licensing_and_provenance(root)
+
+    def test_adaptation_with_inconsistent_trace_record_is_rejected(self) -> None:
+        _, root = self.copy_repository()
+        adapted = root / "third_party/foo2zjs/foo2zjs.c"
+        adapted.write_text(
+            "/* SPDX-License-Identifier: GPL-2.0-or-later */\n"
+            "/* Modified by HP-LJ-1020-driver contributors */\n",
+            encoding="utf-8",
+        )
+        record = root / "third_party/foo2zjs/adaptations.json"
+        provenance = json.loads(record.read_text(encoding="utf-8"))
+        provenance["adaptations"] = [{
+            "path": "foo2zjs.c",
+            "upstreamPath": "foo2zjs.c",
+            "sha256": "0" * 64,
+            "modifiedNotice": "Modified by HP-LJ-1020-driver contributors",
+        }]
+        record.write_text(json.dumps(provenance), encoding="utf-8")
+
+        with self.assertRaisesRegex(checker.CheckError, "sha256 is inconsistent"):
+            checker.check_licensing_and_provenance(root)
+
+    def test_adaptation_without_a_pinned_upstream_file_is_rejected(self) -> None:
+        _, root = self.copy_repository()
+        adapted = root / "third_party/foo2zjs/foo2zjs.c"
+        content = (
+            "/* SPDX-License-Identifier: GPL-2.0-or-later */\n"
+            "/* Modified by HP-LJ-1020-driver contributors */\n"
+        )
+        adapted.write_text(content, encoding="utf-8")
+        record = root / "third_party/foo2zjs/adaptations.json"
+        provenance = json.loads(record.read_text(encoding="utf-8"))
+        provenance["adaptations"] = [{
+            "path": "foo2zjs.c",
+            "upstreamPath": "does-not-exist.c",
+            "sha256": hashlib.sha256(content.encode()).hexdigest(),
+            "modifiedNotice": "Modified by HP-LJ-1020-driver contributors",
+        }]
+        record.write_text(json.dumps(provenance), encoding="utf-8")
+
+        with self.assertRaisesRegex(checker.CheckError, "unknown pinned upstream file"):
+            checker.check_licensing_and_provenance(root)
+
     def test_hp_firmware_artifact_is_rejected(self) -> None:
         _, root = self.copy_repository()
         firmware = root / "firmware/sihp1020.dl"
+        firmware.parent.mkdir()
+        firmware.write_bytes(b"not redistributable")
+
+        with self.assertRaisesRegex(checker.CheckError, "prohibited firmware artifact"):
+            checker.check_licensing_and_provenance(root)
+
+    def test_documented_hp_firmware_archive_is_rejected(self) -> None:
+        _, root = self.copy_repository()
+        firmware = root / "firmware/hp_laserjet_1020.fw.gz"
         firmware.parent.mkdir()
         firmware.write_bytes(b"not redistributable")
 

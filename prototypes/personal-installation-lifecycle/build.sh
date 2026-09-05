@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Build a disposable, ad-hoc-signed app-bundled PAPPL LaunchDaemon prototype.
 
 set -euo pipefail
