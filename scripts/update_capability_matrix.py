@@ -157,6 +157,11 @@ def build_matrix(existing: dict[str, Any] | None = None) -> dict[str, Any]:
                 "maximumServiceRestartsDuringSoak": 0,
                 "lifecycleCycles": 3,
             } if scenario_id == "SCN-REPETITION-SOAK" else None,
+            "requiresArtifactEvidence": any(
+                "REFERENCE_PRINTER" in requirement.verification
+                or "HUMAN_REVIEW" in requirement.verification
+                for requirement in covered
+            ),
         }
         if old:
             for field in (
@@ -172,6 +177,7 @@ def build_matrix(existing: dict[str, Any] | None = None) -> dict[str, Any]:
                 "attempts",
                 "intermittencyExplanation",
                 "reliabilityRequirements",
+                "requiresArtifactEvidence",
             ):
                 row[field] = old.get(field, row[field])
             row["invalidatedBy"] = invalidations

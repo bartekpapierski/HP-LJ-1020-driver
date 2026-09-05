@@ -238,6 +238,22 @@ def _validate_private_bytes(path: Path) -> None:
         raise ValidationError(f"evidence retains firmware identity: {path.name}")
 
 
+def _validate_redacted_strings(value: Any, context: str = "manifest") -> None:
+    if isinstance(value, dict):
+        for field, child in value.items():
+            _validate_redacted_strings(child, f"{context}.{field}")
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            _validate_redacted_strings(child, f"{context}[{index}]")
+    elif isinstance(value, str):
+        if PRIVATE_SOURCE_PATH.search(value):
+            raise ValidationError(f"{context} retains a private source filename")
+        if EXPOSED_SECRET.search(value):
+            raise ValidationError(f"{context} retains credentials or user identity")
+        if FIRMWARE_NAME.search(value):
+            raise ValidationError(f"{context} retains firmware identity")
+
+
 def _validate_utf8_text(path: Path) -> None:
     try:
         path.read_text(encoding="utf-8")
@@ -297,6 +313,7 @@ def validate_gate(
         json_schema.validate(manifest, manifest_schema)
     except (OSError, json.JSONDecodeError, json_schema.SchemaError) as error:
         raise ValidationError(f"schema validation failed: {error}") from error
+    _validate_redacted_strings(manifest)
     scenarios = _scenario_map(matrix, known_requirements)
     missing = required_scenarios - set(scenarios)
     if missing:
@@ -407,6 +424,11 @@ def validate_gate(
             raise ValidationError(f"{scenario_id} lacks passing immutable evidence")
         if any(scenario_id not in evidence_by_hash[digest]["scenarioIds"] for digest in pointers):
             raise ValidationError(f"{scenario_id} evidence is bound to another scenario")
+        if row["requiresArtifactEvidence"] and not any(
+            evidence_by_hash[digest]["kind"] in {"scan", "photograph"}
+            for digest in pointers
+        ):
+            raise ValidationError(f"{scenario_id} requires scan or photograph evidence")
         if not set(row["evidence"]) <= set(pointers):
             raise ValidationError(f"{scenario_id} matrix evidence is absent from the manifest")
         _check_reliability(scenario_id, row, result)

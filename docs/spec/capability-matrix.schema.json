@@ -81,7 +81,8 @@
         "invalidatedBy",
         "attempts",
         "intermittencyExplanation",
-        "reliabilityRequirements"
+        "reliabilityRequirements",
+        "requiresArtifactEvidence"
       ],
       "properties": {
         "scenarioId": { "type": "string", "pattern": "^SCN-[A-Z0-9-]+$" },
@@ -128,7 +129,8 @@
             { "$ref": "#/$defs/reliability" },
             { "type": "null" }
           ]
-        }
+        },
+        "requiresArtifactEvidence": { "type": "boolean" }
       },
       "allOf": [
         {

@@ -61,6 +61,7 @@ def scenario(
         "attempts": [attempt(1)],
         "intermittencyExplanation": None,
         "reliabilityRequirements": None,
+        "requiresArtifactEvidence": False,
     }
 
 
@@ -373,6 +374,19 @@ class ValidationGateChecks(unittest.TestCase):
 
         with self.assertRaisesRegex(gate.ValidationError, "date-time"):
             self.run_gate([scenario()], mutate_manifest=break_timestamp)
+
+    def test_private_filename_in_manifest_summary_is_rejected(self) -> None:
+        def expose_filename(run: dict[str, object]) -> None:
+            run["scenarioResults"][0]["summary"] = "/Users/alice/private.pdf"
+
+        with self.assertRaisesRegex(gate.ValidationError, "private source filename"):
+            self.run_gate([scenario()], mutate_manifest=expose_filename)
+
+    def test_hardware_scenario_requires_scan_or_photo_evidence(self) -> None:
+        row = scenario()
+        row["requiresArtifactEvidence"] = True
+        with self.assertRaisesRegex(gate.ValidationError, "scan or photograph"):
+            self.run_gate([row])
 
 
 if __name__ == "__main__":

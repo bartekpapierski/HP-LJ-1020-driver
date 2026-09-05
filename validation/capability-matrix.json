@@ -7,7 +7,7 @@
     "golden-corpus": "031eb7c2a6271d55789733b5ad20f7cacb7abc79c072fafc285055828fef911a",
     "implementation-contract": "a6417b21e54e9df041f65b982b3961880d8d1a47bceefd6498efd5ace960bdab",
     "product-source": "3e7c55472863915ad9f2aa19ee666d2488d1b8f52b0d0f89e31a30d184fd3379",
-    "validation-tooling": "bff43693b065e0a511f425773327e064b8b60218d13f1f535599a35976e142d5"
+    "validation-tooling": "5c89cdee7c0fa75b97f14338b0358e256f6c50b6c11dbfa52062020edee315ce"
   },
   "scenarios": [
     {
@@ -39,7 +39,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-ADHOC-SIGNING",
@@ -70,7 +71,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-ADMIN-INPUTS",
@@ -100,7 +102,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-ARCH-LANGUAGE",
@@ -130,7 +133,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-ARCH-LINKAGE",
@@ -161,7 +165,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-ARCH-RUNTIME-CONTENT",
@@ -192,7 +197,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-BASIC-DIRECT",
@@ -228,7 +234,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-BASIC-DOCK",
@@ -264,7 +271,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-BASIC-GATE",
@@ -294,7 +302,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-BUILD-MANIFEST",
@@ -323,7 +332,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-BUILD-SYSTEM",
@@ -353,7 +363,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-BUILD-WRAPPER",
@@ -383,7 +394,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-BUNDLE-DETERMINISM",
@@ -413,7 +425,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-BUNDLE-EXPLICIT",
@@ -443,7 +456,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-BUNDLE-INVENTORY",
@@ -474,7 +488,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-BUNDLE-PARTIAL",
@@ -504,7 +519,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-CANCEL-BEFORE-SEND",
@@ -534,7 +550,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-CANCEL-DURING-SEND",
@@ -564,7 +581,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-CAPABILITY-ENVELOPE",
@@ -595,7 +613,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-CAPABILITY-GATE",
@@ -626,7 +645,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-CI-SUPPLY-CHAIN",
@@ -656,7 +676,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-CLEAN-INSTALL",
@@ -686,7 +707,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-COMPLETE-UNINSTALL",
@@ -717,7 +739,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-DEPENDENCY-LOCK",
@@ -750,7 +773,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-DEPENDENCY-UPDATE",
@@ -780,7 +804,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-DEVELOPMENT-MODE",
@@ -810,7 +835,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-DEVICE-IDENTITY",
@@ -841,7 +867,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-DEVICE-RECOVERY",
@@ -871,7 +898,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-DIAGNOSTIC-CATEGORIES",
@@ -902,7 +930,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-DIAGNOSTIC-PRIVACY",
@@ -934,7 +963,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-DISABLE-ENABLE",
@@ -965,7 +995,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-DISCONNECT-DURING-SEND",
@@ -995,7 +1026,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-DISTRIBUTION-BOUNDARY",
@@ -1026,7 +1058,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-ENCODER-CONTRACT",
@@ -1056,7 +1089,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-ERROR-CONTRACT",
@@ -1086,7 +1120,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-EVIDENCE-EXPIRY",
@@ -1116,7 +1151,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-FAIL-CLOSED",
@@ -1147,7 +1183,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-FAILED-RELEASE-RUN",
@@ -1178,7 +1215,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-FIRMWARE-BOOTSTRAP",
@@ -1209,7 +1247,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-FIRMWARE-DISCLOSURE",
@@ -1240,7 +1279,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-FIRMWARE-ERRORS",
@@ -1270,7 +1310,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-FIRMWARE-EXCLUSION",
@@ -1304,7 +1345,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-FIRMWARE-IDEMPOTENCE",
@@ -1335,7 +1377,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-FIRMWARE-IMPORT",
@@ -1365,7 +1408,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-FIRMWARE-REQUIRED",
@@ -1395,7 +1439,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-FIRMWARE-RETRY",
@@ -1426,7 +1471,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-FIRMWARE-VERIFY",
@@ -1457,7 +1503,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-GOLDEN-CORPUS",
@@ -1488,7 +1535,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-GPL-RIGHTS",
@@ -1518,7 +1566,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-HOST-BOUNDARY",
@@ -1549,7 +1598,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-HOSTED-CI",
@@ -1579,7 +1629,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-IDENTITY-REDACTION",
@@ -1610,7 +1661,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-INSTALL-HEALTH",
@@ -1641,7 +1693,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-INSTALLED-PATHS",
@@ -1671,7 +1724,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-INSTALLED-PERMISSIONS",
@@ -1701,7 +1755,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-JOB-RETENTION",
@@ -1731,7 +1786,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-JOB-RETRY-BOUNDARY",
@@ -1761,7 +1817,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-KNOWN-PROVENANCE-RISK",
@@ -1791,7 +1848,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-LAUNCH-READINESS",
@@ -1821,7 +1879,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-LICENSE-FILES",
@@ -1851,7 +1910,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-LIFECYCLE-CONVERGENCE",
@@ -1882,7 +1942,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-LOCAL-STATUS",
@@ -1912,7 +1973,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-LOG-BOUNDS",
@@ -1942,7 +2004,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-LOOPBACK-ONLY",
@@ -1973,7 +2036,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-MACOS-SUPPORT-CHANGE",
@@ -2003,7 +2067,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-MANUAL-DUPLEX",
@@ -2033,7 +2098,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-MATRIX-SCHEMA",
@@ -2063,7 +2129,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-MODULE-CONTRACTS",
@@ -2093,7 +2160,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-NO-EGRESS",
@@ -2123,7 +2191,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-NO-HELPER",
@@ -2154,7 +2223,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-NO-PUBLIC-AUTOMATION",
@@ -2183,7 +2253,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-OUT-OF-SCOPE",
@@ -2213,7 +2284,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-OUTPUT-ORACLE",
@@ -2244,7 +2316,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-OWNERSHIP-CONTRACT",
@@ -2273,7 +2346,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-PAPPL-CONTRACT",
@@ -2303,7 +2377,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-PARTIAL-INSTALL",
@@ -2332,7 +2407,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-PERSONAL-GATE",
@@ -2363,7 +2439,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-PERSONAL-RELEASE",
@@ -2394,7 +2471,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-PIPELINE-FORMAT",
@@ -2425,7 +2503,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-PRIVILEGE-BOUNDARY",
@@ -2456,7 +2535,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-PROJECT-LICENSE",
@@ -2486,7 +2566,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-PUBLIC-CORRESPONDING-SOURCE",
@@ -2518,7 +2599,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-PUBLIC-FIRMWARE",
@@ -2548,7 +2630,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-PUBLIC-GATE",
@@ -2578,7 +2661,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-PUBLIC-PROVENANCE",
@@ -2607,7 +2691,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-PUBLIC-RELICENSING",
@@ -2636,7 +2721,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-PUBLIC-SOURCE-BOUNDARY",
@@ -2666,7 +2752,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-PUBLIC-TRUST",
@@ -2697,7 +2784,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-RASTER-600DPI",
@@ -2728,7 +2816,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-RASTER-CONTRACT",
@@ -2758,7 +2847,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-RASTER-MISMATCH",
@@ -2788,7 +2878,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-RELEASE-BUILD-GUARDS",
@@ -2818,7 +2909,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-RELEASE-NOTES",
@@ -2850,7 +2942,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-RELEASE-PROMOTION",
@@ -2881,7 +2974,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-RELEASE-RECORD",
@@ -2911,7 +3005,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-RELEASE-RETENTION",
@@ -2942,7 +3037,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-REMOVAL-RESIDUE",
@@ -2972,7 +3068,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-REPETITION-SOAK",
@@ -3010,7 +3107,8 @@
         "mixedDocumentSoakJobs": 20,
         "maximumServiceRestartsDuringSoak": 0,
         "lifecycleCycles": 3
-      }
+      },
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-REPOSITORY-GOVERNANCE",
@@ -3040,7 +3138,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-REPRODUCIBILITY",
@@ -3070,7 +3169,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-REQUIRED-DISCLOSURES",
@@ -3100,7 +3200,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-ROLLBACK-PAYLOAD",
@@ -3131,7 +3232,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-SAFE-MEDIA-FAULTS",
@@ -3163,7 +3265,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-SCHEMA-CATALOG",
@@ -3192,7 +3295,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-SCOPE-IDENTITY",
@@ -3222,7 +3326,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-SEAL-INTEGRITY",
@@ -3253,7 +3358,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-SEALED-CONTENTS",
@@ -3284,7 +3390,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-SERVICE-IDENTITY",
@@ -3315,7 +3422,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-SPEC-CHECK-NEGATIVE",
@@ -3345,7 +3453,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-SPEC-CONFORMANCE",
@@ -3380,7 +3489,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-STATUS-CONTRACT",
@@ -3409,7 +3519,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-SUBSEQUENT-JOB",
@@ -3439,7 +3550,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-SUPPORT-CLAIM",
@@ -3469,7 +3581,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-TAGGED-UPDATE",
@@ -3500,7 +3613,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-TEST-DOUBLES",
@@ -3530,7 +3644,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-THIRD-PARTY-NOTICES",
@@ -3561,7 +3676,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-UPDATE-ROLLBACK",
@@ -3593,7 +3709,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-UPGRADE-COMPATIBILITY",
@@ -3623,7 +3740,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-UPSTREAM-PROVENANCE",
@@ -3654,7 +3772,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-USB-BOUNDARY",
@@ -3685,7 +3804,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-USB-CLAIM-DIRECT",
@@ -3716,7 +3836,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-USB-CLAIM-DOCK",
@@ -3747,7 +3868,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-USB-FW-CONTRACT",
@@ -3777,7 +3899,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-VALIDATION-MANIFEST",
@@ -3807,7 +3930,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-VERSION-SOURCE",
@@ -3837,7 +3961,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-VM-EVIDENCE-BOUNDARY",
@@ -3867,7 +3992,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-WRITABLE-INPUTS",
@@ -3897,7 +4023,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     },
     {
       "scenarioId": "SCN-ZJSTREAM-STRUCTURE",
@@ -3928,7 +4055,8 @@
       "invalidatedBy": [],
       "attempts": [],
       "intermittencyExplanation": null,
-      "reliabilityRequirements": null
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
     }
   ]
 }
