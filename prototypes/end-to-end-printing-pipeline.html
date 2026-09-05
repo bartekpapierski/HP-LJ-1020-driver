@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HP LaserJet 1020 pipeline proof — throwaway prototype</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17202a;
+      --muted: #647180;
+      --paper: #f6f7f4;
+      --panel: #ffffff;
+      --line: #d8ddd6;
+      --accent: #166c5d;
+      --accent-soft: #e3f1ed;
+      --warning: #915f00;
+      --warning-soft: #fff3d6;
+      --danger: #9e2a2b;
+      --danger-soft: #fde8e7;
+      --success: #166c3a;
+      --success-soft: #e4f3e9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: 48px auto 80px;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.05; max-width: 820px; }
+    h2 { font-size: 1.35rem; margin-bottom: 16px; }
+    h3 { font-size: 1rem; margin-bottom: 8px; }
+    .lede { color: var(--muted); font-size: 1.08rem; max-width: 850px; }
+    .prototype-mark { color: var(--danger); font-size: .78rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+
+    .notice {
+      margin: 24px 0 32px;
+      border-left: 4px solid var(--warning);
+      background: var(--warning-soft);
+      padding: 16px 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 22px;
+      margin-top: 20px;
+      box-shadow: 0 4px 18px rgb(24 34 29 / 4%);
+    }
+
+    .verdict {
+      border-width: 2px;
+    }
+
+    .verdict[data-tone="blocked"] { border-color: #d4a83b; background: var(--warning-soft); }
+    .verdict[data-tone="invalid"] { border-color: #d56b6b; background: var(--danger-soft); }
+    .verdict[data-tone="valid"] { border-color: #5eaf78; background: var(--success-soft); }
+    .verdict[data-tone="open"] { border-color: var(--accent); background: var(--accent-soft); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+
+    .fact {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 13px 14px;
+      min-height: 82px;
+    }
+
+    .fact dt { color: var(--muted); font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+    .fact dd { margin: 5px 0 0; font-weight: 650; }
+    .fact dd small { display: block; color: var(--muted); font-weight: 450; margin-top: 3px; }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 9px; }
+    button {
+      appearance: none;
+      border: 1px solid #b8c3bc;
+      border-radius: 9px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 650;
+      padding: 9px 13px;
+    }
+    button:hover { border-color: var(--accent); color: var(--accent); }
+    button:focus-visible { outline: 3px solid #8bc5b9; outline-offset: 2px; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+    button.danger { border-color: #d6a4a4; color: var(--danger); }
+    button[disabled] { cursor: not-allowed; opacity: .42; }
+
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+    .tab { border: 0; border-radius: 8px 8px 0 0; color: var(--muted); }
+    .tab[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); }
+    .walkthrough-description { color: var(--muted); max-width: 760px; }
+    .steps { display: grid; gap: 10px; }
+    .step { display: grid; grid-template-columns: 36px 1fr; align-items: center; gap: 9px; }
+    .step-number { color: var(--muted); font-size: .85rem; text-align: center; }
+    .step button { text-align: left; width: 100%; }
+
+    .checklist { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
+    .checklist li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; }
+    .checklist .yes { color: var(--success); }
+    .checklist .no { color: var(--muted); }
+    .checklist .fail { color: var(--danger); }
+
+    .log { max-height: 260px; overflow: auto; margin: 0; padding-left: 22px; }
+    .log li { padding: 4px 0; }
+    .log .rejected { color: var(--danger); }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+      gap: 20px;
+    }
+
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; }
+    footer { color: var(--muted); margin-top: 32px; font-size: .9rem; }
+
+    @media (max-width: 760px) {
+      main { margin-top: 28px; }
+      .split { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="prototype-mark">Throwaway logic prototype</p>
+    <h1>Can the selected architecture carry one ordinary macOS print job all the way to paper?</h1>
+    <p class="lede">This demo makes the proof contract tangible: drive the Printer Application, firmware, USB, raster, and recovery states in the same order the reference Mac must observe them. The available UGREEN dock is the validated reference path; the direct adapter remains an explicit pre-release validation gap because that hardware is unavailable.</p>
+
+    <div class="notice">
+      <strong>Clicks are not hardware evidence.</strong> Record an action here only after observing it on the reference Mac and printer. The initial state reflects the completed 24 August 2026 dock-path probe: an ordinary macOS job, unprivileged firmware bootstrap and USB transport, corrected 600 dpi raster mapping, and clean full-page A4 output all passed. The direct-adapter path remains unobserved.
+    </div>
+
+    <section id="verdict" class="panel verdict" data-tone="blocked" aria-live="polite"></section>
+
+    <section class="panel">
+      <h2>Current proof state</h2>
+      <div id="state" class="grid"></div>
+    </section>
+
+    <section class="panel split">
+      <div>
+        <h2>Free play</h2>
+        <p class="lede">Use these after each real observation. Illegal transitions are rejected and explained in the event log.</p>
+        <div id="actions" class="actions"></div>
+      </div>
+      <div>
+        <h2>Architecture gates</h2>
+        <ul id="gates" class="checklist"></ul>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Guided walkthroughs</h2>
+      <div id="tabs" class="tabs" role="tablist"></div>
+      <div id="walkthrough"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Event log</h2>
+      <ol id="log" class="log" aria-live="polite"></ol>
+    </section>
+
+    <footer>Disposable artifact for “Prove the end-to-end printing pipeline.” State is in memory and disappears when this file is closed.</footer>
+  </main>
+
+  <script>
+    // Portable state model. It intentionally knows nothing about the page or DOM.
+    const PipelineModel = (() => {
+      const paths = ["dock", "direct"];
+
+      function blankEvidence() {
+        return {
+          macosJobAccepted: null,
+          rasterReceived: null,
+          usbClaimedWithoutRoot: null,
+          firmwareBootstrapped: null,
+          jobSurvivedFirmwareActivation: null,
+          zjstreamProduced: null,
+          pageCorrect: null,
+          cancellationTruthful: null,
+          reconnectRecovered: null
+        };
+      }
+
+      function initialState() {
+        const evidence = { dock: blankEvidence(), direct: blankEvidence() };
+        evidence.dock.macosJobAccepted = true;
+        evidence.dock.rasterReceived = true;
+        evidence.dock.usbClaimedWithoutRoot = true;
+        evidence.dock.firmwareBootstrapped = true;
+        evidence.dock.jobSurvivedFirmwareActivation = true;
+        evidence.dock.zjstreamProduced = true;
+        evidence.dock.pageCorrect = true;
+
+        return {
+          environment: { cupsRunning: true, printerVisible: true, dependenciesBuilt: true },
+          service: "listening",
+          queue: "standard-macos-queue",
+          path: "dock",
+          device: "ready",
+          job: "printed",
+          requiredPaths: ["dock"],
+          deferredPaths: ["direct"],
+          evidence,
+          failures: [],
+          events: [
+            { message: "Observed CUPS discover the pre-firmware reference printer through the dock.", rejected: false },
+            { message: "Observed PAPPL 1.4.12 build and run unprivileged on the reference Mac.", rejected: false },
+            { message: "Observed PAPPL open the USB device and read its IEEE-1284 identity without root.", rejected: false },
+            { message: "Observed a standard macOS/CUPS queue deliver a one-page PDF to PAPPL.", rejected: false },
+            { message: "Observed licensed exact-model firmware activate in place; the USB location and session remained stable and FWVER:20080222 appeared.", rejected: false },
+            { message: "Observed the first normal-quality job render 300 dpi content into a 600 dpi canvas and print at quarter area.", rejected: false },
+            { message: "Observed high-quality option mapping produce a full 600×600 one-bit A4 raster and structurally valid LaserJet 1020 ZjStream.", rejected: false },
+            { message: "Observed the corrected page print cleanly with a perfect fit through the dock.", rejected: false }
+          ]
+        };
+      }
+
+      function append(state, message, rejected = false) {
+        return { ...state, events: [...state.events, { message, rejected }] };
+      }
+
+      function reject(state, message) {
+        return append(state, `Rejected: ${message}`, true);
+      }
+
+      function record(state, field, value = true) {
+        if (!state.path) return state;
+        return {
+          ...state,
+          evidence: {
+            ...state.evidence,
+            [state.path]: { ...state.evidence[state.path], [field]: value }
+          }
+        };
+      }
+
+      function fail(state, code, message, evidenceField) {
+        let next = state;
+        if (evidenceField) next = record(next, evidenceField, false);
+        return append({ ...next, failures: [...new Set([...next.failures, code])], job: "failed" }, message);
+      }
+
+      function transition(state, action) {
+        switch (action.type) {
+          case "RESET": return initialState();
+          case "START_CUPS":
+            return append({ ...state, environment: { ...state.environment, cupsRunning: true } }, "Observed CUPS running.");
+          case "BUILD_DEPS":
+            return append({ ...state, environment: { ...state.environment, dependenciesBuilt: true } }, "Observed the pinned prototype dependencies built.");
+          case "SEE_PRINTER":
+            return append({ ...state, environment: { ...state.environment, printerVisible: true } }, "Observed the reference printer on USB.");
+          case "START_SERVICE":
+            if (!state.environment.cupsRunning || !state.environment.dependenciesBuilt) return reject(state, "CUPS and the pinned dependencies must be ready before the Printer Application can start.");
+            return append({ ...state, service: "listening" }, "Observed the loopback-only Printer Application listening.");
+          case "ADD_QUEUE":
+            if (state.service !== "listening") return reject(state, "the Printer Application must be listening before macOS can add it.");
+            return append({ ...state, queue: "standard-macos-queue" }, "Observed the Printer Application added through standard macOS printer setup.");
+          case "CONNECT":
+            if (!state.environment.printerVisible) return reject(state, "the reference printer must be visible on USB before a connection path can be selected.");
+            if (!paths.includes(action.path)) return reject(state, "the connection path is unknown.");
+            return append({ ...state, path: action.path, device: "pre-firmware", job: "none" }, `Observed the reference printer connected through the ${action.path} path without firmware.`);
+          case "SUBMIT_JOB":
+            if (state.queue !== "standard-macos-queue" || !state.path) return reject(state, "a standard macOS queue and a connected printer are required before submitting a job.");
+            return append(record({ ...state, job: "submitted" }, "macosJobAccepted"), `Observed a normal macOS application submit a job through the ${state.path} path.`);
+          case "RECEIVE_RASTER":
+            if (state.job !== "submitted") return reject(state, "the Printer Application can receive raster only after a job is submitted.");
+            return append(record({ ...state, job: "raster-received" }, "rasterReceived"), "Observed correctly sized one-bit raster and typed print options in the driver callback.");
+          case "CLAIM_USB":
+            if (!state.path || state.device === "disconnected") return reject(state, "connect the reference printer before claiming USB.");
+            return append(record(state, "usbClaimedWithoutRoot"), "Observed libusb claim the reference printer without root.");
+          case "UPLOAD_FIRMWARE":
+            if (state.device !== "pre-firmware" || state.evidence[state.path].usbClaimedWithoutRoot !== true) return reject(state, "the pre-firmware device must be claimed without root before firmware upload.");
+            return append({ ...state, device: "firmware-uploading" }, "Observed upload of the user-supplied exact-model firmware begin.");
+          case "REENUMERATE":
+            if (state.device !== "firmware-uploading") return reject(state, "firmware upload must be in progress before activation can be observed.");
+            let reenumerated = record({ ...state, device: "ready" }, "firmwareBootstrapped");
+            if (state.job !== "none") reenumerated = record(reenumerated, "jobSurvivedFirmwareActivation");
+            return append(reenumerated, "Observed post-firmware activation and recovery without losing the queued job; record whether the device re-enumerated or activated in place.");
+          case "ENCODE":
+            if (state.job !== "raster-received" || state.device !== "ready") return reject(state, "raster and a post-firmware ready device are required before encoding.");
+            return append(record({ ...state, job: "encoded" }, "zjstreamProduced"), "Observed the pinned in-process encoder produce LaserJet 1020 ZjStream.");
+          case "PRINT":
+            if (state.job !== "encoded") return reject(state, "the page must be encoded before it can be sent.");
+            return append({ ...state, job: "printing" }, "Observed ZjStream sent over USB.");
+          case "CONFIRM_PAGE":
+            if (state.job !== "printing") return reject(state, "a transmitted job is required before confirming paper output.");
+            return append(record({ ...state, job: "printed" }, "pageCorrect"), "Observed a correct physical page from the reference printer.");
+          case "CANCEL":
+            if (!["submitted", "raster-received", "encoded", "printing"].includes(state.job)) return reject(state, "only an active job can be cancelled.");
+            return append(record({ ...state, job: "cancelled" }, "cancellationTruthful"), "Observed macOS cancellation stop the job and report truthful state.");
+          case "DISCONNECT":
+            if (!state.path) return reject(state, "there is no connected path to disconnect.");
+            return append({ ...state, device: "disconnected" }, "Observed USB disconnection.");
+          case "RECONNECT":
+            if (!state.path || state.device !== "disconnected") return reject(state, "disconnect the selected connection path before testing recovery.");
+            return append(record({ ...state, device: "ready" }, "reconnectRecovered"), "Observed reconnect recovery without recreating the macOS queue.");
+          case "FAIL_IPP":
+            return fail(state, "ipp-boundary", "Observed a standard macOS job fail to reach the PAPPL service; PAPPL integration is invalidated pending investigation.", "macosJobAccepted");
+          case "FAIL_USB":
+            return fail(state, "usb-access", "Observed user-space USB claim fail; the in-process unprivileged boundary is invalidated and a helper or DriverKit investigation is triggered.", "usbClaimedWithoutRoot");
+          case "FAIL_REENUMERATION":
+            return fail(state, "firmware-lifecycle", "Observed firmware activation lose the queued job; the lifecycle implementation is invalidated.", "jobSurvivedFirmwareActivation");
+          case "FAIL_PAGE":
+            return fail(state, "print-output", "Observed missing or incorrect paper output; raster, option mapping, encoding, or transport remains invalid.", "pageCorrect");
+          case "FAIL_PATH":
+            return fail(state, "connection-path", `Observed failure specific to the ${state.path || "selected"} path; the basic printing milestone remains blocked.`, "pageCorrect");
+          default: return reject(state, "unknown observation.");
+        }
+      }
+
+      function pathPassed(pathEvidence) {
+        return ["macosJobAccepted", "rasterReceived", "usbClaimedWithoutRoot", "firmwareBootstrapped", "jobSurvivedFirmwareActivation", "zjstreamProduced", "pageCorrect"]
+          .every(key => pathEvidence[key] === true);
+      }
+
+      function evaluate(state) {
+        if (state.failures.length) {
+          return { tone: "invalid", title: "Architecture not validated", detail: `Observed failure: ${state.failures.join(", ")}. Follow the named fallback or repair path before continuing.` };
+        }
+        const missingEnvironment = Object.entries(state.environment).filter(([, value]) => !value).map(([key]) => key);
+        if (missingEnvironment.length) {
+          return { tone: "blocked", title: "Experiment blocked", detail: `Missing observed prerequisites: ${missingEnvironment.join(", ")}. No architecture verdict is possible yet.` };
+        }
+        const dock = pathPassed(state.evidence.dock);
+        const direct = pathPassed(state.evidence.direct);
+        const requiredPassed = state.requiredPaths.every(path => pathPassed(state.evidence[path]));
+        if (requiredPassed) {
+          if (state.deferredPaths.includes("direct") && !direct) {
+            return { tone: "valid", title: "Core architecture validated on the available dock path", detail: "The dock accepted a standard macOS job, survived firmware activation, produced valid ZjStream, and printed a correct full-size page. The unavailable direct adapter is not validated and must remain outside release compatibility claims until tested." };
+          }
+          return { tone: "valid", title: "Core end-to-end architecture validated", detail: "Every required connection path accepted a standard macOS job, survived firmware activation, produced valid ZjStream, and printed a correct page. Cancellation and reconnect remain separate lifecycle observations unless also recorded." };
+        }
+        return { tone: "open", title: "Experiment in progress", detail: `${dock ? "Dock passed." : "Dock not yet passed."} ${direct ? "Direct adapter passed." : "Direct adapter not yet passed."}` };
+      }
+
+      return { initialState, transition, evaluate, pathPassed };
+    })();
+
+    const actionGroups = [
+      ["Observe prerequisites", [
+        ["Start CUPS", { type: "START_CUPS" }],
+        ["Build pinned dependencies", { type: "BUILD_DEPS" }],
+        ["See reference printer on USB", { type: "SEE_PRINTER" }]
+      ]],
+      ["Bring up standard printing", [
+        ["Start Printer Application", { type: "START_SERVICE" }],
+        ["Add standard macOS queue", { type: "ADD_QUEUE" }],
+        ["Connect through dock", { type: "CONNECT", path: "dock" }],
+        ["Connect through direct adapter", { type: "CONNECT", path: "direct" }],
+        ["Submit ordinary macOS job", { type: "SUBMIT_JOB" }],
+        ["Receive correct raster", { type: "RECEIVE_RASTER" }]
+      ]],
+      ["Prepare and print", [
+        ["Claim USB without root", { type: "CLAIM_USB" }],
+        ["Upload user-supplied firmware", { type: "UPLOAD_FIRMWARE" }],
+        ["Observe firmware activation", { type: "REENUMERATE" }],
+        ["Encode ZjStream", { type: "ENCODE" }],
+        ["Send page", { type: "PRINT" }],
+        ["Confirm correct physical page", { type: "CONFIRM_PAGE" }]
+      ]],
+      ["Recovery", [
+        ["Cancel active job", { type: "CANCEL" }],
+        ["Disconnect USB", { type: "DISCONNECT" }],
+        ["Reconnect without queue repair", { type: "RECONNECT" }]
+      ]],
+      ["Record an observed failure", [
+        ["macOS job missed PAPPL", { type: "FAIL_IPP" }, "danger"],
+        ["Unprivileged USB claim failed", { type: "FAIL_USB" }, "danger"],
+        ["Re-enumeration lost job", { type: "FAIL_REENUMERATION" }, "danger"],
+        ["Page missing or wrong", { type: "FAIL_PAGE" }, "danger"],
+        ["Connection path failed", { type: "FAIL_PATH" }, "danger"]
+      ]]
+    ];
+
+    const walkthroughs = [
+      {
+        name: "Dock proof",
+        description: "The shortest complete proof through the already observed UGREEN dock. Watch the job remain queued across firmware activation, whether the device re-enumerates or activates in place.",
+        actions: ["START_CUPS", "BUILD_DEPS", "SEE_PRINTER", "START_SERVICE", "ADD_QUEUE", "CONNECT:dock", "SUBMIT_JOB", "RECEIVE_RASTER", "CLAIM_USB", "UPLOAD_FIRMWARE", "REENUMERATE", "ENCODE", "PRINT", "CONFIRM_PAGE"]
+      },
+      {
+        name: "Direct-path proof",
+        description: "Repeat the complete proof through the direct USB-A-to-USB-C adapter. A dock-only success cannot satisfy the basic printing milestone.",
+        actions: ["START_CUPS", "BUILD_DEPS", "SEE_PRINTER", "START_SERVICE", "ADD_QUEUE", "CONNECT:direct", "SUBMIT_JOB", "RECEIVE_RASTER", "CLAIM_USB", "UPLOAD_FIRMWARE", "REENUMERATE", "ENCODE", "PRINT", "CONFIRM_PAGE"]
+      },
+      {
+        name: "Cancel and reconnect",
+        description: "Probe whether standard macOS controls remain truthful when a job is cancelled and USB disappears. These observations shape the later lifecycle contract.",
+        actions: ["START_CUPS", "BUILD_DEPS", "SEE_PRINTER", "START_SERVICE", "ADD_QUEUE", "CONNECT:dock", "SUBMIT_JOB", "RECEIVE_RASTER", "CANCEL", "DISCONNECT", "RECONNECT"]
+      },
+      {
+        name: "USB fallback trigger",
+        description: "Record the decisive failure that would move USB access out of the unprivileged process and graduate a helper or DriverKit investigation.",
+        actions: ["START_CUPS", "BUILD_DEPS", "SEE_PRINTER", "START_SERVICE", "ADD_QUEUE", "CONNECT:dock", "SUBMIT_JOB", "RECEIVE_RASTER", "FAIL_USB"]
+      }
+    ];
+
+    const actionIndex = new Map();
+    actionGroups.forEach(([, actions]) => actions.forEach(([label, action]) => actionIndex.set(action.type + (action.path ? `:${action.path}` : ""), { label, action })));
+
+    let state = PipelineModel.initialState();
+    let activeWalkthrough = 0;
+    let completedSteps = 0;
+
+    function human(value) {
+      return String(value).replaceAll("-", " ").replace(/\b\w/g, letter => letter.toUpperCase());
+    }
+
+    function dispatch(action, fromWalkthrough = false) {
+      const previousEventCount = state.events.length;
+      state = PipelineModel.transition(state, action);
+      if (fromWalkthrough && state.events.length > previousEventCount && !state.events.at(-1).rejected) completedSteps += 1;
+      render();
+    }
+
+    function renderVerdict() {
+      const verdict = PipelineModel.evaluate(state);
+      const el = document.querySelector("#verdict");
+      el.dataset.tone = verdict.tone;
+      el.innerHTML = `<h2>${verdict.title}</h2><p>${verdict.detail}</p>`;
+    }
+
+    function renderState() {
+      const evidence = state.path ? state.evidence[state.path] : null;
+      const facts = [
+        ["CUPS", state.environment.cupsRunning ? "Running" : "Stopped", "Must run before standard queue proof"],
+        ["Dependencies", state.environment.dependenciesBuilt ? "Built from pinned source" : "Unavailable", "PAPPL 1.4.12, libusb, foo2zjs"],
+        ["Reference printer", state.environment.printerVisible ? "Visible on USB" : "Not visible", "Expected identity 03f0:2b17"],
+        ["Printer Application", human(state.service), "Loopback-only PAPPL service"],
+        ["macOS queue", human(state.queue), "Created through standard printer setup"],
+        ["Connection path", state.path ? human(state.path) : "None", "Dock and direct adapter must both pass"],
+        ["Device", human(state.device), evidence ? `Firmware: ${evidence.firmwareBootstrapped === true ? "observed" : "not observed"}` : "No path selected"],
+        ["Job", human(state.job), evidence ? `Paper: ${evidence.pageCorrect === true ? "correct" : "not confirmed"}` : "No path selected"]
+      ];
+      document.querySelector("#state").innerHTML = facts.map(([term, value, note]) => `<dl class="fact"><dt>${term}</dt><dd>${value}<small>${note}</small></dd></dl>`).join("");
+    }
+
+    function renderActions() {
+      const root = document.querySelector("#actions");
+      root.innerHTML = "";
+      actionGroups.forEach(([group, actions]) => {
+        const heading = document.createElement("h3");
+        heading.textContent = group;
+        heading.style.flexBasis = "100%";
+        heading.style.marginTop = "12px";
+        root.append(heading);
+        actions.forEach(([label, action, className]) => {
+          const button = document.createElement("button");
+          button.textContent = label;
+          if (className) button.className = className;
+          button.addEventListener("click", () => dispatch(action));
+          root.append(button);
+        });
+      });
+      const reset = document.createElement("button");
+      reset.textContent = "Reset observed state";
+      reset.className = "primary";
+      reset.addEventListener("click", () => { state = PipelineModel.initialState(); completedSteps = 0; render(); });
+      root.prepend(reset);
+    }
+
+    function renderGates() {
+      const keys = [
+        ["macosJobAccepted", "Standard macOS job reached PAPPL"],
+        ["rasterReceived", "Correct raster/options received"],
+        ["usbClaimedWithoutRoot", "USB claimed without root"],
+        ["firmwareBootstrapped", "Firmware bootstrapped"],
+        ["jobSurvivedFirmwareActivation", "Job survived firmware activation"],
+        ["zjstreamProduced", "ZjStream produced"],
+        ["pageCorrect", "Correct physical page printed"]
+      ];
+      const root = document.querySelector("#gates");
+      root.innerHTML = pathsHtml("dock", keys) + pathsHtml("direct", keys);
+    }
+
+    function pathsHtml(path, keys) {
+      const evidence = state.evidence[path];
+      const deferred = state.deferredPaths.includes(path) ? " — deferred: hardware unavailable" : "";
+      const header = `<li><strong>${human(path)} path${deferred}</strong></li>`;
+      return header + keys.map(([key, label]) => {
+        const value = evidence[key];
+        const mark = value === true ? "✓" : value === false ? "×" : "○";
+        const cls = value === true ? "yes" : value === false ? "fail" : "no";
+        return `<li><span class="${cls}">${mark}</span><span>${label}</span></li>`;
+      }).join("");
+    }
+
+    function renderWalkthrough() {
+      const tabs = document.querySelector("#tabs");
+      tabs.innerHTML = "";
+      walkthroughs.forEach((walkthrough, index) => {
+        const button = document.createElement("button");
+        button.className = "tab";
+        button.textContent = walkthrough.name;
+        button.setAttribute("role", "tab");
+        button.setAttribute("aria-selected", String(index === activeWalkthrough));
+        button.addEventListener("click", () => { activeWalkthrough = index; completedSteps = 0; state = PipelineModel.initialState(); render(); });
+        tabs.append(button);
+      });
+
+      const walkthrough = walkthroughs[activeWalkthrough];
+      const root = document.querySelector("#walkthrough");
+      root.innerHTML = `<p class="walkthrough-description">${walkthrough.description}</p><div class="steps"></div>`;
+      const steps = root.querySelector(".steps");
+      walkthrough.actions.forEach((key, index) => {
+        const entry = actionIndex.get(key);
+        const row = document.createElement("div");
+        row.className = "step";
+        row.innerHTML = `<span class="step-number">${index + 1}</span>`;
+        const button = document.createElement("button");
+        button.textContent = entry.label;
+        button.disabled = index !== completedSteps;
+        button.addEventListener("click", () => dispatch(entry.action, true));
+        row.append(button);
+        steps.append(row);
+      });
+    }
+
+    function renderLog() {
+      document.querySelector("#log").innerHTML = state.events.map(event => `<li class="${event.rejected ? "rejected" : ""}">${event.message}</li>`).join("");
+    }
+
+    function render() {
+      renderVerdict();
+      renderState();
+      renderActions();
+      renderGates();
+      renderWalkthrough();
+      renderLog();
+    }
+
+    render();
+  </script>
+</body>
+</html>
