@@ -3,21 +3,14 @@
 
 from __future__ import annotations
 
-import importlib.util
 import json
-import sys
 import unittest
 from pathlib import Path
 
+from scripts import check_golden_corpus as corpus_checker
+from scripts import validation_gate as gate
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location(
-    "check_golden_corpus", ROOT / "scripts/check_golden_corpus.py"
-)
-assert SPEC is not None and SPEC.loader is not None
-corpus_checker = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = corpus_checker
-SPEC.loader.exec_module(corpus_checker)
 
 
 class ValidationSchemaChecks(unittest.TestCase):
@@ -67,13 +60,6 @@ class GoldenCorpusChecks(unittest.TestCase):
 
 class CapabilityMatrixChecks(unittest.TestCase):
     def test_repository_matrix_contains_every_non_deferred_scenario(self) -> None:
-        gate_spec = importlib.util.spec_from_file_location(
-            "validation_gate_for_assets", ROOT / "scripts/validation_gate.py"
-        )
-        assert gate_spec is not None and gate_spec.loader is not None
-        gate = importlib.util.module_from_spec(gate_spec)
-        sys.modules[gate_spec.name] = gate
-        gate_spec.loader.exec_module(gate)
         known, required = gate.requirements_for_milestone(
             ROOT / "docs/IMPLEMENTATION-SPEC.md", "PUBLIC"
         )

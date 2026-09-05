@@ -4,24 +4,14 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.util
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from scripts import validation_gate as gate
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location(
-    "validation_gate", ROOT / "scripts/validation_gate.py"
-)
-assert SPEC is not None and SPEC.loader is not None
-gate = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = gate
-SPEC.loader.exec_module(gate)
-
-
 SHA = "a" * 64
 COMMIT = "b" * 40
 SCHEMA = (
@@ -70,6 +60,7 @@ def scenario(
         "invalidatedBy": [],
         "attempts": [attempt(1)],
         "intermittencyExplanation": None,
+        "reliabilityRequirements": None,
     }
 
 
@@ -83,7 +74,7 @@ def matrix(rows: list[dict[str, object]]) -> dict[str, object]:
     }
 
 
-def manifest(matrix_sha256: str, evidence_path: str) -> dict[str, object]:
+def manifest(matrix_sha256: str) -> dict[str, object]:
     return {
         "$schema": (
             "https://bartekpapierski.github.io/HP-LJ-1020-driver/"
@@ -117,13 +108,9 @@ def manifest(matrix_sha256: str, evidence_path: str) -> dict[str, object]:
             "evidenceSha256": [SHA],
             "attempts": [attempt(1)],
             "intermittencyExplanation": None,
+            "reliabilityObservations": None,
         }],
-        "evidence": [{
-            "path": evidence_path,
-            "sha256": SHA,
-            "kind": "summary",
-            "immutable": True,
-        }],
+        "evidence": [],
         "supportClaims": [{
             "scenarioId": "SCN-ONE",
             "statement": "A required behavior is supported.",
@@ -140,26 +127,98 @@ class ValidationGateChecks(unittest.TestCase):
         *,
         required_scenarios: set[str] | None = None,
         mutate_manifest=None,
+        measurement_data: bytes | None = None,
+        sanitized_log_data: bytes = b"validation passed\n",
+        evidence_mode: int = 0o444,
+        known_requirements: set[str] | None = None,
     ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             evidence_root = Path(temporary)
-            evidence = evidence_root / "summary.txt"
-            evidence.write_bytes(b"evidence")
-            digest = hashlib.sha256(evidence.read_bytes()).hexdigest()
+            primary_id = str(rows[0]["scenarioId"])
+            primary_requirements = list(rows[0]["requirementIds"])
+            measurement_document = {
+                "$schema": (
+                    "https://bartekpapierski.github.io/HP-LJ-1020-driver/"
+                    "schemas/output-measurement-1.0.0.json"
+                ),
+                "schemaVersion": "1.0.0",
+                "measurementId": "measurement-1",
+                "scenarioId": primary_id,
+                "sourceDocumentSha256": SHA,
+                "measuredAt": "2026-09-05T10:00:00Z",
+                "expected": {"pageCount": 1, "pageOrder": [1]},
+                "observed": {
+                    "pageCount": 1,
+                    "pageOrder": [1],
+                    "blankPages": [],
+                    "partialPages": [],
+                    "missingPages": [],
+                    "duplicatePages": [],
+                    "scaleErrorPercent": 0,
+                    "maximumFiducialDisplacementMm": 0,
+                    "clippingInsidePrintableRegion": False,
+                    "orientationCorrect": True,
+                    "mediaCorrect": True,
+                },
+                "visualInspection": {
+                    "performed": True,
+                    "finePatternsReadable": True,
+                    "visibleCorruption": False,
+                    "densityDiscontinuity": False,
+                },
+                "privacy": {
+                    "documentContentsRetained": False,
+                    "rasterPayloadRetained": False,
+                    "zjStreamPayloadRetained": False,
+                },
+                "result": "passed",
+            }
+            evidence_files = (
+                ("summary.txt", b"passed\n", "summary"),
+                ("sanitized.log", sanitized_log_data, "sanitized-log"),
+                (
+                    "measurement.json",
+                    measurement_data or (json.dumps(measurement_document) + "\n").encode(),
+                    "measurement",
+                ),
+            )
+            entries = []
+            digests = []
+            for path_value, content, kind in evidence_files:
+                evidence = evidence_root / path_value
+                evidence.write_bytes(content)
+                evidence.chmod(evidence_mode if kind == "summary" else 0o444)
+                digest = hashlib.sha256(content).hexdigest()
+                digests.append(digest)
+                entries.append({
+                    "path": path_value,
+                    "sha256": digest,
+                    "kind": kind,
+                    "immutable": True,
+                    "result": "passed",
+                    "privacyChecked": True,
+                })
             for row in rows:
-                row["evidence"] = [digest]
+                row["evidence"] = digests
             document = matrix(rows)
             matrix_bytes = gate.canonical_json(document)
-            run = manifest(hashlib.sha256(matrix_bytes).hexdigest(), evidence.name)
+            run = manifest(hashlib.sha256(matrix_bytes).hexdigest())
             run["dependencyLockSha256"] = SHA
-            run["evidence"][0]["sha256"] = digest
-            run["scenarioResults"][0]["evidenceSha256"] = [digest]
+            run["evidence"] = entries
+            run["scenarioResults"][0]["scenarioId"] = primary_id
+            run["scenarioResults"][0]["requirementIds"] = primary_requirements
+            run["scenarioResults"][0]["evidenceSha256"] = digests
+            run["supportClaims"][0]["scenarioId"] = primary_id
             if mutate_manifest is not None:
                 mutate_manifest(run)
             gate.validate_gate(
                 document,
                 run,
-                known_requirements={"VAL-001"},
+                known_requirements=known_requirements or {
+                    requirement
+                    for row in rows
+                    for requirement in row["requirementIds"]
+                },
                 required_scenarios=required_scenarios or {"SCN-ONE"},
                 milestone="BASIC",
                 evidence_root=evidence_root,
@@ -174,7 +233,10 @@ class ValidationGateChecks(unittest.TestCase):
 
     def test_unknown_requirement_id_is_rejected(self) -> None:
         with self.assertRaisesRegex(gate.ValidationError, "unknown requirement"):
-            self.run_gate([scenario(requirement_ids=["NOPE-999"])])
+            self.run_gate(
+                [scenario(requirement_ids=["NOPE-999"])],
+                known_requirements={"VAL-001"},
+            )
 
     def test_unexplained_intermittency_is_rejected(self) -> None:
         row = scenario()
@@ -202,6 +264,70 @@ class ValidationGateChecks(unittest.TestCase):
 
         with self.assertRaisesRegex(gate.ValidationError, "not marked immutable"):
             self.run_gate([scenario()], mutate_manifest=make_mutable)
+
+    def test_writable_evidence_is_rejected(self) -> None:
+        with self.assertRaisesRegex(gate.ValidationError, "is writable"):
+            self.run_gate([scenario()], evidence_mode=0o644)
+
+    def test_invalid_output_measurement_is_rejected_as_evidence(self) -> None:
+        with self.assertRaisesRegex(gate.ValidationError, "output measurement"):
+            self.run_gate([scenario()], measurement_data=b"{}")
+
+    def test_failed_attempt_cannot_be_marked_verified(self) -> None:
+        row = scenario()
+        row["attempts"] = [attempt(1, "failed")]
+        with self.assertRaisesRegex(gate.ValidationError, "failed attempt"):
+            self.run_gate([row])
+
+    def test_vm_evidence_cannot_pass_a_support_gate(self) -> None:
+        def use_vm(run: dict[str, object]) -> None:
+            run["environment"]["kind"] = "supplementary-vm"
+
+        with self.assertRaisesRegex(gate.ValidationError, "VM evidence"):
+            self.run_gate([scenario()], mutate_manifest=use_vm)
+
+    def test_wrong_connection_path_is_rejected(self) -> None:
+        def omit_path(run: dict[str, object]) -> None:
+            run["environment"]["connectionPaths"] = []
+
+        with self.assertRaisesRegex(gate.ValidationError, "connection path"):
+            self.run_gate([scenario()], mutate_manifest=omit_path)
+
+    def test_reliability_gate_requires_five_passes_on_each_path(self) -> None:
+        row = scenario("SCN-REPETITION-SOAK", ["VAL-012"])
+        row["reliabilityRequirements"] = {
+            "criticalTransitionPassesPerConnectionPath": {
+                "ugreen-thunderbolt-4-dock": 5,
+                "direct-usb-a-to-usb-c": 5,
+            },
+            "mixedDocumentSoakJobs": 20,
+            "maximumServiceRestartsDuringSoak": 0,
+            "lifecycleCycles": 3,
+        }
+
+        def insufficient(run: dict[str, object]) -> None:
+            run["scenarioResults"][0]["reliabilityObservations"] = {
+                "criticalTransitionPassesPerConnectionPath": {
+                    "ugreen-thunderbolt-4-dock": 4,
+                    "direct-usb-a-to-usb-c": 5,
+                },
+                "mixedDocumentSoakJobs": 20,
+                "serviceRestartsDuringSoak": 0,
+                "lifecycleCycles": 3,
+            }
+
+        with self.assertRaisesRegex(gate.ValidationError, "five passing repetitions"):
+            self.run_gate(
+                [row], required_scenarios={"SCN-REPETITION-SOAK"},
+                mutate_manifest=insufficient,
+            )
+
+    def test_private_source_path_in_sanitized_log_is_rejected(self) -> None:
+        with self.assertRaisesRegex(gate.ValidationError, "private source filename"):
+            self.run_gate(
+                [scenario()],
+                sanitized_log_data=b"input=/Users/alice/Documents/private.pdf\n",
+            )
 
 
 if __name__ == "__main__":

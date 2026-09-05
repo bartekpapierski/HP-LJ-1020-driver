@@ -6,12 +6,16 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib.util
 import json
 import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Iterable
+
+if __package__:
+    from scripts import check_implementation_spec
+else:
+    import check_implementation_spec  # type: ignore[no-redef]
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -36,19 +40,10 @@ SCOPE_PATHS = {
         "scripts/check_golden_corpus.py",
         "scripts/check_implementation_spec.py",
         "scripts/output_measurement.py",
+        "scripts/update_capability_matrix.py",
         "scripts/validation_gate.py",
     ),
 }
-
-
-def _load_checker() -> Any:
-    path = ROOT / "scripts/check_implementation_spec.py"
-    spec = importlib.util.spec_from_file_location("implementation_spec_for_matrix", path)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
 
 
 def _files(paths: Iterable[str]) -> list[Path]:
@@ -97,9 +92,10 @@ def _connection_path(requirements: list[Any], scenario_id: str) -> str:
 
 
 def build_matrix(existing: dict[str, Any] | None = None) -> dict[str, Any]:
-    checker = _load_checker()
-    requirements = checker.parse_requirements(SPEC_PATH.read_text(encoding="utf-8"))
-    checker.check_requirement_set(requirements)
+    requirements = check_implementation_spec.parse_requirements(
+        SPEC_PATH.read_text(encoding="utf-8")
+    )
+    check_implementation_spec.check_requirement_set(requirements)
     grouped: dict[str, list[Any]] = defaultdict(list)
     for requirement in requirements:
         for scenario_id in requirement.coverage:
@@ -151,6 +147,15 @@ def build_matrix(existing: dict[str, Any] | None = None) -> dict[str, Any]:
             "invalidatedBy": invalidations,
             "attempts": [],
             "intermittencyExplanation": None,
+            "reliabilityRequirements": {
+                "criticalTransitionPassesPerConnectionPath": {
+                    "ugreen-thunderbolt-4-dock": 5,
+                    "direct-usb-a-to-usb-c": 5,
+                },
+                "mixedDocumentSoakJobs": 20,
+                "maximumServiceRestartsDuringSoak": 0,
+                "lifecycleCycles": 3,
+            } if scenario_id == "SCN-REPETITION-SOAK" else None,
         }
         if old:
             for field in (
@@ -165,6 +170,7 @@ def build_matrix(existing: dict[str, Any] | None = None) -> dict[str, Any]:
                 "state",
                 "attempts",
                 "intermittencyExplanation",
+                "reliabilityRequirements",
             ):
                 row[field] = old.get(field, row[field])
             row["invalidatedBy"] = invalidations

@@ -35,7 +35,7 @@ def _hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _rows(value: Any, name: str) -> list[dict[str, Any]]:
+def _nonempty_object_list(value: Any, name: str) -> list[dict[str, Any]]:
     if not isinstance(value, list) or not value or any(not isinstance(row, dict) for row in value):
         raise CorpusError(f"{name} must be a non-empty array of objects")
     return value
@@ -53,7 +53,7 @@ def check_corpus(root: Path) -> None:
 
     coverage: set[str] = set()
     document_ids: set[str] = set()
-    for document in _rows(manifest.get("documents"), "documents"):
+    for document in _nonempty_object_list(manifest.get("documents"), "documents"):
         document_id = document.get("documentId")
         if not isinstance(document_id, str) or not document_id or document_id in document_ids:
             raise CorpusError("missing or duplicate documentId")
@@ -93,7 +93,7 @@ def check_corpus(root: Path) -> None:
     qualities: set[str] = set()
     media: set[str] = set()
     duplex = False
-    for case in _rows(manifest.get("printCases"), "printCases"):
+    for case in _nonempty_object_list(manifest.get("printCases"), "printCases"):
         if case.get("documentId") not in document_ids:
             raise CorpusError("print case references an unknown document")
         if not isinstance(case.get("caseId"), str) or not case["caseId"]:

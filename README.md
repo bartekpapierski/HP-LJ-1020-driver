@@ -30,6 +30,8 @@ python3 scripts/update_capability_matrix.py
 ```
 
 Validation runs remain local under the ignored `validation/runs/` directory.
+Each passing run retains a sanitized log, output measurement, and result summary;
+mark the sealed manifest and all referenced evidence read-only before gating.
 Evaluate a run before making a milestone or support claim with:
 
 ```sh

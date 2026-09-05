@@ -122,7 +122,7 @@
     "scenarioResult": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["scenarioId", "requirementIds", "state", "summary", "observedAt", "evidenceSha256", "attempts", "intermittencyExplanation"],
+      "required": ["scenarioId", "requirementIds", "state", "summary", "observedAt", "evidenceSha256", "attempts", "intermittencyExplanation", "reliabilityObservations"],
       "properties": {
         "scenarioId": { "$ref": "#/$defs/scenarioId" },
         "requirementIds": {
@@ -136,18 +136,45 @@
         "observedAt": { "type": "string", "format": "date-time" },
         "evidenceSha256": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/sha256" } },
         "attempts": { "type": "array", "items": { "$ref": "#/$defs/attempt" } },
-        "intermittencyExplanation": { "type": ["string", "null"] }
+        "intermittencyExplanation": { "type": ["string", "null"] },
+        "reliabilityObservations": {
+          "oneOf": [
+            { "$ref": "#/$defs/reliabilityObservations" },
+            { "type": "null" }
+          ]
+        }
       }
     },
     "checksummedPath": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "sha256", "kind", "immutable"],
+      "required": ["path", "sha256", "kind", "immutable", "result", "privacyChecked"],
       "properties": {
         "path": { "type": "string", "minLength": 1 },
         "sha256": { "$ref": "#/$defs/sha256" },
         "kind": { "enum": ["sanitized-log", "measurement", "scan", "photograph", "summary", "manifest"] },
-        "immutable": { "const": true }
+        "immutable": { "const": true },
+        "result": { "enum": ["passed", "failed"] },
+        "privacyChecked": { "const": true }
+      }
+    },
+    "reliabilityObservations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["criticalTransitionPassesPerConnectionPath", "mixedDocumentSoakJobs", "serviceRestartsDuringSoak", "lifecycleCycles"],
+      "properties": {
+        "criticalTransitionPassesPerConnectionPath": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ugreen-thunderbolt-4-dock", "direct-usb-a-to-usb-c"],
+          "properties": {
+            "ugreen-thunderbolt-4-dock": { "type": "integer", "minimum": 0 },
+            "direct-usb-a-to-usb-c": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "mixedDocumentSoakJobs": { "type": "integer", "minimum": 0 },
+        "serviceRestartsDuringSoak": { "type": "integer", "minimum": 0 },
+        "lifecycleCycles": { "type": "integer", "minimum": 0 }
       }
     }
   }

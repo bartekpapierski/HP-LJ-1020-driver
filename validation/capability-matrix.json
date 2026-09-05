@@ -7,7 +7,7 @@
     "golden-corpus": "031eb7c2a6271d55789733b5ad20f7cacb7abc79c072fafc285055828fef911a",
     "implementation-contract": "a6417b21e54e9df041f65b982b3961880d8d1a47bceefd6498efd5ace960bdab",
     "product-source": "3e7c55472863915ad9f2aa19ee666d2488d1b8f52b0d0f89e31a30d184fd3379",
-    "validation-tooling": "8cb3166e5217495cd1e39f1c688fbd8cdfc4ed4b73e6ad444dc0fc2ee8f499ef"
+    "validation-tooling": "c17ee2badcfee2d93f04f336327dadeb8bd51071753346f2cc73813f60f9ef6d"
   },
   "scenarios": [
     {
@@ -38,7 +38,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-ADHOC-SIGNING",
@@ -68,7 +69,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-ADMIN-INPUTS",
@@ -97,7 +99,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-ARCH-LANGUAGE",
@@ -126,7 +129,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-ARCH-LINKAGE",
@@ -156,7 +160,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-ARCH-RUNTIME-CONTENT",
@@ -186,7 +191,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-BASIC-DIRECT",
@@ -221,7 +227,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-BASIC-DOCK",
@@ -256,7 +263,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-BASIC-GATE",
@@ -285,7 +293,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-BUILD-MANIFEST",
@@ -313,7 +322,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-BUILD-SYSTEM",
@@ -342,7 +352,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-BUILD-WRAPPER",
@@ -371,7 +382,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-BUNDLE-DETERMINISM",
@@ -400,7 +412,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-BUNDLE-EXPLICIT",
@@ -429,7 +442,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-BUNDLE-INVENTORY",
@@ -459,7 +473,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-BUNDLE-PARTIAL",
@@ -488,7 +503,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-CANCEL-BEFORE-SEND",
@@ -517,7 +533,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-CANCEL-DURING-SEND",
@@ -546,7 +563,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-CAPABILITY-ENVELOPE",
@@ -576,7 +594,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-CAPABILITY-GATE",
@@ -606,7 +625,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-CI-SUPPLY-CHAIN",
@@ -635,7 +655,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-CLEAN-INSTALL",
@@ -664,7 +685,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-COMPLETE-UNINSTALL",
@@ -694,7 +716,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-DEPENDENCY-LOCK",
@@ -726,7 +749,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-DEPENDENCY-UPDATE",
@@ -755,7 +779,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-DEVELOPMENT-MODE",
@@ -784,7 +809,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-DEVICE-IDENTITY",
@@ -814,7 +840,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-DEVICE-RECOVERY",
@@ -843,7 +870,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-DIAGNOSTIC-CATEGORIES",
@@ -873,7 +901,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-DIAGNOSTIC-PRIVACY",
@@ -904,7 +933,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-DISABLE-ENABLE",
@@ -934,7 +964,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-DISCONNECT-DURING-SEND",
@@ -963,7 +994,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-DISTRIBUTION-BOUNDARY",
@@ -993,7 +1025,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-ENCODER-CONTRACT",
@@ -1022,7 +1055,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-ERROR-CONTRACT",
@@ -1051,7 +1085,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-EVIDENCE-EXPIRY",
@@ -1080,7 +1115,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-FAIL-CLOSED",
@@ -1110,7 +1146,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-FAILED-RELEASE-RUN",
@@ -1140,7 +1177,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-FIRMWARE-BOOTSTRAP",
@@ -1170,7 +1208,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-FIRMWARE-DISCLOSURE",
@@ -1200,7 +1239,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-FIRMWARE-ERRORS",
@@ -1229,7 +1269,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-FIRMWARE-EXCLUSION",
@@ -1262,7 +1303,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-FIRMWARE-IDEMPOTENCE",
@@ -1292,7 +1334,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-FIRMWARE-IMPORT",
@@ -1321,7 +1364,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-FIRMWARE-REQUIRED",
@@ -1350,7 +1394,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-FIRMWARE-RETRY",
@@ -1380,7 +1425,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-FIRMWARE-VERIFY",
@@ -1410,7 +1456,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-GOLDEN-CORPUS",
@@ -1440,7 +1487,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-GPL-RIGHTS",
@@ -1469,7 +1517,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-HOST-BOUNDARY",
@@ -1499,7 +1548,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-HOSTED-CI",
@@ -1528,7 +1578,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-IDENTITY-REDACTION",
@@ -1558,7 +1609,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-INSTALL-HEALTH",
@@ -1588,7 +1640,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-INSTALLED-PATHS",
@@ -1617,7 +1670,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-INSTALLED-PERMISSIONS",
@@ -1646,7 +1700,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-JOB-RETENTION",
@@ -1675,7 +1730,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-JOB-RETRY-BOUNDARY",
@@ -1704,7 +1760,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-KNOWN-PROVENANCE-RISK",
@@ -1733,7 +1790,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-LAUNCH-READINESS",
@@ -1762,7 +1820,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-LICENSE-FILES",
@@ -1791,7 +1850,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-LIFECYCLE-CONVERGENCE",
@@ -1821,7 +1881,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-LOCAL-STATUS",
@@ -1850,7 +1911,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-LOG-BOUNDS",
@@ -1879,7 +1941,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-LOOPBACK-ONLY",
@@ -1909,7 +1972,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-MACOS-SUPPORT-CHANGE",
@@ -1938,7 +2002,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-MANUAL-DUPLEX",
@@ -1967,7 +2032,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-MATRIX-SCHEMA",
@@ -1996,7 +2062,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-MODULE-CONTRACTS",
@@ -2025,7 +2092,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-NO-EGRESS",
@@ -2054,7 +2122,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-NO-HELPER",
@@ -2084,7 +2153,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-NO-PUBLIC-AUTOMATION",
@@ -2112,7 +2182,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-OUT-OF-SCOPE",
@@ -2141,7 +2212,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-OUTPUT-ORACLE",
@@ -2171,7 +2243,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-OWNERSHIP-CONTRACT",
@@ -2199,7 +2272,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-PAPPL-CONTRACT",
@@ -2228,7 +2302,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-PARTIAL-INSTALL",
@@ -2256,7 +2331,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-PERSONAL-GATE",
@@ -2286,7 +2362,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-PERSONAL-RELEASE",
@@ -2316,7 +2393,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-PIPELINE-FORMAT",
@@ -2346,7 +2424,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-PRIVILEGE-BOUNDARY",
@@ -2376,7 +2455,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-PROJECT-LICENSE",
@@ -2405,7 +2485,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-PUBLIC-CORRESPONDING-SOURCE",
@@ -2436,7 +2517,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-PUBLIC-FIRMWARE",
@@ -2465,7 +2547,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-PUBLIC-GATE",
@@ -2494,7 +2577,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-PUBLIC-PROVENANCE",
@@ -2522,7 +2606,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-PUBLIC-RELICENSING",
@@ -2550,7 +2635,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-PUBLIC-SOURCE-BOUNDARY",
@@ -2579,7 +2665,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-PUBLIC-TRUST",
@@ -2609,7 +2696,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-RASTER-600DPI",
@@ -2639,7 +2727,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-RASTER-CONTRACT",
@@ -2668,7 +2757,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-RASTER-MISMATCH",
@@ -2697,7 +2787,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-RELEASE-BUILD-GUARDS",
@@ -2726,7 +2817,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-RELEASE-NOTES",
@@ -2757,7 +2849,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-RELEASE-PROMOTION",
@@ -2787,7 +2880,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-RELEASE-RECORD",
@@ -2816,7 +2910,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-RELEASE-RETENTION",
@@ -2846,7 +2941,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-REMOVAL-RESIDUE",
@@ -2875,7 +2971,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-REPETITION-SOAK",
@@ -2904,7 +3001,16 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": {
+        "criticalTransitionPassesPerConnectionPath": {
+          "ugreen-thunderbolt-4-dock": 5,
+          "direct-usb-a-to-usb-c": 5
+        },
+        "mixedDocumentSoakJobs": 20,
+        "maximumServiceRestartsDuringSoak": 0,
+        "lifecycleCycles": 3
+      }
     },
     {
       "scenarioId": "SCN-REPOSITORY-GOVERNANCE",
@@ -2933,7 +3039,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-REPRODUCIBILITY",
@@ -2962,7 +3069,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-REQUIRED-DISCLOSURES",
@@ -2991,7 +3099,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-ROLLBACK-PAYLOAD",
@@ -3021,7 +3130,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-SAFE-MEDIA-FAULTS",
@@ -3052,7 +3162,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-SCHEMA-CATALOG",
@@ -3080,7 +3191,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-SCOPE-IDENTITY",
@@ -3109,7 +3221,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-SEAL-INTEGRITY",
@@ -3139,7 +3252,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-SEALED-CONTENTS",
@@ -3169,7 +3283,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-SERVICE-IDENTITY",
@@ -3199,7 +3314,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-SPEC-CHECK-NEGATIVE",
@@ -3228,7 +3344,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-SPEC-CONFORMANCE",
@@ -3262,7 +3379,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-STATUS-CONTRACT",
@@ -3290,7 +3408,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-SUBSEQUENT-JOB",
@@ -3319,7 +3438,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-SUPPORT-CLAIM",
@@ -3348,7 +3468,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-TAGGED-UPDATE",
@@ -3378,7 +3499,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-TEST-DOUBLES",
@@ -3407,7 +3529,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-THIRD-PARTY-NOTICES",
@@ -3437,7 +3560,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-UPDATE-ROLLBACK",
@@ -3468,7 +3592,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-UPGRADE-COMPATIBILITY",
@@ -3497,7 +3622,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-UPSTREAM-PROVENANCE",
@@ -3527,7 +3653,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-USB-BOUNDARY",
@@ -3557,7 +3684,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-USB-CLAIM-DIRECT",
@@ -3587,7 +3715,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-USB-CLAIM-DOCK",
@@ -3617,7 +3746,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-USB-FW-CONTRACT",
@@ -3646,7 +3776,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-VALIDATION-MANIFEST",
@@ -3675,7 +3806,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-VERSION-SOURCE",
@@ -3704,7 +3836,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-VM-EVIDENCE-BOUNDARY",
@@ -3733,7 +3866,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-WRITABLE-INPUTS",
@@ -3762,7 +3896,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     },
     {
       "scenarioId": "SCN-ZJSTREAM-STRUCTURE",
@@ -3792,7 +3927,8 @@
       ],
       "invalidatedBy": [],
       "attempts": [],
-      "intermittencyExplanation": null
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null
     }
   ]
 }

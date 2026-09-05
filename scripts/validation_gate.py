@@ -6,12 +6,18 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib.util
 import json
 import re
+import stat
 import sys
 from pathlib import Path
 from typing import Any, Iterable
+
+if __package__:
+    from scripts import check_implementation_spec, output_measurement
+else:
+    import check_implementation_spec  # type: ignore[no-redef]
+    import output_measurement  # type: ignore[no-redef]
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +25,15 @@ SHA256 = re.compile(r"^[a-f0-9]{64}$")
 GIT_COMMIT = re.compile(r"^[a-f0-9]{40}$")
 MILESTONES = ("BASIC", "PERSONAL", "CAPABILITY", "PUBLIC")
 STATES = {"verified", "unverified", "unsupported", "deferred"}
+PRIVATE_SOURCE_PATH = re.compile(
+    r"(?:/Users/[^/\s]+/[^\s]+|[A-Za-z0-9_.-]+\.(?:docx?|pages|pdf|rtf))",
+    re.IGNORECASE,
+)
+EXPOSED_SECRET = re.compile(
+    r"\b(?:credential|password|secret|token|user(?:name)?)\s*[:=]\s*\S+",
+    re.IGNORECASE,
+)
+FIRMWARE_NAME = re.compile(r"\b(?:sihp1020\.(?:dl|img)|hp_laserjet_1020\.fw)\b", re.IGNORECASE)
 
 
 class ValidationError(ValueError):
@@ -49,7 +64,7 @@ def _commit(value: Any, context: str) -> str:
     return value
 
 
-def _objects(value: Any, context: str) -> list[dict[str, Any]]:
+def _object_list(value: Any, context: str) -> list[dict[str, Any]]:
     if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
         raise ValidationError(f"{context} must be an array of objects")
     return value
@@ -67,7 +82,7 @@ def _ids(value: Any, known: set[str], context: str) -> set[str]:
 
 
 def _check_intermittency(attempts: Any, explanation: Any, context: str) -> None:
-    rows = _objects(attempts, f"{context} attempts")
+    rows = _object_list(attempts, f"{context} attempts")
     outcomes: set[str] = set()
     numbers: set[int] = set()
     for attempt in rows:
@@ -100,7 +115,7 @@ def _scenario_map(
             raise ValidationError("capability matrix has an invalid affected scope")
         _sha(identity, f"scope identity {name}")
     scenarios: dict[str, dict[str, Any]] = {}
-    for row in _objects(matrix.get("scenarios"), "capability matrix scenarios"):
+    for row in _object_list(matrix.get("scenarios"), "capability matrix scenarios"):
         scenario_id = row.get("scenarioId")
         if not isinstance(scenario_id, str) or not scenario_id.startswith("SCN-"):
             raise ValidationError("capability matrix has an invalid scenario ID")
@@ -126,6 +141,10 @@ def _scenario_map(
                     raise ValidationError(f"verified scenario {scenario_id} is missing {field}")
             _commit(row["sourceCommit"], f"{scenario_id} source identity")
             _sha(row["dependencyLockSha256"], f"{scenario_id} dependency identity")
+            if not isinstance(row["environment"], dict):
+                raise ValidationError(f"verified scenario {scenario_id} has invalid environment")
+            if not row["attempts"]:
+                raise ValidationError(f"verified scenario {scenario_id} has no attempts")
             evidence = row.get("evidence")
             if not isinstance(evidence, list) or not evidence:
                 raise ValidationError(f"verified scenario {scenario_id} has no evidence")
@@ -137,7 +156,8 @@ def _scenario_map(
 
 def _verify_evidence(manifest: dict[str, Any], evidence_root: Path) -> set[str]:
     evidence_hashes: set[str] = set()
-    for evidence in _objects(manifest.get("evidence"), "validation evidence"):
+    kinds: set[str] = set()
+    for evidence in _object_list(manifest.get("evidence"), "validation evidence"):
         path_value = evidence.get("path")
         if not isinstance(path_value, str) or not path_value:
             raise ValidationError("validation evidence has no path")
@@ -147,16 +167,56 @@ def _verify_evidence(manifest: dict[str, Any], evidence_root: Path) -> set[str]:
         digest = _sha(evidence.get("sha256"), f"evidence {path_value}")
         if evidence.get("immutable") is not True:
             raise ValidationError(f"evidence is not marked immutable: {path_value}")
+        if evidence.get("result") != "passed":
+            raise ValidationError(f"evidence did not pass: {path_value}")
+        if evidence.get("privacyChecked") is not True:
+            raise ValidationError(f"evidence lacks privacy review: {path_value}")
         root = evidence_root.resolve()
         path = (root / relative).resolve()
         if root not in path.parents:
             raise ValidationError(f"evidence path escapes its root: {path_value}")
         if not path.is_file() or file_sha256(path) != digest:
             raise ValidationError(f"evidence checksum mismatch: {path_value}")
+        write_bits = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
+        if path.stat().st_mode & write_bits:
+            raise ValidationError(f"immutable evidence is writable: {path_value}")
+        kind = evidence.get("kind")
+        if kind not in {"sanitized-log", "measurement", "scan", "photograph", "summary", "manifest"}:
+            raise ValidationError(f"evidence has an invalid kind: {path_value}")
+        kinds.add(kind)
+        if kind == "measurement":
+            _validate_output_measurement(path)
+        elif kind in {"sanitized-log", "summary"}:
+            _validate_private_text(path)
         if digest in evidence_hashes:
             raise ValidationError(f"duplicate evidence digest: {digest}")
         evidence_hashes.add(digest)
+    required_kinds = {"sanitized-log", "measurement", "summary"}
+    if not required_kinds <= kinds:
+        missing = required_kinds - kinds
+        raise ValidationError(f"validation run lacks evidence kind {sorted(missing)[0]}")
     return evidence_hashes
+
+
+def _validate_output_measurement(path: Path) -> None:
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        output_measurement.validate_measurement(document)
+    except (OSError, json.JSONDecodeError, output_measurement.MeasurementError) as error:
+        raise ValidationError(f"invalid output measurement {path.name}: {error}") from error
+
+
+def _validate_private_text(path: Path) -> None:
+    try:
+        content = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        raise ValidationError(f"text evidence is not UTF-8: {path.name}") from error
+    if PRIVATE_SOURCE_PATH.search(content):
+        raise ValidationError(f"text evidence retains a private source filename: {path.name}")
+    if EXPOSED_SECRET.search(content):
+        raise ValidationError(f"text evidence retains credentials or user identity: {path.name}")
+    if FIRMWARE_NAME.search(content):
+        raise ValidationError(f"text evidence retains firmware identity: {path.name}")
 
 
 def validate_gate(
@@ -177,7 +237,7 @@ def validate_gate(
     if missing:
         raise ValidationError(f"missing required scenario row {sorted(missing)[0]}")
 
-    claims = _objects(manifest.get("supportClaims"), "support claims")
+    claims = _object_list(manifest.get("supportClaims"), "support claims")
     if claims and not (
         manifest.get("result") == "passed"
         and manifest.get("sealed") is True
@@ -186,6 +246,18 @@ def validate_gate(
         raise ValidationError("support claim requires a passing, sealed, redacted manifest")
     if manifest.get("result") != "passed" or manifest.get("sealed") is not True:
         raise ValidationError(f"{milestone} gate requires a passing sealed manifest")
+    environment = manifest.get("environment")
+    if not isinstance(environment, dict):
+        raise ValidationError("validation manifest has no environment")
+    if environment.get("kind") == "supplementary-vm":
+        raise ValidationError("supplementary VM evidence cannot establish support")
+    connection_paths = environment.get("connectionPaths")
+    allowed_paths = {"host-only", "ugreen-thunderbolt-4-dock", "direct-usb-a-to-usb-c"}
+    if (
+        not isinstance(connection_paths, list)
+        or any(not isinstance(path, str) or path not in allowed_paths for path in connection_paths)
+    ):
+        raise ValidationError("validation environment has no connection paths")
 
     recorded_matrix_hash = _sha(
         manifest.get("capabilityMatrixSha256"), "capability matrix identity"
@@ -202,7 +274,7 @@ def validate_gate(
         raise ValidationError("validation manifest has no affected-scope identities")
 
     results: dict[str, dict[str, Any]] = {}
-    for result in _objects(manifest.get("scenarioResults"), "scenario results"):
+    for result in _object_list(manifest.get("scenarioResults"), "scenario results"):
         scenario_id = result.get("scenarioId")
         if scenario_id not in scenarios:
             raise ValidationError(f"manifest references unknown scenario {scenario_id}")
@@ -216,10 +288,14 @@ def validate_gate(
         )
         if result.get("state") not in STATES:
             raise ValidationError(f"{scenario_id} result has an invalid state")
+        if manifest.get("result") == "passed" and result.get("state") != "verified":
+            raise ValidationError(f"passing manifest contains non-verified result {scenario_id}")
         if not isinstance(result.get("summary"), str) or not result["summary"]:
             raise ValidationError(f"{scenario_id} result has no summary")
         if not isinstance(result.get("observedAt"), str) or not result["observedAt"]:
             raise ValidationError(f"{scenario_id} result has no timestamp")
+        if result.get("state") == "verified" and not result["attempts"]:
+            raise ValidationError(f"verified scenario result {scenario_id} has no attempts")
         results[str(scenario_id)] = result
 
     evidence_hashes = _verify_evidence(manifest, evidence_root)
@@ -228,6 +304,28 @@ def validate_gate(
         result = results.get(scenario_id)
         if row["state"] != "verified" or result is None or result.get("state") != "verified":
             raise ValidationError(f"required scenario {scenario_id} is not verified")
+        if any(attempt["outcome"] != "passed" for attempt in row["attempts"]):
+            raise ValidationError(f"required scenario {scenario_id} has a failed attempt")
+        if any(attempt["outcome"] != "passed" for attempt in result["attempts"]):
+            raise ValidationError(f"required scenario {scenario_id} result has a failed attempt")
+        row_environment = row["environment"]
+        if any(
+            row_environment.get(field) != environment.get(field)
+            for field in ("kind", "macOSVersion", "macOSBuild", "architecture")
+        ):
+            raise ValidationError(f"expired evidence for {scenario_id} environment identity")
+        required_paths = {
+            "host-only": {"host-only"},
+            "ugreen-thunderbolt-4-dock": {"ugreen-thunderbolt-4-dock"},
+            "direct-usb-a-to-usb-c": {"direct-usb-a-to-usb-c"},
+            "both": {"ugreen-thunderbolt-4-dock", "direct-usb-a-to-usb-c"},
+        }[row["connectionPath"]]
+        if not required_paths <= set(connection_paths):
+            raise ValidationError(f"{scenario_id} lacks its required connection path evidence")
+        if row["connectionPath"] != "host-only" and (
+            not isinstance(row.get("printer"), dict) or row["printer"] != manifest.get("printer")
+        ):
+            raise ValidationError(f"{scenario_id} lacks exact printer and firmware identity")
         if row["invalidatedBy"]:
             raise ValidationError(f"expired evidence for {scenario_id}: {row['invalidatedBy'][0]}")
         for scope in row["affectedScopes"]:
@@ -242,6 +340,7 @@ def validate_gate(
             raise ValidationError(f"{scenario_id} lacks passing immutable evidence")
         if not set(row["evidence"]) <= set(pointers):
             raise ValidationError(f"{scenario_id} matrix evidence is absent from the manifest")
+        _check_reliability(scenario_id, row, result)
 
     for claim in claims:
         scenario_id = claim.get("scenarioId")
@@ -252,21 +351,51 @@ def validate_gate(
             raise ValidationError(f"support claim for {scenario_id} has no passing evidence")
 
 
-def _load_spec_module() -> Any:
-    path = ROOT / "scripts/check_implementation_spec.py"
-    spec = importlib.util.spec_from_file_location("implementation_spec", path)
-    if spec is None or spec.loader is None:
-        raise ValidationError("cannot load implementation specification checker")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+def _check_reliability(
+    scenario_id: str, row: dict[str, Any], result: dict[str, Any]
+) -> None:
+    requirements = row.get("reliabilityRequirements")
+    observations = result.get("reliabilityObservations")
+    if requirements is None:
+        return
+    if not isinstance(requirements, dict) or not isinstance(observations, dict):
+        raise ValidationError(f"{scenario_id} lacks reliability observations")
+    required_passes = requirements.get("criticalTransitionPassesPerConnectionPath")
+    observed_passes = observations.get("criticalTransitionPassesPerConnectionPath")
+    if not isinstance(required_passes, dict) or not isinstance(observed_passes, dict):
+        raise ValidationError(f"{scenario_id} lacks per-path repetition counts")
+    for path, minimum in required_passes.items():
+        observed = observed_passes.get(path)
+        if (
+            not isinstance(minimum, int)
+            or isinstance(minimum, bool)
+            or not isinstance(observed, int)
+            or isinstance(observed, bool)
+            or observed < minimum
+        ):
+            raise ValidationError(f"{scenario_id} lacks five passing repetitions on {path}")
+    minimum_soak = requirements.get("mixedDocumentSoakJobs")
+    minimum_cycles = requirements.get("lifecycleCycles")
+    maximum_restarts = requirements.get("maximumServiceRestartsDuringSoak")
+    observed_soak = observations.get("mixedDocumentSoakJobs")
+    observed_cycles = observations.get("lifecycleCycles")
+    observed_restarts = observations.get("serviceRestartsDuringSoak")
+    values = (minimum_soak, minimum_cycles, maximum_restarts, observed_soak, observed_cycles, observed_restarts)
+    if any(not isinstance(value, int) or isinstance(value, bool) for value in values):
+        raise ValidationError(f"{scenario_id} has invalid reliability counters")
+    if observed_soak < minimum_soak:
+        raise ValidationError(f"{scenario_id} lacks the 20-job mixed-document soak")
+    if observed_cycles < minimum_cycles:
+        raise ValidationError(f"{scenario_id} lacks three complete lifecycle cycles")
+    if observed_restarts > maximum_restarts:
+        raise ValidationError(f"{scenario_id} restarted the service during the soak")
 
 
 def requirements_for_milestone(spec_path: Path, milestone: str) -> tuple[set[str], set[str]]:
-    checker = _load_spec_module()
-    requirements = checker.parse_requirements(spec_path.read_text(encoding="utf-8"))
-    checker.check_requirement_set(requirements)
+    requirements = check_implementation_spec.parse_requirements(
+        spec_path.read_text(encoding="utf-8")
+    )
+    check_implementation_spec.check_requirement_set(requirements)
     maximum = MILESTONES.index(milestone)
     known = {requirement.id for requirement in requirements}
     required = {
@@ -288,6 +417,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--spec", type=Path, default=ROOT / "docs/IMPLEMENTATION-SPEC.md")
     args = parser.parse_args(argv)
     try:
+        write_bits = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
+        if args.manifest.stat().st_mode & write_bits:
+            raise ValidationError("sealed validation manifest is writable")
         matrix = json.loads(args.matrix.read_text(encoding="utf-8"))
         manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
         known, required = requirements_for_milestone(args.spec, args.milestone)
