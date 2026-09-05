@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+#ifndef HPLJ_ERROR_H
+#define HPLJ_ERROR_H
+
+enum hplj_error_category {
+  HPLJ_ERROR_NONE,
+  HPLJ_ERROR_INVALID_STATE,
+  HPLJ_ERROR_DEVICE_PROTOCOL,
+  HPLJ_ERROR_DEVICE_DISCONNECTED,
+  HPLJ_ERROR_TRANSFER_INCOMPLETE,
+  HPLJ_ERROR_FIRMWARE_MISSING,
+  HPLJ_ERROR_FIRMWARE_UNVERIFIED,
+  HPLJ_ERROR_RASTER_INVALID,
+  HPLJ_ERROR_CANCELLED,
+  HPLJ_ERROR_ENCODING_FAILED,
+};
+
+enum hplj_retry_safety {
+  HPLJ_RETRY_SAFE_AUTOMATIC,
+  HPLJ_RETRY_EXPLICIT,
+  HPLJ_RETRY_NEVER,
+};
+
+enum hplj_human_action {
+  HPLJ_ACTION_NONE,
+  HPLJ_ACTION_IMPORT_FIRMWARE,
+  HPLJ_ACTION_RECONNECT_PRINTER,
+  HPLJ_ACTION_RETRY_JOB,
+  HPLJ_ACTION_CORRECT_RASTER,
+};
+
+struct hplj_error {
+  enum hplj_error_category category;
+  enum hplj_retry_safety retry;
+  enum hplj_human_action action;
+  const char *detail;
+};
+
+struct hplj_error hplj_error_make(enum hplj_error_category category,
+                                  enum hplj_retry_safety retry,
+                                  enum hplj_human_action action,
+                                  const char *detail);
+
+#endif

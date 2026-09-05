@@ -31,8 +31,17 @@ add_library(hplj1020_build_options INTERFACE)
 target_compile_options(hplj1020_build_options INTERFACE
   -Wall -Wextra -Wpedantic -Werror)
 
+add_library(hplj1020_core
+  src/device.c
+  src/encoder.c
+  src/error.c
+  src/pappl.c
+  src/version.c)
+target_include_directories(hplj1020_core PUBLIC include)
+target_link_libraries(hplj1020_core PRIVATE hplj1020_build_options)
+
 add_executable(hplj1020 src/main.c)
-target_link_libraries(hplj1020 PRIVATE hplj1020_build_options)
+target_link_libraries(hplj1020 PRIVATE hplj1020_build_options hplj1020_core)
 add_dependencies(hplj1020 locked-sources)
 
 include(CTest)
@@ -40,4 +49,10 @@ if(BUILD_TESTING)
   add_executable(hplj1020-smoke tests/smoke.c)
   target_link_libraries(hplj1020-smoke PRIVATE hplj1020_build_options)
   add_test(NAME hplj1020-smoke COMMAND hplj1020-smoke)
+  add_executable(hplj1020-contracts tests/contracts.c)
+  target_link_libraries(hplj1020-contracts PRIVATE hplj1020_build_options hplj1020_core)
+  add_test(NAME hplj1020-contracts COMMAND hplj1020-contracts)
+  add_test(NAME hplj1020-version COMMAND hplj1020 --version)
+  set_tests_properties(hplj1020-version PROPERTIES
+    PASS_REGULAR_EXPRESSION "hplj1020 0\\.1\\.0")
 endif()
