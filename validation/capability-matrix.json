@@ -7,7 +7,7 @@
     "golden-corpus": "031eb7c2a6271d55789733b5ad20f7cacb7abc79c072fafc285055828fef911a",
     "implementation-contract": "a6417b21e54e9df041f65b982b3961880d8d1a47bceefd6498efd5ace960bdab",
     "product-source": "3e7c55472863915ad9f2aa19ee666d2488d1b8f52b0d0f89e31a30d184fd3379",
-    "validation-tooling": "6f594e60c7cfe4f9d3cf7b5e73f1280a250826168923c10fdbe89a781d344bad"
+    "validation-tooling": "bff43693b065e0a511f425773327e064b8b60218d13f1f535599a35976e142d5"
   },
   "scenarios": [
     {

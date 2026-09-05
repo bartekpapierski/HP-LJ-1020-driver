@@ -14,9 +14,10 @@ from pathlib import Path
 from typing import Any, Iterable
 
 if __package__:
-    from scripts import check_implementation_spec, output_measurement
+    from scripts import check_implementation_spec, json_schema, output_measurement
 else:
     import check_implementation_spec  # type: ignore[no-redef]
+    import json_schema  # type: ignore[no-redef]
     import output_measurement  # type: ignore[no-redef]
 
 
@@ -204,7 +205,7 @@ def _verify_evidence(
                     f"output measurement {path_value} does not match its scenario binding"
                 )
         elif kind in {"sanitized-log", "summary"}:
-            _validate_private_text(path)
+            _validate_utf8_text(path)
         if digest in evidence_by_hash:
             raise ValidationError(f"duplicate evidence digest: {digest}")
         evidence_by_hash[digest] = evidence
@@ -237,9 +238,9 @@ def _validate_private_bytes(path: Path) -> None:
         raise ValidationError(f"evidence retains firmware identity: {path.name}")
 
 
-def _validate_private_text(path: Path) -> None:
+def _validate_utf8_text(path: Path) -> None:
     try:
-        content = path.read_text(encoding="utf-8")
+        path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as error:
         raise ValidationError(f"text evidence is not UTF-8: {path.name}") from error
 
@@ -285,6 +286,17 @@ def validate_gate(
     """Reject a milestone unless every support claim has current sealed evidence."""
     if milestone not in MILESTONES:
         raise ValidationError(f"unknown milestone {milestone}")
+    try:
+        matrix_schema = json.loads(
+            (ROOT / "docs/spec/capability-matrix.schema.json").read_text(encoding="utf-8")
+        )
+        manifest_schema = json.loads(
+            (ROOT / "docs/spec/validation-manifest.schema.json").read_text(encoding="utf-8")
+        )
+        json_schema.validate(matrix, matrix_schema)
+        json_schema.validate(manifest, manifest_schema)
+    except (OSError, json.JSONDecodeError, json_schema.SchemaError) as error:
+        raise ValidationError(f"schema validation failed: {error}") from error
     scenarios = _scenario_map(matrix, known_requirements)
     missing = required_scenarios - set(scenarios)
     if missing:

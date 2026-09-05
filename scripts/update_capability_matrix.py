@@ -39,6 +39,7 @@ SCOPE_PATHS = {
         "docs/spec",
         "scripts/check_golden_corpus.py",
         "scripts/check_implementation_spec.py",
+        "scripts/json_schema.py",
         "scripts/output_measurement.py",
         "scripts/update_capability_matrix.py",
         "scripts/validation_gate.py",

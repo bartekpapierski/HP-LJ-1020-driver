@@ -256,14 +256,14 @@ class ValidationGateChecks(unittest.TestCase):
         def unseal(run: dict[str, object]) -> None:
             run["sealed"] = False
 
-        with self.assertRaisesRegex(gate.ValidationError, "support claim"):
+        with self.assertRaisesRegex(gate.ValidationError, "support claim|sealed"):
             self.run_gate([scenario()], mutate_manifest=unseal)
 
     def test_support_claim_without_immutable_evidence_is_rejected(self) -> None:
         def make_mutable(run: dict[str, object]) -> None:
             run["evidence"][0]["immutable"] = False
 
-        with self.assertRaisesRegex(gate.ValidationError, "not marked immutable"):
+        with self.assertRaisesRegex(gate.ValidationError, "immutable"):
             self.run_gate([scenario()], mutate_manifest=make_mutable)
 
     def test_writable_evidence_is_rejected(self) -> None:
@@ -291,7 +291,7 @@ class ValidationGateChecks(unittest.TestCase):
         def omit_path(run: dict[str, object]) -> None:
             run["environment"]["connectionPaths"] = []
 
-        with self.assertRaisesRegex(gate.ValidationError, "connection path"):
+        with self.assertRaisesRegex(gate.ValidationError, "connection path|connectionPaths"):
             self.run_gate([scenario()], mutate_manifest=omit_path)
 
     def test_reliability_gate_requires_five_passes_on_each_path(self) -> None:
@@ -352,6 +352,27 @@ class ValidationGateChecks(unittest.TestCase):
 
         with self.assertRaisesRegex(gate.ValidationError, "redacted"):
             self.run_gate([scenario()], mutate_manifest=expose_run)
+
+    def test_missing_schema_identity_is_rejected(self) -> None:
+        def omit_schema(run: dict[str, object]) -> None:
+            del run["$schema"]
+
+        with self.assertRaisesRegex(gate.ValidationError, "schema validation"):
+            self.run_gate([scenario()], mutate_manifest=omit_schema)
+
+    def test_undeclared_manifest_payload_is_rejected(self) -> None:
+        def add_payload(run: dict[str, object]) -> None:
+            run["firmwarePayload"] = "opaque bytes"
+
+        with self.assertRaisesRegex(gate.ValidationError, "additional property"):
+            self.run_gate([scenario()], mutate_manifest=add_payload)
+
+    def test_invalid_run_timestamp_is_rejected(self) -> None:
+        def break_timestamp(run: dict[str, object]) -> None:
+            run["startedAt"] = "not-a-date"
+
+        with self.assertRaisesRegex(gate.ValidationError, "date-time"):
+            self.run_gate([scenario()], mutate_manifest=break_timestamp)
 
 
 if __name__ == "__main__":
