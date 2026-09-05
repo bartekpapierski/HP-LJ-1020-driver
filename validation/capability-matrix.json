@@ -1,0 +1,3798 @@
+{
+  "$schema": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/capability-matrix-1.0.0.json",
+  "schemaVersion": "1.0.0",
+  "matrixVersion": 1,
+  "scopeIdentities": {
+    "build-inputs": "cba587cd748383859a8501e35f06a2c5905bacafa647d111a0619b302f950ee1",
+    "golden-corpus": "031eb7c2a6271d55789733b5ad20f7cacb7abc79c072fafc285055828fef911a",
+    "implementation-contract": "a6417b21e54e9df041f65b982b3961880d8d1a47bceefd6498efd5ace960bdab",
+    "product-source": "3e7c55472863915ad9f2aa19ee666d2488d1b8f52b0d0f89e31a30d184fd3379",
+    "validation-tooling": "8cb3166e5217495cd1e39f1c688fbd8cdfc4ed4b73e6ad444dc0fc2ee8f499ef"
+  },
+  "scenarios": [
+    {
+      "scenarioId": "SCN-ACCOUNT-SAFETY",
+      "behavior": "Installer",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "INST-003"
+      ],
+      "provenance": [
+        "Issue #13",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Installation MUST create or verify a non-login dedicated account and MUST refuse to reuse or delete a colliding account unless product ownership is proven.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-ADHOC-SIGNING",
+      "behavior": "Signing",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "SEC-003"
+      ],
+      "provenance": [
+        "Issue #11",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The installed provider MUST be ad-hoc signed with hardened runtime using the nested-code layout preserved for a future Developer ID build, while making no notarization or public-trust claim.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-ADMIN-INPUTS",
+      "behavior": "Privilege",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "SEC-005"
+      ],
+      "provenance": [
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Administrative mutation interfaces MUST use fixed typed operations, validate product ownership and paths, and MUST NOT accept arbitrary commands, executable paths, or mutable caller-supplied payloads.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-ARCH-LANGUAGE",
+      "behavior": "Runtime",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "ARCH-002"
+      ],
+      "provenance": [
+        "Issue #6"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The printing, raster, encoding, firmware, and USB path MUST be implemented in C.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-ARCH-LINKAGE",
+      "behavior": "Runtime",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "ARCH-001"
+      ],
+      "provenance": [
+        "Issue #2",
+        "Issue #6"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The shipping architecture MUST be a user-space IPP Printer Application implemented with PAPPL 1.4.12.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-ARCH-RUNTIME-CONTENT",
+      "behavior": "Client boundary",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "ARCH-003"
+      ],
+      "provenance": [
+        "Issue #2",
+        "Issue #6"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "macOS clients MUST use the standard IPP and Apple Raster or PWG Raster boundary; the runtime MUST NOT depend on classic CUPS filters, PPD execution, Ghostscript, Foomatic, or `pappl-retrofit`.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-BASIC-DIRECT",
+      "behavior": "Connection paths; Job intake",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "JOB-001",
+        "SCOPE-004",
+        "VAL-007"
+      ],
+      "provenance": [
+        "Issue #2",
+        "Issue #5",
+        "Issue #7",
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "direct-usb-a-to-usb-c",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The basic printing milestone MUST cover the UGREEN Thunderbolt 4 dock and a direct USB-A-to-USB-C adapter as distinct connection paths. The service MUST accept ordinary jobs through the standard macOS queue and PAPPL raster path. Every device-facing behavior MUST run through both connection paths; host lifecycle work MAY use the dock plus direct-path installation-to-print and removal smoke tests.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-BASIC-DOCK",
+      "behavior": "Connection paths; Job intake",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "JOB-001",
+        "SCOPE-004",
+        "VAL-007"
+      ],
+      "provenance": [
+        "Issue #2",
+        "Issue #5",
+        "Issue #7",
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "ugreen-thunderbolt-4-dock",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The basic printing milestone MUST cover the UGREEN Thunderbolt 4 dock and a direct USB-A-to-USB-C adapter as distinct connection paths. The service MUST accept ordinary jobs through the standard macOS queue and PAPPL raster path. Every device-facing behavior MUST run through both connection paths; host lifecycle work MAY use the dock plus direct-path installation-to-print and removal smoke tests.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-BASIC-GATE",
+      "behavior": "Milestone gate",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "VAL-009"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The basic printing milestone MUST pass clean install, ordinary-document output, both connection paths, firmware bootstrap, cancellation, power-cycle, reconnect, sleep-wake, safe disable, complete uninstall, and clean reinstall scenarios.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-BUILD-MANIFEST",
+      "behavior": "Release evidence",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "DATA-006"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The build manifest MUST record the exact source, Apple toolchain, architecture, deployment target, build configuration, dependency and patch identities, signing mode, generated inputs, CI identity, and final artifact checksums.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-BUILD-SYSTEM",
+      "behavior": "Build",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "BUILD-001"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Product compilation, linking, tests, installation layout, and generated metadata MUST use CMake and CTest; Ninja SHOULD be the local and hosted-CI generator.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-BUILD-WRAPPER",
+      "behavior": "Build",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "BUILD-002"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "One audited `scripts/build` entry point MUST own dependency preparation and release-policy enforcement and MUST support verified online preparation plus offline builds from a content-addressed cache.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-BUNDLE-DETERMINISM",
+      "behavior": "Diagnostics",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "DIAG-008"
+      ],
+      "provenance": [
+        "Issue #14"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The diagnostic inventory MUST remain deterministic enough to audit file membership, maximum sizes, producers, and privacy transformations.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-BUNDLE-EXPLICIT",
+      "behavior": "Diagnostics",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "DIAG-003"
+      ],
+      "provenance": [
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "A diagnostic bundle MUST be generated only by explicit local request and MUST never be uploaded automatically.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-BUNDLE-INVENTORY",
+      "behavior": "Diagnostics",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "DIAG-004"
+      ],
+      "provenance": [
+        "Issue #14",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Every diagnostic bundle MUST conform to `docs/spec/diagnostic-bundle-inventory.v1.json`, identify its inventory and schema versions, and include checksums for every included file.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-BUNDLE-PARTIAL",
+      "behavior": "Diagnostics",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "DIAG-006"
+      ],
+      "provenance": [
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Bundle generation MUST report omitted or unavailable entries and MUST NOT substitute broader system data.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-CANCEL-BEFORE-SEND",
+      "behavior": "Cancellation",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "JOB-005"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Cancellation before any print-job byte is sent MUST produce no page and MUST settle the job as canceled.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-CANCEL-DURING-SEND",
+      "behavior": "Retry safety",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "JOB-006"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Cancellation, disconnect, or transfer failure after bytes are sent MUST never report success and MUST require explicit retry even when a partial page is possible.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-CAPABILITY-ENVELOPE",
+      "behavior": "Capabilities",
+      "milestone": "CAPABILITY",
+      "requirementIds": [
+        "JOB-011"
+      ],
+      "provenance": [
+        "Issue #3",
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The verified capability envelope MUST expose only validated quality, media, source, density, EconoMode, and manual-duplex controls represented in the capability matrix.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-CAPABILITY-GATE",
+      "behavior": "Milestone gate",
+      "milestone": "CAPABILITY",
+      "requirementIds": [
+        "VAL-011"
+      ],
+      "provenance": [
+        "Issue #3",
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The verified capability envelope MUST additionally pass every advertised quality, media, source, density, EconoMode, and manual-duplex scenario through both paths.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-CI-SUPPLY-CHAIN",
+      "behavior": "CI",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "BUILD-007"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Every third-party GitHub Action MUST be pinned by full commit SHA; workflow permissions MUST be read-only by default; CI MUST use no release secret or firmware input.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-CLEAN-INSTALL",
+      "behavior": "Installer",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "INST-001"
+      ],
+      "provenance": [
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The personal-use installation MUST use one audited source-install operation that builds without privilege and requests administrator authorization only for machine-wide mutations.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-COMPLETE-UNINSTALL",
+      "behavior": "Lifecycle",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "INST-009"
+      ],
+      "provenance": [
+        "Issue #10",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Complete uninstall MUST require a preview and explicit administrator confirmation, remove every product-owned artifact including firmware metadata and receipts, and MUST NOT remove unrelated queues or system CUPS components.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-DEPENDENCY-LOCK",
+      "behavior": "Build input; Dependencies",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "BUILD-003",
+        "DATA-005"
+      ],
+      "provenance": [
+        "Issue #12",
+        "Issue #4",
+        "Issue #6"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The dependency lock MUST be the only authority for exact dependency versions or commits, source URLs, SHA-256 hashes, license expressions, and patch identities. PAPPL MUST be locked to version 1.4.12; libusb, `foo2zjs`, transitive sources, and every patch MUST use exact lock identities with no floating range.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-DEPENDENCY-UPDATE",
+      "behavior": "Dependencies",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "BUILD-008"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "A dependency update MUST be an explicit reviewed change that updates the lock, notices, SBOM, affected evidence, and patch identities; it MUST NOT merge automatically.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-DEVELOPMENT-MODE",
+      "behavior": "Development",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "INST-011"
+      ],
+      "provenance": [
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Ordinary development runs MUST remain foreground, per-user, and uninstalled.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-DEVICE-IDENTITY",
+      "behavior": "Device discovery",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "FW-001"
+      ],
+      "provenance": [
+        "Issue #3",
+        "Issue #5"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The device lifecycle MUST accept only USB vendor/product `03f0:2b17` whose IEEE 1284 identity identifies the exact HP LaserJet 1020.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-DEVICE-RECOVERY",
+      "behavior": "Device recovery",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "FW-009"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Device disconnect, reconnect, power cycle, and Mac sleep or wake MUST invalidate stale handles and recover without reinstalling or restarting the service.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-DIAGNOSTIC-CATEGORIES",
+      "behavior": "Diagnostics",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "DIAG-007"
+      ],
+      "provenance": [
+        "Issue #10",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Diagnostic output MUST distinguish installation, service, firmware, device, raster, encoding, transfer, media, cancellation, validation, and release failures.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-DIAGNOSTIC-PRIVACY",
+      "behavior": "Diagnostics; Privacy",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "DIAG-005",
+        "SEC-006"
+      ],
+      "provenance": [
+        "Issue #8",
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Logs and diagnostics MUST exclude document contents, raster and ZjStream payloads, filenames, usernames, credentials, firmware contents, and unrelated system data. Redaction MUST occur before bundle files are written and privacy tests MUST inspect both declared entries and archive contents for prohibited data classes.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-DISABLE-ENABLE",
+      "behavior": "Lifecycle",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "INST-008"
+      ],
+      "provenance": [
+        "Issue #8",
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Disable MUST make printing integration unavailable while preserving configuration, state, spool, imported firmware, and logs for reactivation.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-DISCONNECT-DURING-SEND",
+      "behavior": "Retry safety",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "JOB-006"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Cancellation, disconnect, or transfer failure after bytes are sent MUST never report success and MUST require explicit retry even when a partial page is possible.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-DISTRIBUTION-BOUNDARY",
+      "behavior": "Distribution",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "SCOPE-005"
+      ],
+      "provenance": [
+        "Issue #12",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The current distribution boundary MUST remain a source-built personal-use installation and MUST NOT be represented as a public binary release.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-ENCODER-CONTRACT",
+      "behavior": "Encoder",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "COMP-004"
+      ],
+      "provenance": [
+        "Issue #4",
+        "Issue #6"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The encoder contract MUST adapt the pinned `foo2zjs` ZjStream and JBIG implementation in process and MUST expose typed output, cancellation, and error categories without shelling out.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-ERROR-CONTRACT",
+      "behavior": "All components",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "COMP-006"
+      ],
+      "provenance": [
+        "Issue #8",
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Every component error MUST carry a stable category, retry-safety classification, human-action hint, and causal detail suitable for redacted diagnostics.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-EVIDENCE-EXPIRY",
+      "behavior": "Evidence validity",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "VAL-005"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Evidence MUST expire by affected scope after component changes; dependency or macOS patch changes MUST rerun the core suite; USB changes MUST rerun both-path smoke tests; every tagged candidate MUST run the complete contract.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-FAIL-CLOSED",
+      "behavior": "Global safety",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "SEC-010"
+      ],
+      "provenance": [
+        "Issue #10",
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The system MUST fail closed when firmware integrity, device identity, dependency integrity, installed ownership, or release-record verification fails.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-FAILED-RELEASE-RUN",
+      "behavior": "Evidence",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "REL-008"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Every failed validation attempt MUST produce a new immutable redacted summary keyed by source commit and run ID, MUST create no tag, and MUST NOT enter the successful-release directory.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-FIRMWARE-BOOTSTRAP",
+      "behavior": "Firmware bootstrap",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "FW-002"
+      ],
+      "provenance": [
+        "Issue #3",
+        "Issue #7"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "After every printer appearance or power cycle, the service MUST query the IEEE 1284 identity and MUST upload firmware only when `FWVER` is absent.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-FIRMWARE-DISCLOSURE",
+      "behavior": "Firmware licensing",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "LIC-006"
+      ],
+      "provenance": [
+        "Issue #10",
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "HP firmware MUST remain HP-owned, separately licensed user-supplied firmware outside the project license and distribution.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-FIRMWARE-ERRORS",
+      "behavior": "Firmware errors",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "FW-007"
+      ],
+      "provenance": [
+        "Issue #10"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The service MUST distinguish missing, unsupported, corrupt, transfer-failed, and post-transfer-unverified firmware and MUST expose a specific recovery action for each.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-FIRMWARE-EXCLUSION",
+      "behavior": "Firmware licensing; Proprietary content",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "LIC-007",
+        "SEC-009"
+      ],
+      "provenance": [
+        "Issue #10",
+        "Issue #12",
+        "Issue #4"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Firmware MUST NOT appear in source control, CI, caches, logs, diagnostic bundles, archives, SBOM payloads, installers, or release assets. The project MUST NOT commit, bundle, mirror, serve, upload, extract automatically, or silently substitute an HP firmware binary.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-FIRMWARE-IDEMPOTENCE",
+      "behavior": "Firmware bootstrap",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "FW-004"
+      ],
+      "provenance": [
+        "Issue #7",
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Firmware bootstrap MUST be idempotent per printer power cycle and MUST preserve the queued job across activation.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-FIRMWARE-IMPORT",
+      "behavior": "Firmware acquisition",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "FW-006"
+      ],
+      "provenance": [
+        "Issue #10"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Firmware import MUST require an explicit lawful-acquisition affirmation and an exact allow-listed SHA-256 match before atomically committing the file to private local storage.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-FIRMWARE-REQUIRED",
+      "behavior": "Firmware acquisition",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "FW-005"
+      ],
+      "provenance": [
+        "Issue #10"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Missing firmware MUST produce the distinct firmware-required state, hold the queue, preserve queued jobs, and provide the lawful import action without rolling back an otherwise valid installation.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-FIRMWARE-RETRY",
+      "behavior": "Retry safety",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "FW-008"
+      ],
+      "provenance": [
+        "Issue #10",
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Firmware and device retries MUST be bounded and automatic only while no print-job bytes have been sent; otherwise recovery MUST require explicit user retry.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-FIRMWARE-VERIFY",
+      "behavior": "Firmware bootstrap",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "FW-003"
+      ],
+      "provenance": [
+        "Issue #10",
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The service MUST verify `FWVER` after firmware transfer and MUST NOT send print-job bytes before that verification succeeds.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-GOLDEN-CORPUS",
+      "behavior": "Test input",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "VAL-014"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "A stable privacy-safe golden corpus MUST cover text, vector graphics, raster images, margins, multi-page output, media controls, quality modes, and manual duplex without retaining private document content.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "golden-corpus",
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-GPL-RIGHTS",
+      "behavior": "Project license",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "LIC-009"
+      ],
+      "provenance": [
+        "Issue #10"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The project MUST NOT add terms that conflict with recipients' GPL rights.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-HOST-BOUNDARY",
+      "behavior": "Host boundary",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "SCOPE-003"
+      ],
+      "provenance": [
+        "Issue #5",
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The initial supported host MUST be the Apple Silicon reference Mac running macOS 26.6.1; other hosts or versions remain unverified until the validation contract accepts them.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-HOSTED-CI",
+      "behavior": "CI",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "BUILD-006"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Hosted CI MUST run formatting and linting, warnings-as-errors builds, unit and host integration tests, specification checks, dependency and license checks, SBOM generation, and artifact-content checks.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-IDENTITY-REDACTION",
+      "behavior": "Privacy",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "SEC-007"
+      ],
+      "provenance": [
+        "Issue #5",
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Exact printer serials MAY exist in private validation evidence but committed or shared diagnostics MUST redact them while retaining model and vendor/product identity.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-INSTALL-HEALTH",
+      "behavior": "Integration",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "INST-005"
+      ],
+      "provenance": [
+        "Issue #13",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Installation MUST create one standard macOS queue usable by local non-administrator accounts and MUST perform a final service, listener, queue, and ownership health check.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-INSTALLED-PATHS",
+      "behavior": "Installed state",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "DATA-001"
+      ],
+      "provenance": [
+        "Issue #13",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The installed payload, configuration, persistent state, spool, firmware, cache, and logs MUST occupy distinct product-owned paths beneath the pinned roots and MUST be writable only by their designated owner.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-INSTALLED-PERMISSIONS",
+      "behavior": "Installed state",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "DATA-002"
+      ],
+      "provenance": [
+        "Issue #13",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The provider payload and launchd plist MUST be root-owned and not writable by the service account; private runtime state, spool, and imported firmware MUST be owned by the dedicated account with no access for other non-administrator users.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-JOB-RETENTION",
+      "behavior": "Privacy",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "JOB-010"
+      ],
+      "provenance": [
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The service MUST cap completed-job metadata at 20 records and MUST delete transient raster and ZjStream payloads when their job no longer requires them.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-JOB-RETRY-BOUNDARY",
+      "behavior": "Retry safety",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "JOB-007"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The job path MUST record whether any print-job bytes were sent and MUST use that fact as the sole automatic-retry safety boundary.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-KNOWN-PROVENANCE-RISK",
+      "behavior": "Provenance",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "LIC-005"
+      ],
+      "provenance": [
+        "Issue #10"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The known unidentified `zjrca.h` provenance risk MUST be documented for personal use and MUST NOT be described as resolved or complete.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-LAUNCH-READINESS",
+      "behavior": "Service",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "INST-006"
+      ],
+      "provenance": [
+        "Issue #13"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Readiness checks MUST wait for launchd's final service UID and the loopback listener and MUST NOT treat the temporary root `xpcproxy` process as provider readiness.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-LICENSE-FILES",
+      "behavior": "Project license",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "LIC-002"
+      ],
+      "provenance": [
+        "Issue #10"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The repository MUST contain the GPL version 2 text, declare `GPL-2.0-or-later`, and place `SPDX-License-Identifier: GPL-2.0-or-later` on original project source files.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-LIFECYCLE-CONVERGENCE",
+      "behavior": "Lifecycle",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "INST-007"
+      ],
+      "provenance": [
+        "Issue #13",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Install, disable, enable, and uninstall operations MUST be idempotent and MUST converge safely from every product-owned partial state represented in the transition table.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-LOCAL-STATUS",
+      "behavior": "Diagnostics",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "DIAG-001"
+      ],
+      "provenance": [
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The product MUST provide a local status command reporting product and dependency versions, service and queue state, firmware and device state, connection-path observations, and actionable error categories.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-LOG-BOUNDS",
+      "behavior": "Diagnostics",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "DIAG-002"
+      ],
+      "provenance": [
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Structured local logs MUST rotate when either 14 days or 10 MiB is reached.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-LOOPBACK-ONLY",
+      "behavior": "Network boundary",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "INST-004"
+      ],
+      "provenance": [
+        "Issue #13",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The installed IPP service MUST bind only to `127.0.0.1:8631`, `[::1]:8631`, and its product-owned local socket; discovery MUST remain local-only and general PAPPL web administration MUST be disabled.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-MACOS-SUPPORT-CHANGE",
+      "behavior": "Host support",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "VAL-006"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "A new macOS patch support claim MUST pass core printing, recovery, security-boundary, upgrade, and uninstall scenarios; a new major macOS version MUST pass the complete contract.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-MANUAL-DUPLEX",
+      "behavior": "Capability",
+      "milestone": "CAPABILITY",
+      "requirementIds": [
+        "JOB-012"
+      ],
+      "provenance": [
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Manual duplex MUST be represented as a guided host workflow and MUST NOT be advertised as automatic duplex.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-MATRIX-SCHEMA",
+      "behavior": "Capability matrix",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "VAL-001"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Every capability scenario MUST identify its stable ID, behavior, milestone, requirement IDs, provenance, exact macOS build and connection path, source commit and lock, printer and firmware identity when applicable, expected and observed results, execution time, evidence, and final state.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-MODULE-CONTRACTS",
+      "behavior": "Components",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "ARCH-005"
+      ],
+      "provenance": [
+        "Issue #6"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The runtime MUST begin as one unprivileged service with independently testable PAPPL integration, capability and status mapping, raster-to-ZjStream encoding, and USB and firmware lifecycle modules.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-NO-EGRESS",
+      "behavior": "Privacy",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "SEC-004"
+      ],
+      "provenance": [
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The runtime MUST perform no telemetry, automatic upload, automatic update check, or unrelated background network traffic.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-NO-HELPER",
+      "behavior": "Privilege",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "SEC-002"
+      ],
+      "provenance": [
+        "Issue #13",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "No privileged USB or firmware helper MAY exist without a dedicated-account claim failure accepted as evidence and a reviewed amendment defining an authenticated fixed typed protocol.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-NO-PUBLIC-AUTOMATION",
+      "behavior": "Release boundary",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "PUB-007"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Current release automation MUST NOT create or publish a package, use Developer ID credentials, notarize, staple, upload release assets, or create a GitHub Release.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-OUT-OF-SCOPE",
+      "behavior": "Product boundary",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "SCOPE-006"
+      ],
+      "provenance": [
+        "Issue #1"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Intel Macs, sibling printer models, network or mobile printing, custom graphical administration, App Store distribution, telemetry, and kernel extensions MUST remain outside the current scope.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-OUTPUT-ORACLE",
+      "behavior": "Output correctness",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "VAL-013",
+        "VAL-015"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Output evidence MUST show exact page count and order, no unexplained blank, partial, missing, or duplicate pages, no clipping inside the printable region, scale error at most 1 percent, fiducial displacement at most 2 mm, correct orientation and media, readable fine patterns, and no visible corruption or density discontinuity. Human inspection MUST remain the artifact-quality oracle while scans provide measurement evidence.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-OWNERSHIP-CONTRACT",
+      "behavior": "All components",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "COMP-007"
+      ],
+      "provenance": [
+        "Issue #6"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Ownership of buffers, handles, files, jobs, cancellation tokens, and cleanup MUST be explicit at every component boundary and testable under partial failure.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-PAPPL-CONTRACT",
+      "behavior": "PAPPL integration",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "COMP-001"
+      ],
+      "provenance": [
+        "Issue #6",
+        "Issue #7"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The PAPPL integration contract MUST own driverless discovery, queue-facing capabilities, raster negotiation, job callbacks, cancellation propagation, and status publication.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-PARTIAL-INSTALL",
+      "behavior": "Installation",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "DATA-003"
+      ],
+      "provenance": [
+        "Issue #13"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The implementation MUST create PAPPL's complete private state hierarchy before service launch and MUST use explicitly quoted paths when a path contains spaces.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-PERSONAL-GATE",
+      "behavior": "Milestone gate",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "VAL-010"
+      ],
+      "provenance": [
+        "Issue #12",
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The first personal release MUST additionally pass reproducible build, transactional update and rollback, bounded diagnostics, sealing, and tagged-source promotion scenarios.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-PERSONAL-RELEASE",
+      "behavior": "Promotion",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "REL-005"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "A personal release MUST point to a clean merged commit, passing hosted checks, complete reference-Mac validation, a sealed local bundle, and an SSH-signed annotated immutable tag.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-PIPELINE-FORMAT",
+      "behavior": "Print pipeline",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "ARCH-004"
+      ],
+      "provenance": [
+        "Issue #3",
+        "Issue #7"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The device pipeline MUST perform host rasterization to one-bit raster, JBIG encoding, model-1 ZjStream generation, and USB transfer; it MUST NOT forward PDF, PostScript, or generic PCL to the printer.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-PRIVILEGE-BOUNDARY",
+      "behavior": "Privilege",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "SEC-001"
+      ],
+      "provenance": [
+        "Issue #13",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The complete printing service MUST NOT run as root; administrator authorization MUST be confined to explicit machine-wide lifecycle mutations.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-PROJECT-LICENSE",
+      "behavior": "Project license",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "LIC-001"
+      ],
+      "provenance": [
+        "Issue #10"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Original project code and the combined work containing the adapted `foo2zjs` and JBIG implementation MUST use `GPL-2.0-or-later`.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-PUBLIC-CORRESPONDING-SOURCE",
+      "behavior": "Compliance; Public release",
+      "milestone": "PUBLIC",
+      "requirementIds": [
+        "LIC-010",
+        "PUB-006"
+      ],
+      "provenance": [
+        "Issue #10",
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Any distributed binary MUST be accompanied through a GPL-compliant mechanism by complete corresponding source, reproducible build and installation scripts, dependency notices, and an SBOM. Public promotion MUST produce complete corresponding source, reproducible build and install inputs, third-party notices, an SBOM, and accepted full-contract evidence.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "deferred",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-PUBLIC-FIRMWARE",
+      "behavior": "Firmware acquisition; Firmware distribution",
+      "milestone": "PUBLIC",
+      "requirementIds": [
+        "PUB-004",
+        "PUB-005"
+      ],
+      "provenance": [
+        "Issue #10"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Any automated firmware acquisition MUST remain absent until the exact artifact, endpoint, and governing terms have a reviewed legal and provenance basis. Public automation MUST keep firmware outside every distributed or uploaded artifact and MUST preserve manual local import when no authorized acquisition method exists.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "deferred",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-PUBLIC-GATE",
+      "behavior": "Distribution",
+      "milestone": "PUBLIC",
+      "requirementIds": [
+        "PUB-001"
+      ],
+      "provenance": [
+        "Issue #12",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Public binary distribution MUST remain disabled until an explicit reviewed decision activates it.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "deferred",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-PUBLIC-PROVENANCE",
+      "behavior": "Provenance",
+      "milestone": "PUBLIC",
+      "requirementIds": [
+        "PUB-003"
+      ],
+      "provenance": [
+        "Issue #10"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Public release work MUST resolve, replace, or formally review and accept the `zjrca.h` provenance risk before promotion.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "deferred",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-PUBLIC-RELICENSING",
+      "behavior": "Licensing",
+      "milestone": "PUBLIC",
+      "requirementIds": [
+        "PUB-008"
+      ],
+      "provenance": [
+        "Issue #10"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "A replacement independently implemented encoder MAY enable a later relicensing decision but MUST NOT change the current license without a reviewed amendment.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "deferred",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-PUBLIC-SOURCE-BOUNDARY",
+      "behavior": "Future UI seam",
+      "milestone": "PUBLIC",
+      "requirementIds": [
+        "ARCH-007"
+      ],
+      "provenance": [
+        "Issue #6"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Swift MAY be used only for a future macOS registration or approval interface and MUST NOT enter the raster, encoder, firmware, or USB data path.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "deferred",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-PUBLIC-TRUST",
+      "behavior": "Signing and launch",
+      "milestone": "PUBLIC",
+      "requirementIds": [
+        "PUB-002"
+      ],
+      "provenance": [
+        "Issue #11",
+        "Issue #13",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "A public binary release MUST use an accepted Developer ID identity, hardened runtime, notarization, stapling, and the preserved app-bundled `SMAppService` launch boundary rather than the personal legacy LaunchDaemon flow.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "deferred",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-RASTER-600DPI",
+      "behavior": "Raster",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "JOB-002"
+      ],
+      "provenance": [
+        "Issue #3",
+        "Issue #7"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The basic path MUST consistently request or normalize true 600 by 600 dpi one-bit raster before encoding.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-RASTER-CONTRACT",
+      "behavior": "Raster input",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "COMP-003"
+      ],
+      "provenance": [
+        "Issue #3",
+        "Issue #7"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The raster contract MUST accept explicit geometry, resolution, row stride, bit polarity, page count, media, source, quality, density, and cancellation inputs.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-RASTER-MISMATCH",
+      "behavior": "Raster",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "JOB-003"
+      ],
+      "provenance": [
+        "Issue #7"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "A raster-header and painted-resolution mismatch MUST be rejected or correctly resampled and MUST NOT be transmitted unchanged.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-RELEASE-BUILD-GUARDS",
+      "behavior": "Build",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "BUILD-004"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Development source overrides MAY be used only outside release mode; release builds MUST reject unverified overrides, dirty worktrees, mismatched hashes, floating versions, and unrecorded generated inputs.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-RELEASE-NOTES",
+      "behavior": "Support record",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "REL-010"
+      ],
+      "provenance": [
+        "Issue #12",
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Release notes MUST identify changes, exact support claims, known limitations, firmware requirements, lifecycle instructions, validation results, dependency changes, and checksums; a new support claim MUST create a new patch-version personal release.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-RELEASE-PROMOTION",
+      "behavior": "Promotion",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "REL-004"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Promotion MUST proceed idempotently through prepared, hosted-ci-passed, locally-validated, sealed, tagged, and installed stages and MUST verify checksums and identities before resuming.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-RELEASE-RECORD",
+      "behavior": "Release evidence",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "DATA-009"
+      ],
+      "provenance": [
+        "Issue #12",
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Persistent release records MUST use relative repository paths and content hashes for referenced artifacts; mutable absolute local paths MAY appear only in redacted local evidence.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-RELEASE-RETENTION",
+      "behavior": "Retention",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "REL-009"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Each personal release MUST retain its small redacted records indefinitely and at least the current and previous validated payloads and compatible-state snapshots.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-REMOVAL-RESIDUE",
+      "behavior": "Lifecycle",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "INST-010"
+      ],
+      "provenance": [
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "If disable or uninstall is incomplete, the service MUST remain disabled and the operation MUST report every detected residue instead of claiming completion.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-REPETITION-SOAK",
+      "behavior": "Reliability",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "VAL-012"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Every critical state transition MUST pass five consecutive repetitions per connection path; the suite MUST pass a 20-job mixed-document soak without service restart and three complete install-update-or-rollback-uninstall-reinstall cycles.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-REPOSITORY-GOVERNANCE",
+      "behavior": "Governance",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "BUILD-010"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The default branch MUST be protected for release-relevant changes and release tags MUST be immutable.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-REPRODUCIBILITY",
+      "behavior": "Build evidence",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "BUILD-009"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Cross-environment reproducibility MUST compare normalized inputs, architecture, deployment target, dependency inventory, and test results while recording Apple-toolchain differences; byte-identical output MUST NOT be claimed.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-REQUIRED-DISCLOSURES",
+      "behavior": "Disclosures",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "LIC-008"
+      ],
+      "provenance": [
+        "Issue #10"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "README, install and import flow, status output, and credits MUST disclose project licensing, independence from HP, Apple, and OpenPrinting, firmware ownership and locality, warranty posture, and evidence-bounded support claims where relevant.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-ROLLBACK-PAYLOAD",
+      "behavior": "Rollback",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "REL-003"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Rollback MUST use the exact retained prior payload and compatible-state snapshot and MUST NOT rebuild an older version opportunistically.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-SAFE-MEDIA-FAULTS",
+      "behavior": "Device safety; Media recovery",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "JOB-008",
+        "VAL-016"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Empty tray, missing manual-feed media, observable cover-open, replenishment, and cancellation while waiting for media MUST be mapped to safe actionable states without deliberately inducing a jam. Naturally occurring jams MAY be retained as supplemental evidence but MUST NOT be a release prerequisite and MUST NOT be induced deliberately.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-SCHEMA-CATALOG",
+      "behavior": "Companion artifacts",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "DATA-008"
+      ],
+      "provenance": [
+        "Issue #14"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Every machine-consumed artifact MUST identify a cataloged schema and exact schema version; unknown schema references MUST be rejected.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-SCOPE-IDENTITY",
+      "behavior": "Product boundary",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "SCOPE-001"
+      ],
+      "provenance": [
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The implementation MUST target the exact HP LaserJet 1020 reference printer and MUST NOT imply sibling-model support.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-SEAL-INTEGRITY",
+      "behavior": "Release bundle",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "REL-007"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Checksums MUST cover final archived files; the sealed directory MUST be read-only and MUST exclude firmware, credentials, private print data, and sensitive diagnostics.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-SEALED-CONTENTS",
+      "behavior": "Release bundle",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "REL-006"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The sealed local release directory MUST contain a `ditto` ZIP of the final ad-hoc-signed payload, source Git bundle, dependency lock, build manifest, SPDX JSON SBOM, third-party notices, release notes, validation pointer, and `SHA256SUMS`.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-SERVICE-IDENTITY",
+      "behavior": "Service",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "INST-002"
+      ],
+      "provenance": [
+        "Issue #11",
+        "Issue #13"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The personal service MUST be an administrator-installed legacy LaunchDaemon and MUST execute the provider as `_hplj1020`, never as root.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-SPEC-CHECK-NEGATIVE",
+      "behavior": "Specification checks",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "VAL-004"
+      ],
+      "provenance": [
+        "Issue #14"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Static checks MUST reject duplicate or non-sequential IDs, missing requirement fields, broken decision links, unknown schema references, uncovered non-deferred requirements, and unknown requirement references.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-SPEC-CONFORMANCE",
+      "behavior": "Evidence boundary; Planning boundary; Traceability",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "DATA-007",
+        "SCOPE-007",
+        "VAL-003"
+      ],
+      "provenance": [
+        "Issue #14",
+        "Issue #15",
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "This specification MUST NOT prescribe backlog order or implementation sequencing; downstream work MUST cite requirement IDs instead of duplicating normative statements. The capability matrix MUST own mutable scenario states and observed results; this specification MUST NOT embed mutable pass or fail results. Every non-deferred requirement MUST have at least one named coverage scenario and every scenario requirement reference MUST resolve to a known non-retired requirement ID.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-STATUS-CONTRACT",
+      "behavior": "Capability mapping",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "COMP-002"
+      ],
+      "provenance": [
+        "Issue #6"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The capability and status contract MUST translate product options and device outcomes without exposing PAPPL or libusb objects to the encoder.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-SUBSEQUENT-JOB",
+      "behavior": "Recovery",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "JOB-009"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Clearing a device, media, cancellation, or disconnect condition MUST allow the next job to print without reinstalling or restarting the service.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-SUPPORT-CLAIM",
+      "behavior": "Support claims",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "SCOPE-002"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "A support claim MUST identify the exact tested macOS version, reference printer, and applicable connection path.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-TAGGED-UPDATE",
+      "behavior": "Update",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "REL-001"
+      ],
+      "provenance": [
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Updates MUST rebuild an explicitly selected tagged source revision and rerun the audited installer; the product MUST perform no automatic update check.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-TEST-DOUBLES",
+      "behavior": "Test seams",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "COMP-008"
+      ],
+      "provenance": [
+        "Issue #15",
+        "Issue #6"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Device, encoder, clock, filesystem, process-supervisor, and PAPPL-facing contracts MUST support host-only test doubles.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-THIRD-PARTY-NOTICES",
+      "behavior": "Dependencies",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "LIC-004"
+      ],
+      "provenance": [
+        "Issue #10",
+        "Issue #4"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "PAPPL, libusb, and every other dependency MUST retain its own license and required notice material in `THIRD_PARTY_NOTICES` or `LICENSES/`.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-UPDATE-ROLLBACK",
+      "behavior": "Update",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "REL-002"
+      ],
+      "provenance": [
+        "Issue #12",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Update activation MUST stage and validate the replacement, refuse active-job interruption, preserve compatible queue and state, health-check the replacement, and roll back automatically on activation or migration failure.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-UPGRADE-COMPATIBILITY",
+      "behavior": "Upgrade",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "DATA-004"
+      ],
+      "provenance": [
+        "Issue #12",
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Stable product, driver, queue, and persistent-state identifiers MUST remain compatible across updates or be migrated transactionally.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-UPSTREAM-PROVENANCE",
+      "behavior": "Provenance",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "LIC-003"
+      ],
+      "provenance": [
+        "Issue #10",
+        "Issue #4"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Adapted upstream files MUST retain copyright and license notices, be marked as modified, and preserve a trace to the exact upstream commit and local patches.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-USB-BOUNDARY",
+      "behavior": "Privilege boundary",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "ARCH-006"
+      ],
+      "provenance": [
+        "Issue #13",
+        "Issue #6"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The runtime MUST keep the USB boundary narrow and typed, but MUST NOT introduce DriverKit, a privileged helper, or another process split without new evidence and a reviewed specification amendment.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-USB-CLAIM-DIRECT",
+      "behavior": "USB privilege",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "FW-010"
+      ],
+      "provenance": [
+        "Issue #13",
+        "Issue #7"
+      ],
+      "environment": null,
+      "connectionPath": "direct-usb-a-to-usb-c",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The dedicated service account MUST discover, open, and claim the printer through PAPPL and libusb without a privileged helper on both connection paths.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-USB-CLAIM-DOCK",
+      "behavior": "USB privilege",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "FW-010"
+      ],
+      "provenance": [
+        "Issue #13",
+        "Issue #7"
+      ],
+      "environment": null,
+      "connectionPath": "ugreen-thunderbolt-4-dock",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The dedicated service account MUST discover, open, and claim the printer through PAPPL and libusb without a privileged helper on both connection paths.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-USB-FW-CONTRACT",
+      "behavior": "Device lifecycle",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "COMP-005"
+      ],
+      "provenance": [
+        "Issue #3",
+        "Issue #7"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The USB and firmware contract MUST own exact-device discovery, interface claim, IEEE 1284 identity reads, firmware transfer, post-transfer verification, print-byte transfer, disconnect handling, and byte-count reporting.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-VALIDATION-MANIFEST",
+      "behavior": "Validation evidence",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "VAL-002"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Every validation run MUST retain an immutable redacted manifest, checksums, sanitized logs, measurements, result summaries, and pointers to scans or photographs when needed.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-VERSION-SOURCE",
+      "behavior": "Versioning",
+      "milestone": "PERSONAL",
+      "requirementIds": [
+        "BUILD-005"
+      ],
+      "provenance": [
+        "Issue #12"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The build MUST use one tracked SemVer source, generate every product version from it, remain in `v0.x.y` before compatibility commitments justify 1.0, and record the full source commit.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "build-inputs",
+        "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-VM-EVIDENCE-BOUNDARY",
+      "behavior": "Test environment",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "VAL-008"
+      ],
+      "provenance": [
+        "Issue #9"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "VM evidence MAY supplement repeatable non-USB lifecycle scenarios but MUST NOT establish macOS-version or connection-path support.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "validation-tooling"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-WRITABLE-INPUTS",
+      "behavior": "Input boundary",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "SEC-008"
+      ],
+      "provenance": [
+        "Issue #8"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Product-owned writable inputs consumed by the service MUST be integrity-checked or constrained by ownership and mode before parsing.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    },
+    {
+      "scenarioId": "SCN-ZJSTREAM-STRUCTURE",
+      "behavior": "Encoder",
+      "milestone": "BASIC",
+      "requirementIds": [
+        "JOB-004"
+      ],
+      "provenance": [
+        "Issue #3",
+        "Issue #7"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Model-1 ZjStream generation MUST use the exact LaserJet 1020 mode equivalent to `-z1 -P -L0` and MUST be structurally validated before USB transmission.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null
+    }
+  ]
+}

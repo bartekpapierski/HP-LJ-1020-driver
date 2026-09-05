@@ -14,11 +14,14 @@
     "buildManifestSha256",
     "capabilityMatrixSha256",
     "environment",
+    "printer",
+    "scopeIdentities",
     "startedAt",
     "finishedAt",
     "result",
     "scenarioResults",
     "evidence",
+    "supportClaims",
     "redacted",
     "sealed"
   ],
@@ -42,11 +45,58 @@
         "architecture": { "const": "arm64" },
         "connectionPaths": {
           "type": "array",
+          "minItems": 1,
           "uniqueItems": true,
           "items": { "enum": ["host-only", "ugreen-thunderbolt-4-dock", "direct-usb-a-to-usb-c"] }
         }
       }
     },
+    "printer": { "oneOf": [{ "$ref": "#/$defs/printer" }, { "type": "null" }] },
+    "scopeIdentities": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z0-9][a-z0-9-]+$" },
+      "additionalProperties": { "$ref": "#/$defs/sha256" }
+    },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "finishedAt": { "type": "string", "format": "date-time" },
+    "result": { "enum": ["passed", "failed", "incomplete"] },
+    "scenarioResults": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/scenarioResult" } },
+    "evidence": { "type": "array", "items": { "$ref": "#/$defs/checksummedPath" } },
+    "supportClaims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["scenarioId", "statement"],
+        "properties": {
+          "scenarioId": { "$ref": "#/$defs/scenarioId" },
+          "statement": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "redacted": { "const": true },
+    "sealed": { "type": "boolean" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "result": { "const": "passed" } }, "required": ["result"] },
+      "then": {
+        "properties": {
+          "sealed": { "const": true },
+          "scenarioResults": { "items": { "properties": { "state": { "const": "verified" } } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "supportClaims": { "minItems": 1 } }, "required": ["supportClaims"] },
+      "then": { "properties": { "result": { "const": "passed" }, "sealed": { "const": true } } }
+    }
+  ],
+  "$defs": {
+    "gitCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "scenarioId": { "type": "string", "pattern": "^SCN-[A-Z0-9-]+$" },
     "printer": {
       "type": "object",
       "additionalProperties": false,
@@ -58,62 +108,46 @@
         "firmwareVersion": { "type": ["string", "null"] }
       }
     },
-    "startedAt": { "type": "string", "format": "date-time" },
-    "finishedAt": { "type": "string", "format": "date-time" },
-    "result": { "enum": ["passed", "failed", "incomplete"] },
-    "scenarioResults": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["scenarioId", "requirementIds", "state", "summary"],
-        "properties": {
-          "scenarioId": { "type": "string", "pattern": "^SCN-[A-Z0-9-]+$" },
-          "requirementIds": {
-            "type": "array",
-            "minItems": 1,
-            "uniqueItems": true,
-            "items": { "type": "string", "pattern": "^[A-Z]+-[0-9]{3}$" }
-          },
-          "state": { "enum": ["verified", "unverified", "unsupported", "deferred"] },
-          "summary": { "type": "string", "minLength": 1 }
-        }
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempt", "outcome", "observedAt", "summary"],
+      "properties": {
+        "attempt": { "type": "integer", "minimum": 1 },
+        "outcome": { "enum": ["passed", "failed"] },
+        "observedAt": { "type": "string", "format": "date-time" },
+        "summary": { "type": "string", "minLength": 1 }
       }
     },
-    "evidence": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/checksummedPath" }
-    },
-    "redacted": { "const": true },
-    "sealed": { "type": "boolean" }
-  },
-  "allOf": [
-    {
-      "if": { "properties": { "result": { "const": "passed" } } },
-      "then": {
-        "properties": {
-          "sealed": { "const": true },
-          "scenarioResults": {
-            "items": {
-              "properties": { "state": { "const": "verified" } }
-            }
-          }
-        }
+    "scenarioResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenarioId", "requirementIds", "state", "summary", "observedAt", "evidenceSha256", "attempts", "intermittencyExplanation"],
+      "properties": {
+        "scenarioId": { "$ref": "#/$defs/scenarioId" },
+        "requirementIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Z]+-[0-9]{3}$" }
+        },
+        "state": { "enum": ["verified", "unverified", "unsupported", "deferred"] },
+        "summary": { "type": "string", "minLength": 1 },
+        "observedAt": { "type": "string", "format": "date-time" },
+        "evidenceSha256": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/sha256" } },
+        "attempts": { "type": "array", "items": { "$ref": "#/$defs/attempt" } },
+        "intermittencyExplanation": { "type": ["string", "null"] }
       }
-    }
-  ],
-  "$defs": {
-    "gitCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
-    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    },
     "checksummedPath": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "sha256", "kind"],
+      "required": ["path", "sha256", "kind", "immutable"],
       "properties": {
         "path": { "type": "string", "minLength": 1 },
         "sha256": { "$ref": "#/$defs/sha256" },
-        "kind": { "enum": ["sanitized-log", "measurement", "scan", "photograph", "summary", "manifest"] }
+        "kind": { "enum": ["sanitized-log", "measurement", "scan", "photograph", "summary", "manifest"] },
+        "immutable": { "const": true }
       }
     }
   }

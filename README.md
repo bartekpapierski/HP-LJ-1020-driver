@@ -19,6 +19,33 @@ Support claims apply only to the reference printer, macOS version, and
 connection path verified under the validation contract. This repository does
 not currently produce a public binary release.
 
+## Validation artifacts
+
+`validation/capability-matrix.json` is the machine-readable inventory of every
+scenario named by the implementation specification. Update its required rows
+and affected-scope identities with:
+
+```sh
+python3 scripts/update_capability_matrix.py
+```
+
+Validation runs remain local under the ignored `validation/runs/` directory.
+Evaluate a run before making a milestone or support claim with:
+
+```sh
+python3 scripts/validation_gate.py \
+  --matrix validation/capability-matrix.json \
+  --manifest validation/runs/RUN_ID/manifest.json \
+  --milestone BASIC \
+  --evidence-root validation/runs/RUN_ID
+```
+
+The gate accepts only passing, sealed, redacted manifests whose immutable
+evidence checksums and affected-scope identities still match. Validate output
+measurement records with `python3 scripts/output_measurement.py RECORD.json`.
+The synthetic inputs and print-control cases in `validation/golden-corpus/`
+contain no private document content.
+
 ## Source provenance
 
 `third_party/foo2zjs/adaptations.json` is the authoritative record for the

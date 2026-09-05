@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297">
+  <rect width="210" height="297" fill="white"/>
+  <rect x="5" y="5" width="200" height="287" fill="none" stroke="black" stroke-width="0.2"/>
+  <path d="M20 20H190M20 277H190M20 20V277M190 20V277" fill="none" stroke="black" stroke-width="0.4"/>
+  <circle cx="20" cy="20" r="2" fill="none" stroke="black"/>
+  <circle cx="190" cy="20" r="2" fill="none" stroke="black"/>
+  <circle cx="20" cy="277" r="2" fill="none" stroke="black"/>
+  <circle cx="190" cy="277" r="2" fill="none" stroke="black"/>
+  <path d="M55 100L105 55L155 100L130 160H80Z" fill="#bbb" stroke="black"/>
+  <text x="65" y="190" font-family="sans-serif" font-size="6">200 mm × 287 mm outer margin oracle</text>
+</svg>

@@ -111,6 +111,7 @@ The normative machine contracts use JSON Schema draft 2020-12. The catalog at `d
 | Build manifest | `docs/spec/build-manifest.schema.json` | `1.0.0` | `validation/releases/<version>/build-manifest.json` |
 | Capability matrix | `docs/spec/capability-matrix.schema.json` | `1.0.0` | `validation/capability-matrix.json` |
 | Validation manifest | `docs/spec/validation-manifest.schema.json` | `1.0.0` | `validation/runs/<run-id>/manifest.json` |
+| Output measurement | `docs/spec/output-measurement.schema.json` | `1.0.0` | `validation/runs/<run-id>/measurements/<measurement-id>.json` |
 | Diagnostic bundle inventory | `docs/spec/diagnostic-bundle-inventory.schema.json` | `1.0.0` | `docs/spec/diagnostic-bundle-inventory.v1.json` |
 
 | ID | Requirement | Status | Milestone | Verification class | Coverage | Scope | Source decision |

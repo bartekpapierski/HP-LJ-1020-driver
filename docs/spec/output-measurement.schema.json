@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/output-measurement-1.0.0.json",
+  "title": "HP LJ 1020 privacy-safe output measurement",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "measurementId", "scenarioId", "sourceDocumentSha256", "measuredAt", "expected", "observed", "visualInspection", "privacy", "result"],
+  "properties": {
+    "$schema": { "const": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/output-measurement-1.0.0.json" },
+    "schemaVersion": { "const": "1.0.0" },
+    "measurementId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]+$" },
+    "scenarioId": { "type": "string", "pattern": "^SCN-[A-Z0-9-]+$" },
+    "sourceDocumentSha256": { "$ref": "#/$defs/sha256" },
+    "measuredAt": { "type": "string", "format": "date-time" },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pageCount", "pageOrder"],
+      "properties": {
+        "pageCount": { "type": "integer", "minimum": 1 },
+        "pageOrder": { "$ref": "#/$defs/pageNumbers" }
+      }
+    },
+    "observed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pageCount", "pageOrder", "blankPages", "partialPages", "missingPages", "duplicatePages", "scaleErrorPercent", "maximumFiducialDisplacementMm", "clippingInsidePrintableRegion", "orientationCorrect", "mediaCorrect"],
+      "properties": {
+        "pageCount": { "type": "integer", "minimum": 0 },
+        "pageOrder": { "$ref": "#/$defs/pageNumbers" },
+        "blankPages": { "$ref": "#/$defs/pageNumbers" },
+        "partialPages": { "$ref": "#/$defs/pageNumbers" },
+        "missingPages": { "$ref": "#/$defs/pageNumbers" },
+        "duplicatePages": { "$ref": "#/$defs/pageNumbers" },
+        "scaleErrorPercent": { "type": "number" },
+        "maximumFiducialDisplacementMm": { "type": "number", "minimum": 0 },
+        "clippingInsidePrintableRegion": { "type": "boolean" },
+        "orientationCorrect": { "type": "boolean" },
+        "mediaCorrect": { "type": "boolean" }
+      }
+    },
+    "visualInspection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["performed", "finePatternsReadable", "visibleCorruption", "densityDiscontinuity"],
+      "properties": {
+        "performed": { "type": "boolean" },
+        "finePatternsReadable": { "type": "boolean" },
+        "visibleCorruption": { "type": "boolean" },
+        "densityDiscontinuity": { "type": "boolean" }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["documentContentsRetained", "rasterPayloadRetained", "zjStreamPayloadRetained"],
+      "properties": {
+        "documentContentsRetained": { "const": false },
+        "rasterPayloadRetained": { "const": false },
+        "zjStreamPayloadRetained": { "const": false }
+      }
+    },
+    "result": { "enum": ["passed", "failed"] }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "pageNumbers": { "type": "array", "items": { "type": "integer", "minimum": 1 } }
+  }
+}

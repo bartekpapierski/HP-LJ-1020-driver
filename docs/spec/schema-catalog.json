@@ -24,7 +24,7 @@
       "schemaId": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/capability-matrix-1.0.0.json",
       "schemaVersion": "1.0.0",
       "instancePath": "validation/capability-matrix.json",
-      "instanceRequiredNow": false
+      "instanceRequiredNow": true
     },
     {
       "name": "validation-manifest",
@@ -32,6 +32,14 @@
       "schemaId": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/validation-manifest-1.0.0.json",
       "schemaVersion": "1.0.0",
       "instancePath": "validation/runs/<run-id>/manifest.json",
+      "instanceRequiredNow": false
+    },
+    {
+      "name": "output-measurement",
+      "schemaPath": "docs/spec/output-measurement.schema.json",
+      "schemaId": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/output-measurement-1.0.0.json",
+      "schemaVersion": "1.0.0",
+      "instancePath": "validation/runs/<run-id>/measurements/<measurement-id>.json",
       "instanceRequiredNow": false
     },
     {

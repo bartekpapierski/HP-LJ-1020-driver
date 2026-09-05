@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "1.0.0",
+  "corpusVersion": 1,
+  "privacySafe": true,
+  "documents": [
+    {
+      "documentId": "GOLDEN-TEXT",
+      "containsPrivateContent": false,
+      "coverage": ["text"],
+      "pages": [
+        {
+          "number": 1,
+          "path": "text-and-fine-patterns.svg",
+          "sha256": "f8416c9ae71a4f5294e89156932f7eb47e211085069f1832fdb30acabdd556a6"
+        }
+      ]
+    },
+    {
+      "documentId": "GOLDEN-VECTORS-MARGINS",
+      "containsPrivateContent": false,
+      "coverage": ["vectors", "margins", "media-controls", "quality-modes"],
+      "pages": [
+        {
+          "number": 1,
+          "path": "vectors-and-margins.svg",
+          "sha256": "1ec8f3577ad433b2556e10de1c7d19461f69af0f320c79fa35b95cb73ad618f2"
+        }
+      ]
+    },
+    {
+      "documentId": "GOLDEN-RASTER",
+      "containsPrivateContent": false,
+      "coverage": ["raster-images"],
+      "pages": [
+        {
+          "number": 1,
+          "path": "raster-pattern.pgm",
+          "sha256": "d79fee16f48bf58a4fc5a24d5d4fa77fef8888b5025001bfa6bb9713f03b356b"
+        }
+      ]
+    },
+    {
+      "documentId": "GOLDEN-MULTI-PAGE",
+      "containsPrivateContent": false,
+      "coverage": ["multi-page-output"],
+      "pages": [
+        {
+          "number": 1,
+          "path": "multi-page-1.svg",
+          "sha256": "c56bfff6e3e6b97168049e81156ab3f0c7ae19db2194257b6c2887876425fe9e"
+        },
+        {
+          "number": 2,
+          "path": "multi-page-2.svg",
+          "sha256": "f895153c5655c00b68995df4a34b3ddd4a2ab2e82a75f4d54673a8e9c3898db2"
+        },
+        {
+          "number": 3,
+          "path": "multi-page-3.svg",
+          "sha256": "d9b6a5f37958872890982ba653f0b8ffd1682645e96354a6ba1b50b0df7dafc0"
+        }
+      ]
+    },
+    {
+      "documentId": "GOLDEN-MANUAL-DUPLEX",
+      "containsPrivateContent": false,
+      "coverage": ["manual-duplex"],
+      "pages": [
+        {
+          "number": 1,
+          "path": "manual-duplex-front.svg",
+          "sha256": "4e8b9473317f55f3c5e235a15aa67b2cc7ef3287365e85965eb1c953aa91439d"
+        },
+        {
+          "number": 2,
+          "path": "manual-duplex-back.svg",
+          "sha256": "8d251b4ea87802afcc49f2b000aa97d3e86c2e1958902cc19b395958106c8161"
+        }
+      ]
+    }
+  ],
+  "printCases": [
+    {
+      "caseId": "CASE-A4-STANDARD",
+      "documentId": "GOLDEN-VECTORS-MARGINS",
+      "media": "iso_a4_210x297mm",
+      "quality": "600x600",
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-LETTER-HIGH",
+      "documentId": "GOLDEN-RASTER",
+      "media": "na_letter_8.5x11in",
+      "quality": "1200x600",
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-A4-MANUAL-DUPLEX",
+      "documentId": "GOLDEN-MANUAL-DUPLEX",
+      "media": "iso_a4_210x297mm",
+      "quality": "600x600",
+      "manualDuplex": true
+    },
+    {
+      "caseId": "CASE-A4-MULTI-PAGE",
+      "documentId": "GOLDEN-MULTI-PAGE",
+      "media": "iso_a4_210x297mm",
+      "quality": "1200x600",
+      "manualDuplex": false
+    }
+  ]
+}
