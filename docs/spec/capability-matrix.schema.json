@@ -38,11 +38,11 @@
     "printer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["model", "vendorProduct", "serial", "firmwareVersion"],
+      "required": ["model", "vendorProduct", "serialSha256", "firmwareVersion"],
       "properties": {
         "model": { "const": "HP LaserJet 1020" },
         "vendorProduct": { "const": "03f0:2b17" },
-        "serial": { "type": "string", "minLength": 1 },
+        "serialSha256": { "$ref": "#/$defs/sha256" },
         "firmwareVersion": { "type": ["string", "null"] }
       }
     },

@@ -23,6 +23,18 @@ class MeasurementError(ValueError):
     pass
 
 
+def _exact_fields(value: dict[str, Any], expected: set[str], name: str) -> None:
+    unknown = set(value) - expected
+    missing = expected - set(value)
+    if unknown or missing:
+        details = []
+        if unknown:
+            details.append(f"unknown fields {', '.join(sorted(unknown))}")
+        if missing:
+            details.append(f"missing fields {', '.join(sorted(missing))}")
+        raise MeasurementError(f"{name} has {'; '.join(details)}")
+
+
 def _object(value: Any, name: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise MeasurementError(f"{name} must be an object")
@@ -49,6 +61,11 @@ def validate_measurement(document: dict[str, Any]) -> None:
     """Validate one measurement record, including whether its result is truthful."""
     if not isinstance(document, dict):
         raise MeasurementError("measurement must be an object")
+    _exact_fields(document, {
+        "$schema", "schemaVersion", "measurementId", "scenarioId",
+        "sourceDocumentSha256", "measuredAt", "expected", "observed",
+        "visualInspection", "privacy", "result",
+    }, "measurement")
     if document.get("$schema") != SCHEMA_ID or document.get("schemaVersion") != "1.0.0":
         raise MeasurementError("unsupported output measurement schema")
     if not isinstance(document.get("measurementId"), str) or not document["measurementId"]:
@@ -63,6 +80,12 @@ def validate_measurement(document: dict[str, Any]) -> None:
 
     expected = _object(document.get("expected"), "expected")
     observed = _object(document.get("observed"), "observed")
+    _exact_fields(expected, {"pageCount", "pageOrder"}, "expected")
+    _exact_fields(observed, {
+        "pageCount", "pageOrder", "blankPages", "partialPages", "missingPages",
+        "duplicatePages", "scaleErrorPercent", "maximumFiducialDisplacementMm",
+        "clippingInsidePrintableRegion", "orientationCorrect", "mediaCorrect",
+    }, "observed")
     expected_count = expected.get("pageCount")
     observed_count = observed.get("pageCount")
     if not isinstance(expected_count, int) or isinstance(expected_count, bool) or expected_count < 1:
@@ -108,6 +131,10 @@ def validate_measurement(document: dict[str, Any]) -> None:
             failures.append(label)
 
     inspection = _object(document.get("visualInspection"), "visualInspection")
+    _exact_fields(inspection, {
+        "performed", "finePatternsReadable", "visibleCorruption",
+        "densityDiscontinuity",
+    }, "visualInspection")
     for field in (
         "performed",
         "finePatternsReadable",
@@ -126,6 +153,9 @@ def validate_measurement(document: dict[str, Any]) -> None:
         failures.append("density discontinuity")
 
     privacy = _object(document.get("privacy"), "privacy")
+    _exact_fields(privacy, {
+        "documentContentsRetained", "rasterPayloadRetained", "zjStreamPayloadRetained",
+    }, "privacy")
     for field, label in (
         ("documentContentsRetained", "document contents"),
         ("rasterPayloadRetained", "raster payload"),

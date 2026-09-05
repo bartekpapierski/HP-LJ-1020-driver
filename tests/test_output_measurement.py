@@ -85,6 +85,12 @@ class OutputMeasurementChecks(unittest.TestCase):
         with self.assertRaisesRegex(measurement.MeasurementError, "visual inspection"):
             measurement.validate_measurement(document)
 
+    def test_undeclared_payload_field_is_rejected(self) -> None:
+        document = passing_measurement()
+        document["rasterPayload"] = "retained payload"
+        with self.assertRaisesRegex(measurement.MeasurementError, "unknown fields"):
+            measurement.validate_measurement(document)
+
 
 if __name__ == "__main__":
     unittest.main()

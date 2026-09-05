@@ -154,8 +154,10 @@ def _scenario_map(
     return scenarios
 
 
-def _verify_evidence(manifest: dict[str, Any], evidence_root: Path) -> set[str]:
-    evidence_hashes: set[str] = set()
+def _verify_evidence(
+    manifest: dict[str, Any], evidence_root: Path, scenario_ids: set[str]
+) -> dict[str, dict[str, Any]]:
+    evidence_by_hash: dict[str, dict[str, Any]] = {}
     kinds: set[str] = set()
     for evidence in _object_list(manifest.get("evidence"), "validation evidence"):
         path_value = evidence.get("path")
@@ -171,6 +173,16 @@ def _verify_evidence(manifest: dict[str, Any], evidence_root: Path) -> set[str]:
             raise ValidationError(f"evidence did not pass: {path_value}")
         if evidence.get("privacyChecked") is not True:
             raise ValidationError(f"evidence lacks privacy review: {path_value}")
+        bindings = evidence.get("scenarioIds")
+        if not isinstance(bindings, list) or not bindings or any(
+            not isinstance(scenario_id, str) for scenario_id in bindings
+        ):
+            raise ValidationError(f"evidence has no scenario binding: {path_value}")
+        unknown_bindings = set(bindings) - scenario_ids
+        if unknown_bindings:
+            raise ValidationError(
+                f"evidence has unknown scenario binding {sorted(unknown_bindings)[0]}"
+            )
         root = evidence_root.resolve()
         path = (root / relative).resolve()
         if root not in path.parents:
@@ -180,30 +192,49 @@ def _verify_evidence(manifest: dict[str, Any], evidence_root: Path) -> set[str]:
         write_bits = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
         if path.stat().st_mode & write_bits:
             raise ValidationError(f"immutable evidence is writable: {path_value}")
+        _validate_private_bytes(path)
         kind = evidence.get("kind")
         if kind not in {"sanitized-log", "measurement", "scan", "photograph", "summary", "manifest"}:
             raise ValidationError(f"evidence has an invalid kind: {path_value}")
         kinds.add(kind)
         if kind == "measurement":
-            _validate_output_measurement(path)
+            measurement_scenario = _validate_output_measurement(path)
+            if set(bindings) != {measurement_scenario}:
+                raise ValidationError(
+                    f"output measurement {path_value} does not match its scenario binding"
+                )
         elif kind in {"sanitized-log", "summary"}:
             _validate_private_text(path)
-        if digest in evidence_hashes:
+        if digest in evidence_by_hash:
             raise ValidationError(f"duplicate evidence digest: {digest}")
-        evidence_hashes.add(digest)
+        evidence_by_hash[digest] = evidence
     required_kinds = {"sanitized-log", "measurement", "summary"}
     if not required_kinds <= kinds:
         missing = required_kinds - kinds
         raise ValidationError(f"validation run lacks evidence kind {sorted(missing)[0]}")
-    return evidence_hashes
+    return evidence_by_hash
 
 
-def _validate_output_measurement(path: Path) -> None:
+def _validate_output_measurement(path: Path) -> str:
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
         output_measurement.validate_measurement(document)
     except (OSError, json.JSONDecodeError, output_measurement.MeasurementError) as error:
         raise ValidationError(f"invalid output measurement {path.name}: {error}") from error
+    return str(document["scenarioId"])
+
+
+def _validate_private_bytes(path: Path) -> None:
+    try:
+        content = path.read_bytes().decode("latin-1")
+    except OSError as error:
+        raise ValidationError(f"cannot inspect evidence privacy: {path.name}") from error
+    if PRIVATE_SOURCE_PATH.search(content):
+        raise ValidationError(f"evidence retains a private source filename: {path.name}")
+    if EXPOSED_SECRET.search(content):
+        raise ValidationError(f"evidence retains credentials or user identity: {path.name}")
+    if FIRMWARE_NAME.search(content):
+        raise ValidationError(f"evidence retains firmware identity: {path.name}")
 
 
 def _validate_private_text(path: Path) -> None:
@@ -211,12 +242,34 @@ def _validate_private_text(path: Path) -> None:
         content = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as error:
         raise ValidationError(f"text evidence is not UTF-8: {path.name}") from error
-    if PRIVATE_SOURCE_PATH.search(content):
-        raise ValidationError(f"text evidence retains a private source filename: {path.name}")
-    if EXPOSED_SECRET.search(content):
-        raise ValidationError(f"text evidence retains credentials or user identity: {path.name}")
-    if FIRMWARE_NAME.search(content):
-        raise ValidationError(f"text evidence retains firmware identity: {path.name}")
+
+
+def _validate_environment(environment: Any, *, allow_vm: bool) -> dict[str, Any]:
+    if not isinstance(environment, dict):
+        raise ValidationError("validation environment must be an object")
+    allowed_kinds = {"hosted-ci", "local-host", "reference-mac"}
+    if allow_vm:
+        allowed_kinds.add("supplementary-vm")
+    if environment.get("kind") not in allowed_kinds:
+        raise ValidationError("validation environment has an invalid kind")
+    for field in ("macOSVersion", "macOSBuild"):
+        if not isinstance(environment.get(field), str) or not environment[field]:
+            raise ValidationError(f"validation environment has no {field}")
+    if environment.get("architecture") != "arm64":
+        raise ValidationError("validation environment is not arm64")
+    return environment
+
+
+def _validate_printer(printer: Any) -> dict[str, Any]:
+    if not isinstance(printer, dict):
+        raise ValidationError("printer identity must be an object")
+    if printer.get("model") != "HP LaserJet 1020" or printer.get("vendorProduct") != "03f0:2b17":
+        raise ValidationError("printer identity is not the reference printer model")
+    _sha(printer.get("serialSha256"), "redacted printer serial identity")
+    firmware = printer.get("firmwareVersion")
+    if firmware is not None and (not isinstance(firmware, str) or not firmware):
+        raise ValidationError("printer firmware identity is invalid")
+    return printer
 
 
 def validate_gate(
@@ -238,6 +291,8 @@ def validate_gate(
         raise ValidationError(f"missing required scenario row {sorted(missing)[0]}")
 
     claims = _object_list(manifest.get("supportClaims"), "support claims")
+    if manifest.get("redacted") is not True:
+        raise ValidationError("validation manifest is not redacted")
     if claims and not (
         manifest.get("result") == "passed"
         and manifest.get("sealed") is True
@@ -246,11 +301,11 @@ def validate_gate(
         raise ValidationError("support claim requires a passing, sealed, redacted manifest")
     if manifest.get("result") != "passed" or manifest.get("sealed") is not True:
         raise ValidationError(f"{milestone} gate requires a passing sealed manifest")
-    environment = manifest.get("environment")
-    if not isinstance(environment, dict):
-        raise ValidationError("validation manifest has no environment")
+    environment = _validate_environment(manifest.get("environment"), allow_vm=True)
     if environment.get("kind") == "supplementary-vm":
         raise ValidationError("supplementary VM evidence cannot establish support")
+    if claims and environment.get("kind") != "reference-mac":
+        raise ValidationError("support claims require reference-Mac evidence")
     connection_paths = environment.get("connectionPaths")
     allowed_paths = {"host-only", "ugreen-thunderbolt-4-dock", "direct-usb-a-to-usb-c"}
     if (
@@ -298,7 +353,7 @@ def validate_gate(
             raise ValidationError(f"verified scenario result {scenario_id} has no attempts")
         results[str(scenario_id)] = result
 
-    evidence_hashes = _verify_evidence(manifest, evidence_root)
+    evidence_by_hash = _verify_evidence(manifest, evidence_root, set(scenarios))
     for scenario_id in sorted(required_scenarios):
         row = scenarios[scenario_id]
         result = results.get(scenario_id)
@@ -308,7 +363,7 @@ def validate_gate(
             raise ValidationError(f"required scenario {scenario_id} has a failed attempt")
         if any(attempt["outcome"] != "passed" for attempt in result["attempts"]):
             raise ValidationError(f"required scenario {scenario_id} result has a failed attempt")
-        row_environment = row["environment"]
+        row_environment = _validate_environment(row["environment"], allow_vm=True)
         if any(
             row_environment.get(field) != environment.get(field)
             for field in ("kind", "macOSVersion", "macOSBuild", "architecture")
@@ -323,7 +378,7 @@ def validate_gate(
         if not required_paths <= set(connection_paths):
             raise ValidationError(f"{scenario_id} lacks its required connection path evidence")
         if row["connectionPath"] != "host-only" and (
-            not isinstance(row.get("printer"), dict) or row["printer"] != manifest.get("printer")
+            _validate_printer(row.get("printer")) != _validate_printer(manifest.get("printer"))
         ):
             raise ValidationError(f"{scenario_id} lacks exact printer and firmware identity")
         if row["invalidatedBy"]:
@@ -336,8 +391,10 @@ def validate_gate(
         if row["dependencyLockSha256"] != manifest.get("dependencyLockSha256"):
             raise ValidationError(f"expired evidence for {scenario_id} dependency identity")
         pointers = result.get("evidenceSha256")
-        if not isinstance(pointers, list) or not pointers or not set(pointers) <= evidence_hashes:
+        if not isinstance(pointers, list) or not pointers or not set(pointers) <= set(evidence_by_hash):
             raise ValidationError(f"{scenario_id} lacks passing immutable evidence")
+        if any(scenario_id not in evidence_by_hash[digest]["scenarioIds"] for digest in pointers):
+            raise ValidationError(f"{scenario_id} evidence is bound to another scenario")
         if not set(row["evidence"]) <= set(pointers):
             raise ValidationError(f"{scenario_id} matrix evidence is absent from the manifest")
         _check_reliability(scenario_id, row, result)

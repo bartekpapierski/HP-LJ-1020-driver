@@ -197,6 +197,7 @@ class ValidationGateChecks(unittest.TestCase):
                     "immutable": True,
                     "result": "passed",
                     "privacyChecked": True,
+                    "scenarioIds": [primary_id],
                 })
             for row in rows:
                 row["evidence"] = digests
@@ -328,6 +329,29 @@ class ValidationGateChecks(unittest.TestCase):
                 [scenario()],
                 sanitized_log_data=b"input=/Users/alice/Documents/private.pdf\n",
             )
+
+    def test_evidence_for_another_scenario_is_rejected(self) -> None:
+        def misbind(run: dict[str, object]) -> None:
+            for evidence in run["evidence"]:
+                evidence["scenarioIds"] = ["SCN-OTHER"]
+
+        with self.assertRaisesRegex(gate.ValidationError, "unknown scenario binding"):
+            self.run_gate([scenario()], mutate_manifest=misbind)
+
+    def test_incomplete_environment_identity_is_rejected(self) -> None:
+        def omit_build(run: dict[str, object]) -> None:
+            del run["environment"]["macOSBuild"]
+
+        with self.assertRaisesRegex(gate.ValidationError, "environment"):
+            self.run_gate([scenario()], mutate_manifest=omit_build)
+
+    def test_non_redacted_run_is_rejected_without_support_claims(self) -> None:
+        def expose_run(run: dict[str, object]) -> None:
+            run["supportClaims"] = []
+            run["redacted"] = False
+
+        with self.assertRaisesRegex(gate.ValidationError, "redacted"):
+            self.run_gate([scenario()], mutate_manifest=expose_run)
 
 
 if __name__ == "__main__":
