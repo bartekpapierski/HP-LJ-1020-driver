@@ -98,6 +98,14 @@ class LicensingAndProvenanceChecks(unittest.TestCase):
 
         checker.check_licensing_and_provenance(root)
 
+    def test_generated_build_sources_are_not_treated_as_project_source(self) -> None:
+        _, root = self.copy_repository()
+        generated = root / "build/CMakeFiles/compiler-id.c"
+        generated.parent.mkdir(parents=True, exist_ok=True)
+        generated.write_text("int generated;\n", encoding="utf-8")
+
+        checker.check_licensing_and_provenance(root)
+
     def test_missing_gpl_license_is_rejected(self) -> None:
         _, root = self.copy_repository()
         (root / "LICENSE").unlink()

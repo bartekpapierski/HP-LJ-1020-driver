@@ -11,6 +11,7 @@ enum hplj_queue_state { HPLJ_QUEUE_READY, HPLJ_QUEUE_HELD, HPLJ_QUEUE_STOPPED };
 struct hplj_status {
   enum hplj_queue_state queue;
   enum hplj_human_action action;
+  enum hplj_error_category diagnostic;
 };
 
 struct hplj_capabilities {
@@ -45,6 +46,7 @@ struct hplj_pappl_ops {
 typedef void (*hplj_pappl_publish_callback)(void *context, struct hplj_status status);
 
 struct hplj_status hplj_status_from_device(enum hplj_device_state state);
+struct hplj_status hplj_status_from_firmware_error(enum hplj_error_category category);
 void hplj_pappl_publish_status(const struct hplj_service_config *config,
                                const struct hplj_observer *observer,
                                hplj_pappl_publish_callback publish, void *context,

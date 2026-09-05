@@ -32,4 +32,6 @@ jobs:
           python3 scripts/generate_sbom.py --output build/hplj1020.spdx.json
           test ! -e firmware
       - name: Check artifact content
-        run: python3 scripts/check_artifacts.py build
+        run: |
+          python3 scripts/check_artifacts.py .
+          python3 scripts/check_artifacts.py "$RUNNER_TEMP/hplj-cache"

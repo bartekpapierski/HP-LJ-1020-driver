@@ -35,6 +35,8 @@ add_library(hplj1020_core
   src/device.c
   src/encoder.c
   src/error.c
+  src/firmware.c
+  src/firmware_store.c
   src/pappl.c
   src/version.c)
 target_include_directories(hplj1020_core PUBLIC include)
@@ -52,6 +54,10 @@ if(BUILD_TESTING)
   add_executable(hplj1020-contracts tests/contracts.c)
   target_link_libraries(hplj1020-contracts PRIVATE hplj1020_build_options hplj1020_core)
   add_test(NAME hplj1020-contracts COMMAND hplj1020-contracts)
+  add_executable(hplj1020-firmware-contracts tests/firmware_contracts.c)
+  target_include_directories(hplj1020-firmware-contracts PRIVATE tests)
+  target_link_libraries(hplj1020-firmware-contracts PRIVATE hplj1020_build_options hplj1020_core)
+  add_test(NAME hplj1020-firmware-contracts COMMAND hplj1020-firmware-contracts)
   add_test(NAME hplj1020-version COMMAND hplj1020 --version)
   set_tests_properties(hplj1020-version PROPERTIES
     PASS_REGULAR_EXPRESSION "hplj1020 0\\.1\\.0")

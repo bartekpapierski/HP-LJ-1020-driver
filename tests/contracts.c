@@ -11,9 +11,11 @@
 
 struct fake_device {
   const char *identity;
+  const char *post_upload_identity;
   size_t write_limit;
   size_t written;
   bool firmware_uploaded;
+  enum hplj_error_category upload_error;
 };
 
 static enum hplj_error_category fake_open(void *context) {
@@ -34,8 +36,12 @@ static enum hplj_error_category fake_claim_interface(void *context) {
 static enum hplj_error_category fake_identity(void *context, char *identity,
                                               size_t identity_size, size_t *identity_length) {
   struct fake_device *device = context;
-  const char *source = device->firmware_uploaded ? "MFG:HP;MDL:HP LaserJet 1020;FWVER:1;"
-                                                  : device->identity;
+  const char *source = device->identity;
+  if (device->firmware_uploaded) {
+    source = device->post_upload_identity != NULL
+                 ? device->post_upload_identity
+                 : "MFG:HP;MDL:HP LaserJet 1020;FWVER:1;";
+  }
   if (strlen(source) + 1 > identity_size) {
     return HPLJ_ERROR_DEVICE_PROTOCOL;
   }
@@ -53,6 +59,9 @@ static enum hplj_error_category fake_upload(void *context, const unsigned char *
   struct fake_device *device = context;
   if (firmware == NULL || firmware_size == 0) {
     return HPLJ_ERROR_FIRMWARE_MISSING;
+  }
+  if (device->upload_error != HPLJ_ERROR_NONE) {
+    return device->upload_error;
   }
   device->firmware_uploaded = true;
   return HPLJ_ERROR_NONE;
@@ -107,6 +116,73 @@ static void test_partial_send_requires_explicit_retry(void) {
   assert(device.state == HPLJ_DEVICE_DISCONNECTED);
 }
 
+static struct hplj_device connected_fake_device(struct fake_device *fake) {
+  struct hplj_device device;
+  hplj_device_init(&device, &(struct hplj_device_ops){
+      .discover_exact = fake_discover_exact, .open = fake_open,
+      .claim_interface = fake_claim_interface, .read_identity = fake_identity,
+      .upload_firmware = fake_upload, .write = fake_write, .release = fake_release,
+      .context = fake,
+  });
+  assert(hplj_device_connect(&device).error.category == HPLJ_ERROR_NONE);
+  return device;
+}
+
+static void test_firmware_failures_hold_printing_with_specific_recovery(void) {
+  const unsigned char firmware[] = {0x01};
+
+  struct fake_device missing_fake = {
+      .identity = "MFG:HP;MDL:HP LaserJet 1020;", .write_limit = 64};
+  struct hplj_device missing = connected_fake_device(&missing_fake);
+  struct hplj_device_result operation = hplj_device_bootstrap_firmware(&missing, NULL, 0);
+  assert(operation.error.category == HPLJ_ERROR_FIRMWARE_MISSING);
+  assert(operation.error.action == HPLJ_ACTION_IMPORT_FIRMWARE);
+  assert(missing.state == HPLJ_DEVICE_AWAITING_FIRMWARE);
+  assert(hplj_status_from_device(missing.state).queue == HPLJ_QUEUE_HELD);
+
+  struct fake_device transfer_fake = {
+      .identity = "MFG:HP;MDL:HP LaserJet 1020;",
+      .write_limit = 64,
+      .upload_error = HPLJ_ERROR_DEVICE_DISCONNECTED,
+  };
+  struct hplj_device transfer = connected_fake_device(&transfer_fake);
+  operation = hplj_device_bootstrap_firmware(&transfer, firmware, sizeof(firmware));
+  assert(operation.error.category == HPLJ_ERROR_FIRMWARE_TRANSFER_FAILED);
+  assert(operation.error.retry == HPLJ_RETRY_EXPLICIT);
+  assert(operation.error.action == HPLJ_ACTION_RECONNECT_AND_RETRY_FIRMWARE);
+  assert(transfer.state == HPLJ_DEVICE_FIRMWARE_TRANSFER_FAILED);
+  assert(hplj_status_from_device(transfer.state).queue == HPLJ_QUEUE_HELD);
+
+  struct fake_device unverified_fake = {
+      .identity = "MFG:HP;MDL:HP LaserJet 1020;",
+      .post_upload_identity = "MFG:HP;MDL:HP LaserJet 1020;FWVER:;",
+      .write_limit = 64,
+  };
+  struct hplj_device unverified = connected_fake_device(&unverified_fake);
+  operation = hplj_device_bootstrap_firmware(&unverified, firmware, sizeof(firmware));
+  assert(operation.error.category == HPLJ_ERROR_FIRMWARE_UNVERIFIED);
+  assert(operation.error.retry == HPLJ_RETRY_EXPLICIT);
+  assert(operation.error.action == HPLJ_ACTION_POWER_CYCLE_PRINTER);
+  assert(unverified.state == HPLJ_DEVICE_FIRMWARE_UNVERIFIED);
+  assert(hplj_status_from_device(unverified.state).queue == HPLJ_QUEUE_HELD);
+
+  const unsigned char page[] = {1, 2, 3};
+  assert(hplj_device_send(&unverified, page, sizeof(page), false).error.category ==
+         HPLJ_ERROR_INVALID_STATE);
+  assert(unverified_fake.written == 0);
+
+  struct fake_device substring_fake = {
+      .identity = "MFG:HP;MDL:HP LaserJet 1020;",
+      .post_upload_identity =
+          "MFG:HP;MDL:HP LaserJet 1020;COMMENT:not-FWVER:1;",
+      .write_limit = 64,
+  };
+  struct hplj_device substring = connected_fake_device(&substring_fake);
+  operation = hplj_device_bootstrap_firmware(&substring, firmware, sizeof(firmware));
+  assert(operation.error.category == HPLJ_ERROR_FIRMWARE_UNVERIFIED);
+  assert(substring.state == HPLJ_DEVICE_FIRMWARE_UNVERIFIED);
+}
+
 struct fake_sink {
   size_t bytes_written;
 };
@@ -150,6 +226,14 @@ static void test_pappl_mapping_hides_external_types(void) {
   struct hplj_status status = hplj_status_from_device(HPLJ_DEVICE_AWAITING_FIRMWARE);
   assert(status.queue == HPLJ_QUEUE_HELD);
   assert(status.action == HPLJ_ACTION_IMPORT_FIRMWARE);
+  assert(status.diagnostic == HPLJ_ERROR_FIRMWARE_MISSING);
+  status = hplj_status_from_firmware_error(HPLJ_ERROR_FIRMWARE_UNSUPPORTED);
+  assert(status.queue == HPLJ_QUEUE_HELD);
+  assert(status.action == HPLJ_ACTION_SELECT_SUPPORTED_FIRMWARE);
+  assert(status.diagnostic == HPLJ_ERROR_FIRMWARE_UNSUPPORTED);
+  status = hplj_status_from_firmware_error(HPLJ_ERROR_FIRMWARE_CORRUPT);
+  assert(status.action == HPLJ_ACTION_REACQUIRE_FIRMWARE);
+  assert(status.diagnostic == HPLJ_ERROR_FIRMWARE_CORRUPT);
   assert(strcmp(hplj_product_version(), "0.1.0") == 0);
   assert(strcmp(hplj_dependency_version("pappl"), "1.4.12") == 0);
   assert(strcmp(hplj_dependency_version("libusb"), "1.0.30") == 0);
@@ -181,6 +265,7 @@ static void test_pappl_adapter_accepts_a_host_test_double(void) {
 int main(void) {
   test_device_rejects_invalid_transition();
   test_partial_send_requires_explicit_retry();
+  test_firmware_failures_hold_printing_with_specific_recovery();
   test_encoder_rejects_invalid_raster_before_output();
   test_pappl_mapping_hides_external_types();
   test_pappl_adapter_accepts_a_host_test_double();

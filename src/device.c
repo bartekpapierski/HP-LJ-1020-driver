@@ -5,6 +5,20 @@
 
 static const char *const hplj_identity_prefix = "MFG:HP;MDL:HP LaserJet 1020;";
 
+static bool hplj_has_firmware_version(const char *identity) {
+  const char *search = identity;
+  const char *marker;
+  while ((marker = strstr(search, "FWVER:")) != NULL) {
+    const char *version = marker + strlen("FWVER:");
+    if ((marker == identity || marker[-1] == ';') && version[0] != '\0' &&
+        version[0] != ';' && strchr(version, ';') != NULL) {
+      return true;
+    }
+    search = marker + 1;
+  }
+  return false;
+}
+
 static struct hplj_device_result hplj_failure(enum hplj_error_category category,
                                               enum hplj_retry_safety retry,
                                               enum hplj_human_action action,
@@ -70,8 +84,8 @@ struct hplj_device_result hplj_device_connect(struct hplj_device *device) {
     return hplj_failure(HPLJ_ERROR_DEVICE_PROTOCOL, HPLJ_RETRY_NEVER,
                         HPLJ_ACTION_RECONNECT_PRINTER, "unexpected printer identity", 0);
   }
-  device->state = strstr(identity, "FWVER:") == NULL ? HPLJ_DEVICE_PRE_FIRMWARE
-                                                       : HPLJ_DEVICE_READY;
+  device->state = hplj_has_firmware_version(identity) ? HPLJ_DEVICE_READY
+                                                       : HPLJ_DEVICE_PRE_FIRMWARE;
   return hplj_success(0);
 }
 
@@ -82,7 +96,8 @@ struct hplj_device_result hplj_device_bootstrap_firmware(
   if (device->state == HPLJ_DEVICE_READY) {
     return hplj_success(0);
   }
-  if (device->state != HPLJ_DEVICE_PRE_FIRMWARE) {
+  if (device->state != HPLJ_DEVICE_PRE_FIRMWARE &&
+      device->state != HPLJ_DEVICE_AWAITING_FIRMWARE) {
     return hplj_failure(HPLJ_ERROR_INVALID_STATE, HPLJ_RETRY_NEVER, HPLJ_ACTION_NONE,
                         "firmware bootstrap requires a connected printer", 0);
   }
@@ -95,16 +110,20 @@ struct hplj_device_result hplj_device_bootstrap_firmware(
       device->ops.upload_firmware(device->ops.context, firmware, firmware_size);
   if (category != HPLJ_ERROR_NONE) {
     hplj_release(device);
-    return hplj_failure(category, HPLJ_RETRY_SAFE_AUTOMATIC, HPLJ_ACTION_RECONNECT_PRINTER,
+    device->state = HPLJ_DEVICE_FIRMWARE_TRANSFER_FAILED;
+    return hplj_failure(HPLJ_ERROR_FIRMWARE_TRANSFER_FAILED, HPLJ_RETRY_EXPLICIT,
+                        HPLJ_ACTION_RECONNECT_AND_RETRY_FIRMWARE,
                         "firmware transfer failed", 0);
   }
   category = device->ops.read_identity(device->ops.context, identity, sizeof(identity),
                                        &identity_length);
   if (category != HPLJ_ERROR_NONE || identity_length >= sizeof(identity) ||
-      identity[identity_length] != '\0' || strstr(identity, "FWVER:") == NULL) {
+      identity[identity_length] != '\0' || !hplj_has_firmware_version(identity)) {
     hplj_release(device);
-    return hplj_failure(HPLJ_ERROR_FIRMWARE_UNVERIFIED, HPLJ_RETRY_SAFE_AUTOMATIC,
-                        HPLJ_ACTION_RECONNECT_PRINTER, "firmware version was not verified", 0);
+    device->state = HPLJ_DEVICE_FIRMWARE_UNVERIFIED;
+    return hplj_failure(HPLJ_ERROR_FIRMWARE_UNVERIFIED, HPLJ_RETRY_EXPLICIT,
+                        HPLJ_ACTION_POWER_CYCLE_PRINTER,
+                        "firmware version was not verified", 0);
   }
   device->state = HPLJ_DEVICE_READY;
   return hplj_success(0);

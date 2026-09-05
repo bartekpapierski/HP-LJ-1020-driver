@@ -4,10 +4,15 @@
 struct hplj_status hplj_status_from_device(enum hplj_device_state state) {
   switch (state) {
     case HPLJ_DEVICE_READY:
-      return (struct hplj_status){.queue = HPLJ_QUEUE_READY, .action = HPLJ_ACTION_NONE};
+      return (struct hplj_status){.queue = HPLJ_QUEUE_READY,
+                                  .action = HPLJ_ACTION_NONE,
+                                  .diagnostic = HPLJ_ERROR_NONE};
     case HPLJ_DEVICE_AWAITING_FIRMWARE:
-      return (struct hplj_status){.queue = HPLJ_QUEUE_HELD,
-                                  .action = HPLJ_ACTION_IMPORT_FIRMWARE};
+      return hplj_status_from_firmware_error(HPLJ_ERROR_FIRMWARE_MISSING);
+    case HPLJ_DEVICE_FIRMWARE_TRANSFER_FAILED:
+      return hplj_status_from_firmware_error(HPLJ_ERROR_FIRMWARE_TRANSFER_FAILED);
+    case HPLJ_DEVICE_FIRMWARE_UNVERIFIED:
+      return hplj_status_from_firmware_error(HPLJ_ERROR_FIRMWARE_UNVERIFIED);
     case HPLJ_DEVICE_DISCONNECTED:
     case HPLJ_DEVICE_PRE_FIRMWARE:
       return (struct hplj_status){.queue = HPLJ_QUEUE_HELD,
@@ -17,6 +22,39 @@ struct hplj_status hplj_status_from_device(enum hplj_device_state state) {
                                   .action = HPLJ_ACTION_RECONNECT_PRINTER};
   }
   return (struct hplj_status){.queue = HPLJ_QUEUE_STOPPED, .action = HPLJ_ACTION_NONE};
+}
+
+struct hplj_status hplj_status_from_firmware_error(enum hplj_error_category category) {
+  switch (category) {
+    case HPLJ_ERROR_FIRMWARE_MISSING:
+      return (struct hplj_status){.queue = HPLJ_QUEUE_HELD,
+                                  .action = HPLJ_ACTION_IMPORT_FIRMWARE,
+                                  .diagnostic = category};
+    case HPLJ_ERROR_FIRMWARE_AFFIRMATION_REQUIRED:
+      return (struct hplj_status){.queue = HPLJ_QUEUE_HELD,
+                                  .action = HPLJ_ACTION_AFFIRM_LAWFUL_ACQUISITION,
+                                  .diagnostic = category};
+    case HPLJ_ERROR_FIRMWARE_UNSUPPORTED:
+      return (struct hplj_status){.queue = HPLJ_QUEUE_HELD,
+                                  .action = HPLJ_ACTION_SELECT_SUPPORTED_FIRMWARE,
+                                  .diagnostic = category};
+    case HPLJ_ERROR_FIRMWARE_CORRUPT:
+      return (struct hplj_status){.queue = HPLJ_QUEUE_HELD,
+                                  .action = HPLJ_ACTION_REACQUIRE_FIRMWARE,
+                                  .diagnostic = category};
+    case HPLJ_ERROR_FIRMWARE_TRANSFER_FAILED:
+      return (struct hplj_status){.queue = HPLJ_QUEUE_HELD,
+                                  .action = HPLJ_ACTION_RECONNECT_AND_RETRY_FIRMWARE,
+                                  .diagnostic = category};
+    case HPLJ_ERROR_FIRMWARE_UNVERIFIED:
+      return (struct hplj_status){.queue = HPLJ_QUEUE_HELD,
+                                  .action = HPLJ_ACTION_POWER_CYCLE_PRINTER,
+                                  .diagnostic = category};
+    default:
+      return (struct hplj_status){.queue = HPLJ_QUEUE_STOPPED,
+                                  .action = HPLJ_ACTION_NONE,
+                                  .diagnostic = category};
+  }
 }
 
 void hplj_pappl_publish_status(const struct hplj_service_config *config,

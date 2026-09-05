@@ -15,6 +15,11 @@ supported user-supplied firmware. Import does not grant any right
 to redistribute the firmware. The imported firmware remains local to the
 reference Mac and complete uninstall removes it and its metadata.
 
+The production allow-list is intentionally empty until an exact firmware hash
+and version/build identifier are accepted from reference-printer evidence. Host
+tests exercise the import policy with synthetic bytes through a separate test
+seam; they cannot enable production firmware import.
+
 Support claims apply only to the reference printer, macOS version, and
 connection path verified under the validation contract. This repository does
 not currently produce a public binary release.
