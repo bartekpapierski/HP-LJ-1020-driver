@@ -176,8 +176,6 @@ def build_matrix(existing: dict[str, Any] | None = None) -> dict[str, Any]:
                 "state",
                 "attempts",
                 "intermittencyExplanation",
-                "reliabilityRequirements",
-                "requiresArtifactEvidence",
             ):
                 row[field] = old.get(field, row[field])
             row["invalidatedBy"] = invalidations

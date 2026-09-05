@@ -9,6 +9,7 @@ from pathlib import Path
 
 from scripts import check_golden_corpus as corpus_checker
 from scripts import json_schema
+from scripts import update_capability_matrix
 from scripts import validation_gate as gate
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -73,6 +74,33 @@ class CapabilityMatrixChecks(unittest.TestCase):
         json_schema.validate(matrix, schema)
         rows = gate._scenario_map(matrix, known)
         self.assertEqual(required - set(rows), set())
+
+    def test_updater_restores_spec_derived_gate_policy(self) -> None:
+        matrix = json.loads(
+            (ROOT / "validation/capability-matrix.json").read_text(encoding="utf-8")
+        )
+        repetition = next(
+            row for row in matrix["scenarios"]
+            if row["scenarioId"] == "SCN-REPETITION-SOAK"
+        )
+        repetition["reliabilityRequirements"] = None
+        hardware = next(
+            row for row in matrix["scenarios"]
+            if row["requiresArtifactEvidence"]
+        )
+        hardware["requiresArtifactEvidence"] = False
+
+        regenerated = update_capability_matrix.build_matrix(matrix)
+        regenerated_repetition = next(
+            row for row in regenerated["scenarios"]
+            if row["scenarioId"] == "SCN-REPETITION-SOAK"
+        )
+        regenerated_hardware = next(
+            row for row in regenerated["scenarios"]
+            if row["scenarioId"] == hardware["scenarioId"]
+        )
+        self.assertIsNotNone(regenerated_repetition["reliabilityRequirements"])
+        self.assertTrue(regenerated_hardware["requiresArtifactEvidence"])
 
 
 if __name__ == "__main__":
