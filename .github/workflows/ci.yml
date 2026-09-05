@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  host-checks:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Verify lock, provenance, and licenses
+        run: |
+          python3 scripts/build --verify-lock
+          python3 scripts/check_implementation_spec.py
+      - name: Format and lint
+        run: python3 scripts/check_style.py
+      - name: Build and run CTest from the verified offline cache
+        run: |
+          python3 scripts/build --cache "$RUNNER_TEMP/hplj-cache"
+          python3 scripts/build --offline --cache "$RUNNER_TEMP/hplj-cache"
+      - name: Run unit and host-only integration tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Generate SPDX SBOM
+        run: |
+          python3 scripts/generate_sbom.py --output build/hplj1020.spdx.json
+          test ! -e firmware
+      - name: Check artifact content
+        run: python3 scripts/check_artifacts.py build

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/dependency-lock-1.0.0.json",
+  "schemaVersion": "1.0.0",
+  "dependencies": [
+    {
+      "name": "pappl",
+      "version": "1.4.12",
+      "sourceUrl": "https://github.com/michaelrsweet/pappl/archive/refs/tags/v1.4.12.tar.gz",
+      "sha256": "5bc53039312c6867ee3a06b4573bdadc1b0fa042548ce2c23ea7c2cab5cb7f1d",
+      "licenseExpression": "Apache-2.0",
+      "transitive": false,
+      "patches": []
+    },
+    {
+      "name": "libusb",
+      "version": "1.0.30",
+      "sourceUrl": "https://github.com/libusb/libusb/releases/download/v1.0.30/libusb-1.0.30.tar.bz2",
+      "sha256": "fea36f34f9156400209595e300840767ab1a385ede1dc7ee893015aea9c6dbaf",
+      "licenseExpression": "LGPL-2.1-or-later",
+      "transitive": false,
+      "patches": []
+    },
+    {
+      "name": "foo2zjs",
+      "commit": "80499ed5bf6caa2963ad337e37cfda78a80aab1e",
+      "sourceUrl": "https://github.com/OpenPrinting/foo2zjs/archive/80499ed5bf6caa2963ad337e37cfda78a80aab1e.tar.gz",
+      "sha256": "88ab244deb082c2513fbee36a58c7d407be30a5bdcdf4fd0781807fd18a0c9b4",
+      "licenseExpression": "GPL-2.0-or-later",
+      "transitive": false,
+      "patches": []
+    },
+    {
+      "name": "foo2zjs-bundled-jbig",
+      "commit": "80499ed5bf6caa2963ad337e37cfda78a80aab1e",
+      "sourceUrl": "https://github.com/OpenPrinting/foo2zjs/archive/80499ed5bf6caa2963ad337e37cfda78a80aab1e.tar.gz",
+      "sha256": "88ab244deb082c2513fbee36a58c7d407be30a5bdcdf4fd0781807fd18a0c9b4",
+      "licenseExpression": "GPL-2.0-or-later",
+      "transitive": true,
+      "patches": []
+    }
+  ]
+}

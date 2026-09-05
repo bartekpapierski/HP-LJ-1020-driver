@@ -1,0 +1,191 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
+"""Audited build entry point for the HP LJ 1020 macOS printing solution."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import urllib.request
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+LOCK_PATH = ROOT / "dependencies.lock.json"
+GENERATED_INPUTS_PATH = ROOT / "generated-inputs.json"
+SHA256 = re.compile(r"^[a-f0-9]{64}$")
+COMMIT = re.compile(r"^[a-f0-9]{40}$")
+VERSION = re.compile(r"^[0-9]+(?:\.[0-9]+)+(?:[-+][0-9A-Za-z.-]+)?$")
+
+
+class BuildError(RuntimeError):
+    pass
+
+
+def file_hash(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def read_lock() -> list[dict[str, object]]:
+    try:
+        document = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise BuildError(f"invalid dependency lock: {error}") from error
+    dependencies = document.get("dependencies")
+    if not isinstance(dependencies, list) or not dependencies:
+        raise BuildError("dependency lock has no dependencies")
+    names: set[str] = set()
+    for dependency in dependencies:
+        if not isinstance(dependency, dict):
+            raise BuildError("dependency lock contains a non-object dependency")
+        name = dependency.get("name")
+        source_url = dependency.get("sourceUrl")
+        checksum = dependency.get("sha256")
+        patches = dependency.get("patches")
+        license_expression = dependency.get("licenseExpression")
+        transitive = dependency.get("transitive")
+        if not isinstance(name, str) or name in names:
+            raise BuildError("dependency lock has a missing or duplicate name")
+        names.add(name)
+        if not isinstance(source_url, str) or not source_url.startswith("https://"):
+            raise BuildError(f"{name}: source URL must use HTTPS")
+        if not isinstance(checksum, str) or not SHA256.fullmatch(checksum):
+            raise BuildError(f"{name}: invalid SHA-256")
+        if not isinstance(license_expression, str) or not license_expression:
+            raise BuildError(f"{name}: missing license expression")
+        if not isinstance(transitive, bool):
+            raise BuildError(f"{name}: transitive must be a boolean")
+        version, commit = dependency.get("version"), dependency.get("commit")
+        if not isinstance(version, str) and not isinstance(commit, str):
+            raise BuildError(f"{name}: exact version or commit is required")
+        if isinstance(version, str) and not VERSION.fullmatch(version):
+            raise BuildError(f"{name}: floating version {version!r}")
+        if isinstance(commit, str) and not COMMIT.fullmatch(commit):
+            raise BuildError(f"{name}: floating commit {commit!r}")
+        if not isinstance(patches, list):
+            raise BuildError(f"{name}: patches must be an array")
+        for patch in patches:
+            if not isinstance(patch, dict) or not isinstance(patch.get("path"), str):
+                raise BuildError(f"{name}: invalid patch identity")
+            patch_hash = patch.get("sha256")
+            if not isinstance(patch_hash, str) or not SHA256.fullmatch(patch_hash):
+                raise BuildError(f"{name}: invalid patch SHA-256")
+            patch_path = ROOT / patch["path"]
+            if not patch_path.is_file() or file_hash(patch_path) != patch_hash:
+                raise BuildError(f"{name}: patch hash mismatch for {patch['path']}")
+    return dependencies
+
+
+def prepare_cache(dependencies: list[dict[str, object]], cache: Path, offline: bool) -> None:
+    cache.mkdir(parents=True, exist_ok=True)
+    for dependency in dependencies:
+        checksum = str(dependency["sha256"])
+        archive = cache / checksum
+        if archive.is_file() and file_hash(archive) == checksum:
+            continue
+        if offline:
+            raise BuildError(f"offline cache miss or hash mismatch: {dependency['name']}")
+        with tempfile.NamedTemporaryFile(dir=cache, delete=False) as temporary:
+            temporary_path = Path(temporary.name)
+            try:
+                with urllib.request.urlopen(str(dependency["sourceUrl"])) as response:
+                    while chunk := response.read(1024 * 1024):
+                        temporary.write(chunk)
+                if file_hash(temporary_path) != checksum:
+                    raise BuildError(f"download hash mismatch: {dependency['name']}")
+                temporary_path.replace(archive)
+            finally:
+                temporary_path.unlink(missing_ok=True)
+
+
+def check_release_policy(args: argparse.Namespace) -> None:
+    if not args.personal_release:
+        return
+    if os.environ.get("HPLJ1020_SOURCE_OVERRIDE"):
+        raise BuildError("personal-release builds reject source overrides")
+    status = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=ROOT, check=True, text=True,
+        capture_output=True,
+    )
+    if status.stdout:
+        raise BuildError("personal-release builds require a clean worktree")
+    try:
+        generated_inputs = json.loads(GENERATED_INPUTS_PATH.read_text(encoding="utf-8"))["inputs"]
+    except (OSError, KeyError, TypeError, json.JSONDecodeError) as error:
+        raise BuildError(f"invalid generated-input record: {error}") from error
+    if not isinstance(generated_inputs, list):
+        raise BuildError("generated-input record must contain an inputs array")
+    recorded_paths: set[str] = set()
+    for entry in generated_inputs:
+        if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
+            raise BuildError("generated-input record has an invalid entry")
+        expected_hash = entry.get("sha256")
+        path = ROOT / entry["path"]
+        if not isinstance(expected_hash, str) or not SHA256.fullmatch(expected_hash) or not path.is_file():
+            raise BuildError("generated-input record is incomplete")
+        if file_hash(path) != expected_hash:
+            raise BuildError(f"generated input hash mismatch: {entry['path']}")
+        recorded_paths.add(entry["path"])
+    generated_directory = ROOT / "generated"
+    actual_paths = {
+        str(path.relative_to(ROOT))
+        for path in generated_directory.rglob("*")
+        if path.is_file()
+    } if generated_directory.exists() else set()
+    if actual_paths != recorded_paths:
+        raise BuildError("personal-release builds reject unrecorded generated inputs")
+
+
+def run(args: argparse.Namespace) -> None:
+    dependencies = read_lock()
+    check_release_policy(args)
+    if args.verify_lock:
+        print("dependency lock verified")
+        return
+    cache = Path(args.cache).resolve() if args.cache else ROOT / ".cache" / "sources"
+    prepare_cache(dependencies, cache, args.offline)
+    build_dir = Path(args.build_dir).resolve() if args.build_dir else ROOT / "build"
+    build_dir.mkdir(parents=True, exist_ok=True)
+    inventory = build_dir / "locked-dependencies.cmake"
+    source_files = [str(cache / str(dependency["sha256"])) for dependency in dependencies]
+    source_hashes = [str(dependency["sha256"]) for dependency in dependencies]
+    inventory.write_text(
+        "set(HPLJ1020_LOCKED_SOURCE_FILES \"" + ";".join(source_files) + "\")\n"
+        "set(HPLJ1020_LOCKED_SOURCE_HASHES \"" + ";".join(source_hashes) + "\")\n"
+        "set(HPLJ1020_LOCKED_SOURCE_INDEX 0)\n",
+        encoding="utf-8",
+    )
+    configure = ["cmake", "-S", str(ROOT), "-B", str(build_dir), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug", f"-DHPLJ1020_LOCKED_DEPENDENCIES={inventory}"]
+    subprocess.run(configure, check=True)
+    subprocess.run(["cmake", "--build", str(build_dir), "--parallel"], check=True)
+    subprocess.run(["ctest", "--test-dir", str(build_dir), "--output-on-failure"], check=True)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--offline", action="store_true", help="require cached verified sources")
+    parser.add_argument("--personal-release", action="store_true", help="enforce personal-release policy")
+    parser.add_argument("--cache", help="content-addressed source cache directory")
+    parser.add_argument("--build-dir", help="CMake build directory")
+    parser.add_argument("--verify-lock", action="store_true", help="validate lock identities without building")
+    args = parser.parse_args()
+    try:
+        run(args)
+    except (BuildError, subprocess.CalledProcessError, OSError) as error:
+        print(f"build: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
