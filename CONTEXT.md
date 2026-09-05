@@ -48,6 +48,10 @@ _Avoid_: Clean machine, fresh macOS installation
 The currently supported deployment boundary: a locally built installation used only by the project owner on the reference Mac.
 _Avoid_: Public release, generally available build
 
+**personal release**:
+A tagged source revision whose locally built personal-use installation is identified by a retained build manifest, dependency lock, artifact checksums, and validation evidence; it is not a published binary distribution.
+_Avoid_: Public release, GitHub Release, installer download
+
 **user-supplied firmware**:
 The HP-owned, separately licensed binary the reference printer requires after power-on, acquired outside the macOS printing solution and retained only on the reference Mac.
 _Avoid_: Bundled firmware, project firmware, redistributable firmware
