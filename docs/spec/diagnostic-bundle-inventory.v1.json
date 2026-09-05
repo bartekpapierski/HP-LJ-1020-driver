@@ -1,0 +1,59 @@
+{
+  "$schema": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/diagnostic-bundle-inventory-1.0.0.json",
+  "schemaVersion": "1.0.0",
+  "inventoryVersion": "1.0.0",
+  "maximumBundleBytes": 12582912,
+  "entries": [
+    {
+      "path": "manifest.json",
+      "presence": "required",
+      "producer": "bundle-generator",
+      "content": "Inventory version, creation time, omitted-entry reasons, and SHA-256 checksums for every included file.",
+      "maximumBytes": 65536,
+      "privacyTransforms": ["Use relative paths only", "Include no host or user identity"]
+    },
+    {
+      "path": "status.json",
+      "presence": "required",
+      "producer": "status-command",
+      "content": "Product and dependency versions, service and queue state, firmware and device state, connection-path observation, and actionable error categories.",
+      "maximumBytes": 262144,
+      "privacyTransforms": ["Redact printer serial", "Omit usernames", "Omit document and job names"]
+    },
+    {
+      "path": "logs/service.jsonl",
+      "presence": "optional",
+      "producer": "service-log-export",
+      "content": "Recent structured product events within the 14-day and 10-MiB retention bounds.",
+      "maximumBytes": 10485760,
+      "privacyTransforms": ["Allow-list fields", "Redact identifiers", "Omit payloads, paths, filenames, and credentials"]
+    },
+    {
+      "path": "configuration/redacted.json",
+      "presence": "optional",
+      "producer": "configuration-export",
+      "content": "Allow-listed non-secret product configuration needed to interpret service behavior.",
+      "maximumBytes": 262144,
+      "privacyTransforms": ["Remove firmware metadata source path", "Remove account and host identity", "Replace printer serial with a stable run-local token"]
+    },
+    {
+      "path": "checksums.sha256",
+      "presence": "required",
+      "producer": "bundle-generator",
+      "content": "SHA-256 checksums over final included bundle files other than this checksum file.",
+      "maximumBytes": 65536,
+      "privacyTransforms": ["Use relative inventory paths only"]
+    }
+  ],
+  "prohibitedDataClasses": [
+    "document-content",
+    "raster-payload",
+    "zjstream-payload",
+    "document-filename",
+    "username",
+    "credential",
+    "firmware-content",
+    "unrelated-system-data",
+    "full-printer-serial"
+  ]
+}

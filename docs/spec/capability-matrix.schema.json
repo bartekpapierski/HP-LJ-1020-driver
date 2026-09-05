@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/capability-matrix-1.0.0.json",
+  "title": "HP LJ 1020 capability matrix",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "matrixVersion", "scenarios"],
+  "properties": {
+    "$schema": { "const": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/capability-matrix-1.0.0.json" },
+    "schemaVersion": { "const": "1.0.0" },
+    "matrixVersion": { "type": "integer", "minimum": 1 },
+    "scenarios": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/scenario" }
+    }
+  },
+  "$defs": {
+    "gitCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenarioId",
+        "behavior",
+        "milestone",
+        "requirementIds",
+        "provenance",
+        "macOSBuild",
+        "connectionPath",
+        "sourceCommit",
+        "dependencyLockSha256",
+        "expectedResult",
+        "state"
+      ],
+      "properties": {
+        "scenarioId": { "type": "string", "pattern": "^SCN-[A-Z0-9-]+$" },
+        "behavior": { "type": "string", "minLength": 1 },
+        "milestone": { "enum": ["BASIC", "PERSONAL", "CAPABILITY", "PUBLIC"] },
+        "requirementIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Z]+-[0-9]{3}$" }
+        },
+        "provenance": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "macOSBuild": { "type": "string", "minLength": 1 },
+        "connectionPath": { "enum": ["host-only", "ugreen-thunderbolt-4-dock", "direct-usb-a-to-usb-c", "both"] },
+        "sourceCommit": { "$ref": "#/$defs/gitCommit" },
+        "dependencyLockSha256": { "$ref": "#/$defs/sha256" },
+        "printer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["model", "vendorProduct", "serial", "firmwareVersion"],
+          "properties": {
+            "model": { "const": "HP LaserJet 1020" },
+            "vendorProduct": { "const": "03f0:2b17" },
+            "serial": { "type": "string", "minLength": 1 },
+            "firmwareVersion": { "type": ["string", "null"] }
+          }
+        },
+        "expectedResult": { "type": "string", "minLength": 1 },
+        "observedResult": { "type": ["string", "null"] },
+        "executedAt": { "type": ["string", "null"], "format": "date-time" },
+        "durationSeconds": { "type": ["number", "null"], "minimum": 0 },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "sha256", "kind"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "sha256": { "$ref": "#/$defs/sha256" },
+              "kind": { "enum": ["manifest", "sanitized-log", "measurement", "scan", "photograph", "summary"] }
+            }
+          },
+          "default": []
+        },
+        "state": { "enum": ["verified", "unverified", "unsupported", "deferred"] },
+        "invalidatedBy": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "default": []
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "connectionPath": { "not": { "const": "host-only" } } } },
+          "then": { "required": ["printer"] }
+        },
+        {
+          "if": { "properties": { "state": { "const": "verified" } } },
+          "then": {
+            "required": ["observedResult", "executedAt", "durationSeconds", "evidence"],
+            "properties": {
+              "observedResult": { "type": "string", "minLength": 1 },
+              "executedAt": { "type": "string", "format": "date-time" },
+              "durationSeconds": { "type": "number", "minimum": 0 },
+              "evidence": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

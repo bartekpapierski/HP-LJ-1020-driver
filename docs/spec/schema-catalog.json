@@ -1,0 +1,46 @@
+{
+  "catalogVersion": "1.0.0",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "artifacts": [
+    {
+      "name": "dependency-lock",
+      "schemaPath": "docs/spec/dependency-lock.schema.json",
+      "schemaId": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/dependency-lock-1.0.0.json",
+      "schemaVersion": "1.0.0",
+      "instancePath": "dependencies.lock.json",
+      "instanceRequiredNow": false
+    },
+    {
+      "name": "build-manifest",
+      "schemaPath": "docs/spec/build-manifest.schema.json",
+      "schemaId": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/build-manifest-1.0.0.json",
+      "schemaVersion": "1.0.0",
+      "instancePath": "validation/releases/<version>/build-manifest.json",
+      "instanceRequiredNow": false
+    },
+    {
+      "name": "capability-matrix",
+      "schemaPath": "docs/spec/capability-matrix.schema.json",
+      "schemaId": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/capability-matrix-1.0.0.json",
+      "schemaVersion": "1.0.0",
+      "instancePath": "validation/capability-matrix.json",
+      "instanceRequiredNow": false
+    },
+    {
+      "name": "validation-manifest",
+      "schemaPath": "docs/spec/validation-manifest.schema.json",
+      "schemaId": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/validation-manifest-1.0.0.json",
+      "schemaVersion": "1.0.0",
+      "instancePath": "validation/runs/<run-id>/manifest.json",
+      "instanceRequiredNow": false
+    },
+    {
+      "name": "diagnostic-bundle-inventory",
+      "schemaPath": "docs/spec/diagnostic-bundle-inventory.schema.json",
+      "schemaId": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/diagnostic-bundle-inventory-1.0.0.json",
+      "schemaVersion": "1.0.0",
+      "instancePath": "docs/spec/diagnostic-bundle-inventory.v1.json",
+      "instanceRequiredNow": true
+    }
+  ]
+}

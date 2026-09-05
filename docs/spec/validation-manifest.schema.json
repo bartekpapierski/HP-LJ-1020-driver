@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/validation-manifest-1.0.0.json",
+  "title": "HP LJ 1020 validation run manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "runId",
+    "sourceCommit",
+    "specificationCommit",
+    "dependencyLockSha256",
+    "buildManifestSha256",
+    "capabilityMatrixSha256",
+    "environment",
+    "startedAt",
+    "finishedAt",
+    "result",
+    "scenarioResults",
+    "evidence",
+    "redacted",
+    "sealed"
+  ],
+  "properties": {
+    "$schema": { "const": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/validation-manifest-1.0.0.json" },
+    "schemaVersion": { "const": "1.0.0" },
+    "runId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]+$" },
+    "sourceCommit": { "$ref": "#/$defs/gitCommit" },
+    "specificationCommit": { "$ref": "#/$defs/gitCommit" },
+    "dependencyLockSha256": { "$ref": "#/$defs/sha256" },
+    "buildManifestSha256": { "$ref": "#/$defs/sha256" },
+    "capabilityMatrixSha256": { "$ref": "#/$defs/sha256" },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "macOSVersion", "macOSBuild", "architecture", "connectionPaths"],
+      "properties": {
+        "kind": { "enum": ["hosted-ci", "local-host", "reference-mac", "supplementary-vm"] },
+        "macOSVersion": { "type": "string", "minLength": 1 },
+        "macOSBuild": { "type": "string", "minLength": 1 },
+        "architecture": { "const": "arm64" },
+        "connectionPaths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["host-only", "ugreen-thunderbolt-4-dock", "direct-usb-a-to-usb-c"] }
+        }
+      }
+    },
+    "printer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "vendorProduct", "serial", "firmwareVersion"],
+      "properties": {
+        "model": { "const": "HP LaserJet 1020" },
+        "vendorProduct": { "const": "03f0:2b17" },
+        "serial": { "type": "string", "minLength": 1 },
+        "firmwareVersion": { "type": ["string", "null"] }
+      }
+    },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "finishedAt": { "type": "string", "format": "date-time" },
+    "result": { "enum": ["passed", "failed", "incomplete"] },
+    "scenarioResults": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["scenarioId", "requirementIds", "state", "summary"],
+        "properties": {
+          "scenarioId": { "type": "string", "pattern": "^SCN-[A-Z0-9-]+$" },
+          "requirementIds": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^[A-Z]+-[0-9]{3}$" }
+          },
+          "state": { "enum": ["verified", "unverified", "unsupported", "deferred"] },
+          "summary": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/checksummedPath" }
+    },
+    "redacted": { "const": true },
+    "sealed": { "type": "boolean" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "result": { "const": "passed" } } },
+      "then": {
+        "properties": {
+          "sealed": { "const": true },
+          "scenarioResults": {
+            "items": {
+              "properties": { "state": { "const": "verified" } }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "gitCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "checksummedPath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "kind"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "kind": { "enum": ["sanitized-log", "measurement", "scan", "photograph", "summary", "manifest"] }
+      }
+    }
+  }
+}

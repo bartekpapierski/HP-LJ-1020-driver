@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/dependency-lock-1.0.0.json",
+  "title": "HP LJ 1020 dependency lock",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "dependencies"],
+  "properties": {
+    "$schema": { "const": "https://bartekpapierski.github.io/HP-LJ-1020-driver/schemas/dependency-lock-1.0.0.json" },
+    "schemaVersion": { "const": "1.0.0" },
+    "dependencies": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/dependency" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sourceUrl", "sha256", "licenseExpression", "patches"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9+._-]*$" },
+        "version": { "type": "string", "minLength": 1 },
+        "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "sourceUrl": { "type": "string", "pattern": "^https://" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "licenseExpression": { "type": "string", "minLength": 1 },
+        "transitive": { "type": "boolean", "default": false },
+        "patches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "sha256"],
+            "properties": {
+              "path": { "type": "string", "pattern": "^(patches|vendor)/" },
+              "sha256": { "$ref": "#/$defs/sha256" }
+            }
+          }
+        }
+      },
+      "anyOf": [
+        { "required": ["version"] },
+        { "required": ["commit"] }
+      ]
+    }
+  }
+}
