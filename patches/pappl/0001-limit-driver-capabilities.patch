@@ -1,0 +1,85 @@
+diff --git a/pappl/printer-driver.c b/pappl/printer-driver.c
+index 11dfb64..8a8fc21 100644
+--- a/pappl/printer-driver.c
++++ b/pappl/printer-driver.c
+@@ -6,6 +6,9 @@
+ // information.
+ //
+ 
++// HP-LJ-1020-driver modification: restrict advertised formats to the
++// production capability envelope; see dependencies.lock.json.
++//
+ #include "printer-private.h"
+ #include "system-private.h"
+ 
+@@ -521,12 +521,8 @@ make_attrs(pappl_printer_t *printer)   // I - Printer
+ 
+   // document-format-supported
+   num_values = 0;
+-  svalues[num_values ++] = "application/octet-stream";
+   svalues[num_values ++] = "image/pwg-raster";
+   svalues[num_values ++] = "image/urf";
+ 
+-  if (data->format && strcmp(data->format, "application/octet-stream"))
+-    svalues[num_values ++] = data->format;
+-
+   for (preferred = "image/urf", filter = (_pappl_mime_filter_t *)cupsArrayGetFirst(system->filters); filter; filter = (_pappl_mime_filter_t *)cupsArrayGetNext(system->filters))
+   {
+     if ((data->format && !strcmp(filter->dst, data->format)) || !strcmp(filter->dst, "image/pwg-raster"))
+diff --git a/pappl/printer.c b/pappl/printer.c
+index 5d59829..ff7009b 100644
+--- a/pappl/printer.c
++++ b/pappl/printer.c
+@@ -7,6 +7,9 @@
+ // information.
+ //
+ 
++// HP-LJ-1020-driver modification: restrict advertised job defaults and
++// qualities to the production capability envelope; see dependencies.lock.json.
++//
+ #include "pappl-private.h"
+ 
+ 
+@@ -216,9 +216,7 @@ papplPrinterCreate(
+   };
+   static const int print_quality[] =   // print-quality-supported
+   {
+-    IPP_QUALITY_DRAFT,
+-    IPP_QUALITY_NORMAL,
+-    IPP_QUALITY_HIGH
++    IPP_QUALITY_NORMAL
+   };
+   static const char * const print_scaling[] =
+   {                                    // print-scaling-supported
+@@ -439,7 +437,7 @@ papplPrinterCreate(
+   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "device-uuid", NULL, uuid);
+ 
+   // document-format-default
+-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "document-format-default", NULL, "application/octet-stream");
++  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "document-format-default", NULL, "image/urf");
+ 
+   // generated-natural-language-supported
+   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_LANGUAGE), "generated-natural-language-supported", NULL, "en");
+diff --git a/pappl/printer-ipp.c b/pappl/printer-ipp.c
+index 6fd8bb4..d443d21 100644
+--- a/pappl/printer-ipp.c
++++ b/pappl/printer-ipp.c
+@@ -7,6 +7,9 @@
+ // information.
+ //
+ 
++// HP-LJ-1020-driver modification: reject job qualities outside the
++// production capability envelope; see dependencies.lock.json.
++//
+ #include "pappl-private.h"
+ 
+ 
+@@ -2473,7 +2473,7 @@ valid_job_attributes(
+ 
+   if ((attr = ippFindAttribute(client->request, "print-quality", IPP_TAG_ZERO)) != NULL)
+   {
+-    if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_ENUM || ippGetInteger(attr, 0) < IPP_QUALITY_DRAFT || ippGetInteger(attr, 0) > IPP_QUALITY_HIGH)
++    if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_ENUM || ippGetInteger(attr, 0) != IPP_QUALITY_NORMAL)
+     {
+       papplClientRespondIPPUnsupported(client, attr);
+       valid = false;

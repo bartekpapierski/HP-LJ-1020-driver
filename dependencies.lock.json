@@ -9,7 +9,12 @@
       "sha256": "5bc53039312c6867ee3a06b4573bdadc1b0fa042548ce2c23ea7c2cab5cb7f1d",
       "licenseExpression": "Apache-2.0",
       "transitive": false,
-      "patches": []
+      "patches": [
+        {
+          "path": "patches/pappl/0001-limit-driver-capabilities.patch",
+          "sha256": "164841c2fd0712f29f4d4b0f7702554552457c428638d427f0f9437d9be85eac"
+        }
+      ]
     },
     {
       "name": "libusb",

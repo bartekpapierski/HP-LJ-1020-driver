@@ -1,8 +1,8 @@
 # Third-party notices
 
 This file records notices and terms for dependencies selected for the macOS
-printing solution. No third-party source or binary is vendored at this stage.
-When a component is incorporated, its complete, applicable notices and source
+printing solution. Third-party sources are consumed through the verified build
+cache and exact lock identities. Their complete, applicable notices and source
 obligations remain in force; this inventory does not relicense any component.
 
 ## foo2zjs and bundled JBIG
@@ -24,11 +24,15 @@ and accepted `zjs.h` / unidentified `zjrca.h` provenance risk are in
 
 ## PAPPL
 
-PAPPL 1.4.12 is planned from commit
+PAPPL 1.4.12 is built from commit
 `6db8e137557ad84662e78d24fdb2a591c621f4ac`. Its NOTICE identifies copyright
 © 2020–2026 Michael R Sweet, © 2007–2019 Apple Inc., and © 1997–2007 Easy
 Software Products. PAPPL is Apache-2.0; the complete license text is in
 `LICENSES/Apache-2.0.txt`.
+
+The hash-pinned patch in `patches/pappl/` narrows advertised document formats,
+the default document format, and print quality to the production capability
+envelope. Every modified upstream file carries a project modification marker.
 
 PAPPL's NOTICE grants an optional exception for object-form embedded portions
 from Apache sections 4(a), 4(b), and 4(d), and a GPLv2 `Combined Software`

@@ -263,7 +263,7 @@ static void test_pappl_adapter_accepts_a_host_test_double(void) {
   struct fake_pappl pappl = {0};
   const struct hplj_service_config config = {
       .queue_name = "HP_LaserJet_1020", .loopback_host = "127.0.0.1",
-      .ipp_port = 8631, .firmware_path = "/private/firmware",
+      .ipp_port = 8631, .paths = {.firmware_path = "/private/firmware"},
   };
   hplj_pappl_publish_status(&config, NULL, fake_publish, &pappl,
                             HPLJ_DEVICE_AWAITING_FIRMWARE);

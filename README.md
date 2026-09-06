@@ -24,6 +24,36 @@ Support claims apply only to the reference printer, macOS version, and
 connection path verified under the validation contract. This repository does
 not currently produce a public binary release.
 
+## Development service
+
+The PAPPL application runs in the foreground with every writable path supplied
+explicitly. It binds only to `127.0.0.1:8631`, `[::1]:8631`, and the supplied
+Unix socket, disables DNS-SD and the PAPPL web interface, and saves state on
+shutdown:
+
+```sh
+build/hplj1020 --serve \
+  --state "/Library/Application Support/HP-LJ-1020/state/system.state" \
+  --spool "/Library/Application Support/HP-LJ-1020/spool" \
+  --log "/Library/Logs/HP-LJ-1020/service.log" \
+  --socket "/Library/Application Support/HP-LJ-1020/run/service.sock" \
+  --device-uri file:///path/to/host-test-device
+```
+
+Queue reconciliation can be previewed or applied separately. It creates only
+`HP_LaserJet_1020`, uses the loopback IPP Everywhere URI, treats an exact
+existing queue as success, and refuses a same-name foreign queue:
+
+```sh
+python3 scripts/reconcile_macos_queue.py \
+  --queue-name HP_LaserJet_1020 \
+  --device-uri ipp://127.0.0.1:8631/ipp/print
+sudo python3 scripts/reconcile_macos_queue.py \
+  --queue-name HP_LaserJet_1020 \
+  --device-uri ipp://127.0.0.1:8631/ipp/print \
+  --apply
+```
+
 ## Validation artifacts
 
 `validation/capability-matrix.json` is the machine-readable inventory of every

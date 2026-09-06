@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+{
+  NAME "Reject unsupported print quality"
+  OPERATION Validate-Job
+  GROUP operation-attributes-tag
+  ATTR charset attributes-charset utf-8
+  ATTR language attributes-natural-language en
+  ATTR uri printer-uri $uri
+  ATTR name requesting-user-name $user
+  ATTR mimeMediaType document-format image/pwg-raster
+  GROUP job-attributes-tag
+  ATTR boolean ipp-attribute-fidelity true
+  ATTR enum print-quality 5
+  STATUS client-error-attributes-or-values-not-supported
+  EXPECT status-message OF-TYPE text
+}

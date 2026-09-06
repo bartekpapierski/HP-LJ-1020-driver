@@ -8,6 +8,9 @@ if(NOT HPLJ1020_LOCKED_DEPENDENCIES OR NOT EXISTS "${HPLJ1020_LOCKED_DEPENDENCIE
   message(FATAL_ERROR "Configure through scripts/build so locked sources are verified")
 endif()
 include("${HPLJ1020_LOCKED_DEPENDENCIES}")
+if(NOT EXISTS "${HPLJ1020_PAPPL_PREFIX}/lib/libpappl.a")
+  message(FATAL_ERROR "Pinned PAPPL library is missing; configure through scripts/build")
+endif()
 foreach(source IN LISTS HPLJ1020_LOCKED_SOURCE_FILES)
   list(GET HPLJ1020_LOCKED_SOURCE_HASHES ${HPLJ1020_LOCKED_SOURCE_INDEX} expected_hash)
   file(SHA256 "${source}" actual_hash)
@@ -71,8 +74,32 @@ add_library(hplj1020_core
 target_include_directories(hplj1020_core PUBLIC include)
 target_link_libraries(hplj1020_core PRIVATE hplj1020_build_options hplj1020_libusb)
 
+find_package(OpenSSL REQUIRED)
+find_package(Threads REQUIRED)
+find_package(ZLIB REQUIRED)
+find_library(HPLJ1020_CUPS_LIBRARY cups REQUIRED)
+find_library(HPLJ1020_APPKIT_FRAMEWORK AppKit REQUIRED)
+find_library(HPLJ1020_SYSTEMCONFIGURATION_FRAMEWORK SystemConfiguration REQUIRED)
+find_library(HPLJ1020_PAM_LIBRARY pam REQUIRED)
+add_library(hplj1020_pappl STATIC src/pappl_runtime.c)
+target_include_directories(hplj1020_pappl PRIVATE "${HPLJ1020_PAPPL_PREFIX}/include")
+target_link_libraries(hplj1020_pappl PUBLIC hplj1020_core)
+target_link_libraries(hplj1020_pappl PRIVATE
+  hplj1020_build_options
+  "${HPLJ1020_PAPPL_PREFIX}/lib/libpappl.a"
+  ${HPLJ1020_CUPS_LIBRARY}
+  ${HPLJ1020_APPKIT_FRAMEWORK}
+  ${HPLJ1020_COREFOUNDATION_FRAMEWORK}
+  ${HPLJ1020_SYSTEMCONFIGURATION_FRAMEWORK}
+  ${HPLJ1020_PAM_LIBRARY}
+  OpenSSL::SSL
+  OpenSSL::Crypto
+  Threads::Threads
+  ZLIB::ZLIB
+  m)
+
 add_executable(hplj1020 src/main.c)
-target_link_libraries(hplj1020 PRIVATE hplj1020_build_options hplj1020_core)
+target_link_libraries(hplj1020 PRIVATE hplj1020_build_options hplj1020_pappl)
 add_dependencies(hplj1020 locked-sources)
 
 include(CTest)
@@ -90,6 +117,25 @@ if(BUILD_TESTING)
   add_executable(hplj1020-device-contracts tests/device_contracts.c)
   target_link_libraries(hplj1020-device-contracts PRIVATE hplj1020_build_options hplj1020_core)
   add_test(NAME hplj1020-device-contracts COMMAND hplj1020-device-contracts)
+  add_executable(hplj1020-pappl-service-contracts tests/pappl_service_contracts.c)
+  target_link_libraries(hplj1020-pappl-service-contracts PRIVATE hplj1020_build_options hplj1020_core)
+  add_test(NAME hplj1020-pappl-service-contracts COMMAND hplj1020-pappl-service-contracts)
+  add_executable(hplj1020-make-test-raster tests/make_test_raster.c)
+  target_link_libraries(hplj1020-make-test-raster PRIVATE
+    hplj1020_build_options ${HPLJ1020_CUPS_LIBRARY})
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  add_test(NAME hplj1020-pappl-integration
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_pappl_integration.py
+      $<TARGET_FILE:hplj1020> $<TARGET_FILE:hplj1020-make-test-raster>
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/invalid-resolution.test
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/invalid-quality.test
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/malformed-raster.test)
+  set_tests_properties(hplj1020-pappl-integration PROPERTIES
+    SKIP_RETURN_CODE 77 TIMEOUT 30)
+  add_test(NAME hplj1020-queue-reconciliation
+    COMMAND ${Python3_EXECUTABLE} -m unittest tests.test_queue_reconciliation)
+  set_tests_properties(hplj1020-queue-reconciliation PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
   add_test(NAME hplj1020-version COMMAND hplj1020 --version)
   set_tests_properties(hplj1020-version PROPERTIES
     PASS_REGULAR_EXPRESSION "hplj1020 0\\.1\\.0")

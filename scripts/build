@@ -9,8 +9,10 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import urllib.request
 from pathlib import Path
@@ -146,6 +148,57 @@ def check_release_policy(args: argparse.Namespace) -> None:
         raise BuildError("personal-release builds reject unrecorded generated inputs")
 
 
+def prepare_pappl(dependencies: list[dict[str, object]], cache: Path,
+                  build_dir: Path) -> Path:
+    dependency = next(item for item in dependencies if item["name"] == "pappl")
+    source_dir = build_dir / "locked" / f"pappl-{dependency['version']}"
+    prefix = build_dir / "locked" / "pappl-install"
+    library = prefix / "lib" / "libpappl.a"
+    build_stamp = prefix / ".hplj-build-identity"
+    patches = dependency["patches"]
+    configure_options = [
+        "--disable-shared",
+        "--enable-static",
+        "--disable-libjpeg",
+        "--disable-libpng",
+        "--disable-libusb",
+        "CFLAGS=-arch arm64 -g -O0",
+    ]
+    build_identity = json.dumps(
+        {
+            "version": dependency["version"],
+            "source": dependency["sha256"],
+            "patches": patches,
+            "configure": configure_options,
+        },
+        sort_keys=True,
+    ) + "\n"
+    if (library.is_file() and build_stamp.is_file() and
+            build_stamp.read_text(encoding="utf-8") == build_identity):
+        return prefix
+    shutil.rmtree(source_dir, ignore_errors=True)
+    shutil.rmtree(prefix, ignore_errors=True)
+    source_dir.parent.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(cache / str(dependency["sha256"]), "r:gz") as archive:
+        archive.extractall(source_dir.parent, filter="data")
+    for patch in patches:
+        subprocess.run(
+            ["/usr/bin/patch", "-p1", "-i", str(ROOT / str(patch["path"]))],
+            cwd=source_dir,
+            check=True,
+        )
+    configure = [
+        str(source_dir / "configure"),
+        f"--prefix={prefix}",
+        *configure_options,
+    ]
+    subprocess.run(configure, cwd=source_dir, check=True)
+    subprocess.run(["make", "-j4"], cwd=source_dir, check=True)
+    subprocess.run(["make", "install"], cwd=source_dir, check=True)
+    build_stamp.write_text(build_identity, encoding="utf-8")
+    return prefix
+
+
 def run(args: argparse.Namespace) -> None:
     dependencies = read_lock()
     check_release_policy(args)
@@ -156,6 +209,7 @@ def run(args: argparse.Namespace) -> None:
     prepare_cache(dependencies, cache, args.offline)
     build_dir = Path(args.build_dir).resolve() if args.build_dir else ROOT / "build"
     build_dir.mkdir(parents=True, exist_ok=True)
+    pappl_prefix = prepare_pappl(dependencies, cache, build_dir)
     inventory = build_dir / "locked-dependencies.cmake"
     source_files = [str(cache / str(dependency["sha256"])) for dependency in dependencies]
     source_hashes = [str(dependency["sha256"]) for dependency in dependencies]
@@ -175,7 +229,8 @@ def run(args: argparse.Namespace) -> None:
         "set(HPLJ1020_LOCKED_SOURCE_HASHES \"" + ";".join(source_hashes) + "\")\n"
         "set(HPLJ1020_LOCKED_SOURCE_INDEX 0)\n"
         f"set(HPLJ1020_LIBUSB_ARCHIVE \"{source_by_name['libusb']}\")\n"
-        f"set(HPLJ1020_LIBUSB_SOURCE_DIR \"{libusb_source_directory}\")\n",
+        f"set(HPLJ1020_LIBUSB_SOURCE_DIR \"{libusb_source_directory}\")\n"
+        f"set(HPLJ1020_PAPPL_PREFIX \"{pappl_prefix}\")\n",
         encoding="utf-8",
     )
     configure = ["cmake", "-S", str(ROOT), "-B", str(build_dir), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug", f"-DHPLJ1020_LOCKED_DEPENDENCIES={inventory}"]

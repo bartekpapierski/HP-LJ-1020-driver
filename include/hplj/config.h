@@ -11,11 +11,20 @@
  * All string members are borrowed for the service lifetime. The caller owns
  * their storage and may release it after the service has stopped.
  */
+struct hplj_service_paths {
+  const char *state_path;
+  const char *spool_path;
+  const char *log_path;
+  const char *socket_path;
+  const char *firmware_path;
+};
+
 struct hplj_service_config {
   const char *queue_name;
   const char *loopback_host;
   unsigned short ipp_port;
-  const char *firmware_path;
+  struct hplj_service_paths paths;
+  const char *device_uri;
 };
 
 struct hplj_observer {
