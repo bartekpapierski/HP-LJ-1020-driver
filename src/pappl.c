@@ -13,13 +13,18 @@ struct hplj_status hplj_status_from_device(enum hplj_device_state state) {
       return hplj_status_from_firmware_error(HPLJ_ERROR_FIRMWARE_TRANSFER_FAILED);
     case HPLJ_DEVICE_FIRMWARE_UNVERIFIED:
       return hplj_status_from_firmware_error(HPLJ_ERROR_FIRMWARE_UNVERIFIED);
+    case HPLJ_DEVICE_FIRMWARE_PRESENT:
+      return (struct hplj_status){.queue = HPLJ_QUEUE_HELD,
+                                  .action = HPLJ_ACTION_NONE,
+                                  .diagnostic = HPLJ_ERROR_FIRMWARE_UNVERIFIED};
     case HPLJ_DEVICE_DISCONNECTED:
     case HPLJ_DEVICE_PRE_FIRMWARE:
       return (struct hplj_status){.queue = HPLJ_QUEUE_HELD,
                                   .action = HPLJ_ACTION_RECONNECT_PRINTER};
     case HPLJ_DEVICE_UNSUPPORTED:
       return (struct hplj_status){.queue = HPLJ_QUEUE_STOPPED,
-                                  .action = HPLJ_ACTION_RECONNECT_PRINTER};
+                                  .action = HPLJ_ACTION_RECONNECT_PRINTER,
+                                  .diagnostic = HPLJ_ERROR_UNSUPPORTED_DEVICE};
   }
   return (struct hplj_status){.queue = HPLJ_QUEUE_STOPPED, .action = HPLJ_ACTION_NONE};
 }

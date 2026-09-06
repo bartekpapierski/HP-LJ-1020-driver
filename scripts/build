@@ -159,10 +159,23 @@ def run(args: argparse.Namespace) -> None:
     inventory = build_dir / "locked-dependencies.cmake"
     source_files = [str(cache / str(dependency["sha256"])) for dependency in dependencies]
     source_hashes = [str(dependency["sha256"]) for dependency in dependencies]
+    source_by_name = {
+        str(dependency["name"]): str(cache / str(dependency["sha256"]))
+        for dependency in dependencies
+    }
+    libusb_dependency = next(
+        dependency for dependency in dependencies if dependency["name"] == "libusb"
+    )
+    libusb_source_directory = (
+        "${CMAKE_CURRENT_LIST_DIR}/locked/libusb-"
+        + str(libusb_dependency["version"])
+    )
     inventory.write_text(
         "set(HPLJ1020_LOCKED_SOURCE_FILES \"" + ";".join(source_files) + "\")\n"
         "set(HPLJ1020_LOCKED_SOURCE_HASHES \"" + ";".join(source_hashes) + "\")\n"
-        "set(HPLJ1020_LOCKED_SOURCE_INDEX 0)\n",
+        "set(HPLJ1020_LOCKED_SOURCE_INDEX 0)\n"
+        f"set(HPLJ1020_LIBUSB_ARCHIVE \"{source_by_name['libusb']}\")\n"
+        f"set(HPLJ1020_LIBUSB_SOURCE_DIR \"{libusb_source_directory}\")\n",
         encoding="utf-8",
     )
     configure = ["cmake", "-S", str(ROOT), "-B", str(build_dir), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug", f"-DHPLJ1020_LOCKED_DEPENDENCIES={inventory}"]

@@ -6,6 +6,12 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
+
+#define HPLJ_REFERENCE_VENDOR_ID UINT16_C(0x03f0)
+#define HPLJ_REFERENCE_PRODUCT_ID UINT16_C(0x2b17)
+#define HPLJ_MAX_AUTOMATIC_ATTEMPTS 3U
+#define HPLJ_FIRMWARE_VERSION_SIZE 64U
 
 enum hplj_device_state {
   HPLJ_DEVICE_DISCONNECTED,
@@ -13,6 +19,7 @@ enum hplj_device_state {
   HPLJ_DEVICE_AWAITING_FIRMWARE,
   HPLJ_DEVICE_FIRMWARE_TRANSFER_FAILED,
   HPLJ_DEVICE_FIRMWARE_UNVERIFIED,
+  HPLJ_DEVICE_FIRMWARE_PRESENT,
   HPLJ_DEVICE_READY,
   HPLJ_DEVICE_UNSUPPORTED,
 };
@@ -22,9 +29,15 @@ struct hplj_transfer_result {
   size_t bytes_transferred;
 };
 
+struct hplj_usb_descriptor {
+  uint16_t vendor_id;
+  uint16_t product_id;
+};
+
 struct hplj_device_ops {
   /* All callbacks borrow context. The device owns no hardware handle. */
-  enum hplj_error_category (*discover_exact)(void *context);
+  enum hplj_error_category (*discover)(void *context,
+                                        struct hplj_usb_descriptor *descriptor);
   enum hplj_error_category (*open)(void *context);
   enum hplj_error_category (*claim_interface)(void *context);
   /*
@@ -46,20 +59,24 @@ struct hplj_device {
   enum hplj_device_state state;
   struct hplj_device_ops ops;
   bool opened;
+  char firmware_version[HPLJ_FIRMWARE_VERSION_SIZE];
 };
 
 struct hplj_device_result {
   struct hplj_error error;
   size_t bytes_transferred;
+  unsigned int attempts;
 };
 
 void hplj_device_init(struct hplj_device *device, const struct hplj_device_ops *ops);
 struct hplj_device_result hplj_device_connect(struct hplj_device *device);
 struct hplj_device_result hplj_device_bootstrap_firmware(
-    struct hplj_device *device, const unsigned char *firmware, size_t firmware_size);
+    struct hplj_device *device, const unsigned char *firmware, size_t firmware_size,
+    const char *expected_firmware_version);
 struct hplj_device_result hplj_device_send(struct hplj_device *device,
                                            const unsigned char *bytes, size_t byte_count,
                                            bool cancelled);
 void hplj_device_disconnect(struct hplj_device *device);
+void hplj_device_suspend(struct hplj_device *device);
 
 #endif

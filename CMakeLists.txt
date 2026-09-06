@@ -18,6 +18,34 @@ foreach(source IN LISTS HPLJ1020_LOCKED_SOURCE_FILES)
 endforeach()
 add_custom_target(locked-sources ALL DEPENDS ${HPLJ1020_LOCKED_SOURCE_FILES})
 
+if(NOT EXISTS "${HPLJ1020_LIBUSB_SOURCE_DIR}/libusb/libusb.h")
+  file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/locked")
+  file(ARCHIVE_EXTRACT INPUT "${HPLJ1020_LIBUSB_ARCHIVE}"
+    DESTINATION "${CMAKE_BINARY_DIR}/locked")
+endif()
+
+add_library(hplj1020_libusb STATIC
+  ${HPLJ1020_LIBUSB_SOURCE_DIR}/libusb/core.c
+  ${HPLJ1020_LIBUSB_SOURCE_DIR}/libusb/descriptor.c
+  ${HPLJ1020_LIBUSB_SOURCE_DIR}/libusb/hotplug.c
+  ${HPLJ1020_LIBUSB_SOURCE_DIR}/libusb/io.c
+  ${HPLJ1020_LIBUSB_SOURCE_DIR}/libusb/strerror.c
+  ${HPLJ1020_LIBUSB_SOURCE_DIR}/libusb/sync.c
+  ${HPLJ1020_LIBUSB_SOURCE_DIR}/libusb/os/darwin_usb.c
+  ${HPLJ1020_LIBUSB_SOURCE_DIR}/libusb/os/events_posix.c
+  ${HPLJ1020_LIBUSB_SOURCE_DIR}/libusb/os/threads_posix.c)
+target_include_directories(hplj1020_libusb SYSTEM PUBLIC
+  ${HPLJ1020_LIBUSB_SOURCE_DIR}/libusb
+  ${HPLJ1020_LIBUSB_SOURCE_DIR}/Xcode)
+find_library(HPLJ1020_COREFOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
+find_library(HPLJ1020_IOKIT_FRAMEWORK IOKit REQUIRED)
+find_library(HPLJ1020_SECURITY_FRAMEWORK Security REQUIRED)
+target_link_libraries(hplj1020_libusb PUBLIC
+  ${HPLJ1020_COREFOUNDATION_FRAMEWORK}
+  ${HPLJ1020_IOKIT_FRAMEWORK}
+  ${HPLJ1020_SECURITY_FRAMEWORK})
+add_dependencies(hplj1020_libusb locked-sources)
+
 if(NOT APPLE OR NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
   message(FATAL_ERROR "HP LJ 1020 currently supports only Apple Silicon (arm64)")
 endif()
@@ -38,9 +66,10 @@ add_library(hplj1020_core
   src/firmware.c
   src/firmware_store.c
   src/pappl.c
+  src/usb_libusb.c
   src/version.c)
 target_include_directories(hplj1020_core PUBLIC include)
-target_link_libraries(hplj1020_core PRIVATE hplj1020_build_options)
+target_link_libraries(hplj1020_core PRIVATE hplj1020_build_options hplj1020_libusb)
 
 add_executable(hplj1020 src/main.c)
 target_link_libraries(hplj1020 PRIVATE hplj1020_build_options hplj1020_core)
@@ -58,6 +87,9 @@ if(BUILD_TESTING)
   target_include_directories(hplj1020-firmware-contracts PRIVATE tests)
   target_link_libraries(hplj1020-firmware-contracts PRIVATE hplj1020_build_options hplj1020_core)
   add_test(NAME hplj1020-firmware-contracts COMMAND hplj1020-firmware-contracts)
+  add_executable(hplj1020-device-contracts tests/device_contracts.c)
+  target_link_libraries(hplj1020-device-contracts PRIVATE hplj1020_build_options hplj1020_core)
+  add_test(NAME hplj1020-device-contracts COMMAND hplj1020-device-contracts)
   add_test(NAME hplj1020-version COMMAND hplj1020 --version)
   set_tests_properties(hplj1020-version PROPERTIES
     PASS_REGULAR_EXPRESSION "hplj1020 0\\.1\\.0")

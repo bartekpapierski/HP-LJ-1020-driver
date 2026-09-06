@@ -23,8 +23,13 @@ static enum hplj_error_category fake_open(void *context) {
   return HPLJ_ERROR_NONE;
 }
 
-static enum hplj_error_category fake_discover_exact(void *context) {
+static enum hplj_error_category fake_discover(
+    void *context, struct hplj_usb_descriptor *descriptor) {
   (void)context;
+  *descriptor = (struct hplj_usb_descriptor){
+      .vendor_id = HPLJ_REFERENCE_VENDOR_ID,
+      .product_id = HPLJ_REFERENCE_PRODUCT_ID,
+  };
   return HPLJ_ERROR_NONE;
 }
 
@@ -83,7 +88,7 @@ static void test_device_rejects_invalid_transition(void) {
   struct fake_device fake = {.identity = "MFG:HP;MDL:HP LaserJet 1020;", .write_limit = 64};
   struct hplj_device device;
   hplj_device_init(&device, &(struct hplj_device_ops){
-      .discover_exact = fake_discover_exact, .open = fake_open,
+      .discover = fake_discover, .open = fake_open,
       .claim_interface = fake_claim_interface, .read_identity = fake_identity,
       .upload_firmware = fake_upload, .write = fake_write, .release = fake_release, .context = &fake,
   });
@@ -99,13 +104,13 @@ static void test_partial_send_requires_explicit_retry(void) {
   struct fake_device fake = {.identity = "MFG:HP;MDL:HP LaserJet 1020;", .write_limit = 2};
   struct hplj_device device;
   hplj_device_init(&device, &(struct hplj_device_ops){
-      .discover_exact = fake_discover_exact, .open = fake_open,
+      .discover = fake_discover, .open = fake_open,
       .claim_interface = fake_claim_interface, .read_identity = fake_identity,
       .upload_firmware = fake_upload, .write = fake_write, .release = fake_release, .context = &fake,
   });
   assert(hplj_device_connect(&device).error.category == HPLJ_ERROR_NONE);
   const unsigned char firmware[] = {0x01};
-  assert(hplj_device_bootstrap_firmware(&device, firmware, sizeof(firmware)).error.category ==
+  assert(hplj_device_bootstrap_firmware(&device, firmware, sizeof(firmware), "1").error.category ==
          HPLJ_ERROR_NONE);
 
   const unsigned char page[] = {1, 2, 3};
@@ -119,7 +124,7 @@ static void test_partial_send_requires_explicit_retry(void) {
 static struct hplj_device connected_fake_device(struct fake_device *fake) {
   struct hplj_device device;
   hplj_device_init(&device, &(struct hplj_device_ops){
-      .discover_exact = fake_discover_exact, .open = fake_open,
+      .discover = fake_discover, .open = fake_open,
       .claim_interface = fake_claim_interface, .read_identity = fake_identity,
       .upload_firmware = fake_upload, .write = fake_write, .release = fake_release,
       .context = fake,
@@ -134,7 +139,8 @@ static void test_firmware_failures_hold_printing_with_specific_recovery(void) {
   struct fake_device missing_fake = {
       .identity = "MFG:HP;MDL:HP LaserJet 1020;", .write_limit = 64};
   struct hplj_device missing = connected_fake_device(&missing_fake);
-  struct hplj_device_result operation = hplj_device_bootstrap_firmware(&missing, NULL, 0);
+  struct hplj_device_result operation =
+      hplj_device_bootstrap_firmware(&missing, NULL, 0, "1");
   assert(operation.error.category == HPLJ_ERROR_FIRMWARE_MISSING);
   assert(operation.error.action == HPLJ_ACTION_IMPORT_FIRMWARE);
   assert(missing.state == HPLJ_DEVICE_AWAITING_FIRMWARE);
@@ -146,7 +152,7 @@ static void test_firmware_failures_hold_printing_with_specific_recovery(void) {
       .upload_error = HPLJ_ERROR_DEVICE_DISCONNECTED,
   };
   struct hplj_device transfer = connected_fake_device(&transfer_fake);
-  operation = hplj_device_bootstrap_firmware(&transfer, firmware, sizeof(firmware));
+  operation = hplj_device_bootstrap_firmware(&transfer, firmware, sizeof(firmware), "1");
   assert(operation.error.category == HPLJ_ERROR_FIRMWARE_TRANSFER_FAILED);
   assert(operation.error.retry == HPLJ_RETRY_EXPLICIT);
   assert(operation.error.action == HPLJ_ACTION_RECONNECT_AND_RETRY_FIRMWARE);
@@ -159,7 +165,7 @@ static void test_firmware_failures_hold_printing_with_specific_recovery(void) {
       .write_limit = 64,
   };
   struct hplj_device unverified = connected_fake_device(&unverified_fake);
-  operation = hplj_device_bootstrap_firmware(&unverified, firmware, sizeof(firmware));
+  operation = hplj_device_bootstrap_firmware(&unverified, firmware, sizeof(firmware), "1");
   assert(operation.error.category == HPLJ_ERROR_FIRMWARE_UNVERIFIED);
   assert(operation.error.retry == HPLJ_RETRY_EXPLICIT);
   assert(operation.error.action == HPLJ_ACTION_POWER_CYCLE_PRINTER);
@@ -178,7 +184,7 @@ static void test_firmware_failures_hold_printing_with_specific_recovery(void) {
       .write_limit = 64,
   };
   struct hplj_device substring = connected_fake_device(&substring_fake);
-  operation = hplj_device_bootstrap_firmware(&substring, firmware, sizeof(firmware));
+  operation = hplj_device_bootstrap_firmware(&substring, firmware, sizeof(firmware), "1");
   assert(operation.error.category == HPLJ_ERROR_FIRMWARE_UNVERIFIED);
   assert(substring.state == HPLJ_DEVICE_FIRMWARE_UNVERIFIED);
 }
@@ -234,6 +240,9 @@ static void test_pappl_mapping_hides_external_types(void) {
   status = hplj_status_from_firmware_error(HPLJ_ERROR_FIRMWARE_CORRUPT);
   assert(status.action == HPLJ_ACTION_REACQUIRE_FIRMWARE);
   assert(status.diagnostic == HPLJ_ERROR_FIRMWARE_CORRUPT);
+  status = hplj_status_from_device(HPLJ_DEVICE_UNSUPPORTED);
+  assert(status.queue == HPLJ_QUEUE_STOPPED);
+  assert(status.diagnostic == HPLJ_ERROR_UNSUPPORTED_DEVICE);
   assert(strcmp(hplj_product_version(), "0.1.0") == 0);
   assert(strcmp(hplj_dependency_version("pappl"), "1.4.12") == 0);
   assert(strcmp(hplj_dependency_version("libusb"), "1.0.30") == 0);
