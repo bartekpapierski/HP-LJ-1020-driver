@@ -7,7 +7,7 @@ obligations remain in force; this inventory does not relicense any component.
 
 ## foo2zjs and bundled JBIG
 
-Planned source adaptation: OpenPrinting `foo2zjs` commit
+Source adaptation: OpenPrinting `foo2zjs` commit
 `80499ed5bf6caa2963ad337e37cfda78a80aab1e`.
 
 `foo2zjs` states that the program began as Robert Szalai's `pbmtozjs`, uses

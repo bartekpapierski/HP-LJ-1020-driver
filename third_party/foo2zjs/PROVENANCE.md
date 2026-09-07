@@ -5,12 +5,13 @@ The only approved upstream source is OpenPrinting/foo2zjs commit
 
 <https://github.com/OpenPrinting/foo2zjs/tree/80499ed5bf6caa2963ad337e37cfda78a80aab1e>
 
-No foo2zjs or JBIG source, patch, firmware, or binary is presently vendored.
-`upstream-files.json` records the audited source files and SHA-256 hashes at
-that pin. When an upstream file is adapted, add it to `adaptations.json`, retain its
-upstream copyright and license notice, and add a prominent dated `Modified by
-HP-LJ-1020-driver contributors` notice in the adapted file. Do not substitute
-the unsigned Quirinux mirror or another revision.
+The build compiles unmodified `jbig.c` and `jbig_ar.c` directly from the pinned,
+hash-verified source archive. The in-process model-1 adapter is derived from
+`foo2zjs.c` and recorded in `adaptations.json`; it retains the upstream license
+history and a prominent `Modified by HP-LJ-1020-driver contributors` notice.
+`upstream-files.json` records the audited upstream file hashes. No firmware or
+third-party binary is vendored. Do not substitute the unsigned Quirinux mirror
+or another revision.
 
 ## Accepted personal-use risk; public-release gate
 

@@ -3,7 +3,9 @@
 
 #include <pappl/pappl.h>
 
+#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -20,6 +22,32 @@ struct hplj_queue_lookup {
   pappl_printer_t *printer;
 };
 
+struct hplj_pappl_job_data {
+  unsigned char *page_bits;
+  size_t page_size;
+  unsigned int rows_received;
+};
+
+struct hplj_pappl_sink {
+  pappl_device_t *device;
+};
+
+static void hplj_free_job_data(struct hplj_pappl_job_data *data) {
+  if (data != NULL) {
+    free(data->page_bits);
+    free(data);
+  }
+}
+
+static enum hplj_error_category hplj_emit_zjstream(void *context,
+                                                    const unsigned char *bytes,
+                                                    size_t byte_count) {
+  struct hplj_pappl_sink *sink = context;
+  const ssize_t written = papplDeviceWrite(sink->device, bytes, byte_count);
+  return written == (ssize_t)byte_count ? HPLJ_ERROR_NONE
+                                        : HPLJ_ERROR_TRANSFER_INCOMPLETE;
+}
+
 static bool hplj_printfile(pappl_job_t *job, pappl_pr_options_t *options,
                            pappl_device_t *device) {
   (void)options;
@@ -31,16 +59,28 @@ static bool hplj_printfile(pappl_job_t *job, pappl_pr_options_t *options,
 
 static bool hplj_rstartjob(pappl_job_t *job, pappl_pr_options_t *options,
                            pappl_device_t *device) {
-  (void)job;
   (void)options;
   (void)device;
+  struct hplj_pappl_job_data *data = calloc(1, sizeof(*data));
+  if (data == NULL) {
+    papplLogJob(job, PAPPL_LOGLEVEL_ERROR,
+                "could not allocate raster job state");
+    return false;
+  }
+  papplJobSetData(job, data);
+  if (papplJobIsCanceled(job)) {
+    hplj_free_job_data(data);
+    papplJobSetData(job, NULL);
+    return false;
+  }
   return true;
 }
 
 static bool hplj_rendjob(pappl_job_t *job, pappl_pr_options_t *options,
                          pappl_device_t *device) {
-  (void)job;
   (void)options;
+  hplj_free_job_data(papplJobGetData(job));
+  papplJobSetData(job, NULL);
   papplDeviceFlush(device);
   return true;
 }
@@ -72,25 +112,114 @@ static bool hplj_rstartpage(pappl_job_t *job, pappl_pr_options_t *options,
     papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "%s", error.detail);
     return false;
   }
-  return !papplJobIsCanceled(job);
+  if (header->HWResolution[1] != 600 || header->cupsWidth == 0 ||
+      header->cupsHeight == 0 || header->cupsBitsPerPixel != 1 ||
+      header->cupsBytesPerLine < (header->cupsWidth + 7U) / 8U ||
+      header->cupsInteger[CUPS_RASTER_PWG_ImageBoxLeft] >
+          header->cupsInteger[CUPS_RASTER_PWG_ImageBoxRight] ||
+      header->cupsInteger[CUPS_RASTER_PWG_ImageBoxRight] >= header->cupsWidth ||
+      header->cupsInteger[CUPS_RASTER_PWG_ImageBoxTop] >
+          header->cupsInteger[CUPS_RASTER_PWG_ImageBoxBottom] ||
+      header->cupsInteger[CUPS_RASTER_PWG_ImageBoxBottom] >= header->cupsHeight ||
+      header->cupsHeight > SIZE_MAX / header->cupsBytesPerLine) {
+    papplLogJob(job, PAPPL_LOGLEVEL_ERROR,
+                "raster header geometry is unsupported");
+    return false;
+  }
+  struct hplj_pappl_job_data *data = papplJobGetData(job);
+  if (data == NULL) {
+    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "raster job state is missing");
+    return false;
+  }
+  if (papplJobIsCanceled(job)) {
+    return false;
+  }
+  free(data->page_bits);
+  data->page_size = header->cupsBytesPerLine * header->cupsHeight;
+  data->page_bits = malloc(data->page_size);
+  data->rows_received = 0;
+  if (data->page_bits == NULL) {
+    papplLogJob(job, PAPPL_LOGLEVEL_ERROR,
+                "could not allocate raster page buffer");
+    return false;
+  }
+  return true;
 }
 
 static bool hplj_rwriteline(pappl_job_t *job, pappl_pr_options_t *options,
                             pappl_device_t *device, unsigned y,
                             const unsigned char *line) {
-  (void)y;
   if (papplJobIsCanceled(job)) {
     return false;
   }
+  struct hplj_pappl_job_data *data = papplJobGetData(job);
   size_t bytes = options->header.cupsBytesPerLine;
-  return papplDeviceWrite(device, line, bytes) == (ssize_t)bytes;
+  (void)device;
+  if (data == NULL || data->page_bits == NULL || line == NULL ||
+      y != data->rows_received || y >= options->header.cupsHeight ||
+      bytes > data->page_size - (size_t)y * bytes) {
+    papplLogJob(job, PAPPL_LOGLEVEL_ERROR,
+                "raster page rows are incomplete or out of order");
+    return false;
+  }
+  memcpy(data->page_bits + (size_t)y * bytes, line, bytes);
+  data->rows_received++;
+  return true;
 }
 
 static bool hplj_rendpage(pappl_job_t *job, pappl_pr_options_t *options,
                           pappl_device_t *device, unsigned page) {
-  (void)job;
-  (void)options;
   (void)page;
+  struct hplj_pappl_job_data *data = papplJobGetData(job);
+  cups_page_header_t *header = &options->header;
+  if (data == NULL || data->page_bits == NULL ||
+      data->rows_received != header->cupsHeight || papplJobIsCanceled(job)) {
+    return false;
+  }
+  const unsigned int left =
+      header->cupsInteger[CUPS_RASTER_PWG_ImageBoxLeft];
+  const unsigned int right =
+      header->cupsInteger[CUPS_RASTER_PWG_ImageBoxRight];
+  const unsigned int top =
+      header->cupsInteger[CUPS_RASTER_PWG_ImageBoxTop];
+  const unsigned int bottom =
+      header->cupsInteger[CUPS_RASTER_PWG_ImageBoxBottom];
+  const struct hplj_raster raster = {
+      .width_pixels = header->cupsWidth,
+      .height_rows = header->cupsHeight,
+      .resolution_dpi = header->HWResolution[0],
+      .painted_resolution_dpi = header->HWResolution[1],
+      .page_width_pixels = header->cupsWidth,
+      .page_height_rows = header->cupsHeight,
+      .printable_x_pixels = left,
+      .printable_y_rows = top,
+      .printable_width_pixels = right - left + 1U,
+      .printable_height_rows = bottom - top + 1U,
+      .row_stride_bytes = header->cupsBytesPerLine,
+      .bits = data->page_bits,
+      .bits_size = data->page_size,
+      .bit_polarity = HPLJ_BLACK_IS_ONE,
+      .bit_order = HPLJ_MOST_SIGNIFICANT_BIT_FIRST,
+      .page_count = 1,
+      .media = hplj_media_from_name(options->media.size_name),
+      .source = HPLJ_SOURCE_AUTO,
+      .quality = HPLJ_QUALITY_NORMAL,
+      .density = 3,
+  };
+  struct hplj_pappl_sink pappl_sink = {.device = device};
+  const struct hplj_encode_result result = hplj_encode_raster(
+      hplj_foo2zjs_model_1(), &raster,
+      &(struct hplj_encoder_sink){.emit = hplj_emit_zjstream,
+                                 .context = &pappl_sink},
+      false);
+  free(data->page_bits);
+  data->page_bits = NULL;
+  data->page_size = 0;
+  data->rows_received = 0;
+  if (result.error.category != HPLJ_ERROR_NONE) {
+    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "%s", result.error.detail);
+    return false;
+  }
   papplDeviceFlush(device);
   return true;
 }

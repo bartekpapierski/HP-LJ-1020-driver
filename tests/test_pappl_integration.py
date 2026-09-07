@@ -115,6 +115,10 @@ def main() -> int:
                 time.sleep(0.05)
             pwg_size = (root / "device").stat().st_size
             assert pwg_size > 0
+            pwg_output = (root / "device").read_bytes()
+            assert pwg_output.startswith(b"\x1b%-12345X@PJL JOB\n")
+            assert b"JZJZ" in pwg_output
+            assert b"@PJL EOJ\n" in pwg_output
             raster = root / "job.urf"
             subprocess.run([raster_maker, "apple", raster], check=True)
             subprocess.run(
@@ -132,6 +136,8 @@ def main() -> int:
                    time.monotonic() < deadline):
                 time.sleep(0.05)
             assert (root / "device").stat().st_size > pwg_size
+            combined_output = (root / "device").read_bytes()
+            assert combined_output.count(b"JZJZ") == 2
         finally:
             stop_service(process)
         assert (root / "state/system.state").is_file()

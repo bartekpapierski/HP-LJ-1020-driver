@@ -5,5 +5,12 @@
     "commit": "80499ed5bf6caa2963ad337e37cfda78a80aab1e",
     "license": "GPL-2.0-or-later"
   },
-  "adaptations": []
+  "adaptations": [
+    {
+      "path": "encoder.c",
+      "upstreamPath": "foo2zjs.c",
+      "sha256": "6a450bcf24e6b83f8b53aa9c4dded51f15097ba138824660a792443ba6444ee6",
+      "modifiedNotice": "Modified by HP-LJ-1020-driver contributors"
+    }
+  ]
 }

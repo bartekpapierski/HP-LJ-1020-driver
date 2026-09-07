@@ -27,6 +27,12 @@ if(NOT EXISTS "${HPLJ1020_LIBUSB_SOURCE_DIR}/libusb/libusb.h")
     DESTINATION "${CMAKE_BINARY_DIR}/locked")
 endif()
 
+if(NOT EXISTS "${HPLJ1020_FOO2ZJS_SOURCE_DIR}/jbig.h")
+  file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/locked")
+  file(ARCHIVE_EXTRACT INPUT "${HPLJ1020_FOO2ZJS_ARCHIVE}"
+    DESTINATION "${CMAKE_BINARY_DIR}/locked")
+endif()
+
 add_library(hplj1020_libusb STATIC
   ${HPLJ1020_LIBUSB_SOURCE_DIR}/libusb/core.c
   ${HPLJ1020_LIBUSB_SOURCE_DIR}/libusb/descriptor.c
@@ -62,6 +68,14 @@ add_library(hplj1020_build_options INTERFACE)
 target_compile_options(hplj1020_build_options INTERFACE
   -Wall -Wextra -Wpedantic -Werror)
 
+add_library(hplj1020_foo2zjs STATIC
+  ${HPLJ1020_FOO2ZJS_SOURCE_DIR}/jbig.c
+  ${HPLJ1020_FOO2ZJS_SOURCE_DIR}/jbig_ar.c
+  third_party/foo2zjs/encoder.c)
+target_include_directories(hplj1020_foo2zjs PRIVATE
+  include ${HPLJ1020_FOO2ZJS_SOURCE_DIR})
+add_dependencies(hplj1020_foo2zjs locked-sources)
+
 add_library(hplj1020_core
   src/device.c
   src/encoder.c
@@ -72,7 +86,8 @@ add_library(hplj1020_core
   src/usb_libusb.c
   src/version.c)
 target_include_directories(hplj1020_core PUBLIC include)
-target_link_libraries(hplj1020_core PRIVATE hplj1020_build_options hplj1020_libusb)
+target_link_libraries(hplj1020_core PRIVATE
+  hplj1020_build_options hplj1020_libusb hplj1020_foo2zjs)
 
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
@@ -110,6 +125,10 @@ if(BUILD_TESTING)
   add_executable(hplj1020-contracts tests/contracts.c)
   target_link_libraries(hplj1020-contracts PRIVATE hplj1020_build_options hplj1020_core)
   add_test(NAME hplj1020-contracts COMMAND hplj1020-contracts)
+  add_executable(hplj1020-encoder-contracts tests/encoder_contracts.c)
+  target_link_libraries(hplj1020-encoder-contracts PRIVATE
+    hplj1020_build_options hplj1020_core)
+  add_test(NAME hplj1020-encoder-contracts COMMAND hplj1020-encoder-contracts)
   add_executable(hplj1020-firmware-contracts tests/firmware_contracts.c)
   target_include_directories(hplj1020-firmware-contracts PRIVATE tests)
   target_link_libraries(hplj1020-firmware-contracts PRIVATE hplj1020_build_options hplj1020_core)

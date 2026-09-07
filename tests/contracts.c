@@ -228,6 +228,31 @@ static void test_encoder_rejects_invalid_raster_before_output(void) {
   assert(sink.bytes_written == 0);
 }
 
+static void test_encoder_rejects_painted_resolution_mismatch_before_output(void) {
+  struct fake_sink sink = {0};
+  const unsigned char row[] = {0};
+  const struct hplj_raster raster = {
+      .width_pixels = 8,
+      .height_rows = 1,
+      .resolution_dpi = 600,
+      .painted_resolution_dpi = 300,
+      .row_stride_bytes = 1,
+      .bits = row,
+      .bit_polarity = HPLJ_BLACK_IS_ONE,
+      .page_count = 1,
+      .media = HPLJ_MEDIA_A4,
+      .source = HPLJ_SOURCE_AUTO,
+      .quality = HPLJ_QUALITY_NORMAL,
+      .density = 3,
+  };
+  const struct hplj_encode_result result = hplj_encode_raster(
+      &(struct hplj_foo2zjs_adapter){.encode_zjstream = fake_encode}, &raster,
+      &(struct hplj_encoder_sink){.emit = fake_emit, .context = &sink}, false);
+
+  assert(result.error.category == HPLJ_ERROR_RASTER_INVALID);
+  assert(sink.bytes_written == 0);
+}
+
 static void test_pappl_mapping_hides_external_types(void) {
   struct hplj_status status = hplj_status_from_device(HPLJ_DEVICE_AWAITING_FIRMWARE);
   assert(status.queue == HPLJ_QUEUE_HELD);
@@ -276,6 +301,7 @@ int main(void) {
   test_partial_send_requires_explicit_retry();
   test_firmware_failures_hold_printing_with_specific_recovery();
   test_encoder_rejects_invalid_raster_before_output();
+  test_encoder_rejects_painted_resolution_mismatch_before_output();
   test_pappl_mapping_hides_external_types();
   test_pappl_adapter_accepts_a_host_test_double();
   return 0;
