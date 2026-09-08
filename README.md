@@ -54,6 +54,44 @@ sudo python3 scripts/reconcile_macos_queue.py \
   --apply
 ```
 
+## Personal-use installation
+
+The audited lifecycle command previews all machine-wide mutations by default.
+Build and staging run as the invoking user; `sudo` is requested only after the
+provider has been assembled and ad-hoc signed with hardened runtime. Review the
+preview, then explicitly apply the same fixed operation:
+
+```sh
+python3 scripts/personal_install.py install
+python3 scripts/personal_install.py install --apply --yes
+```
+
+The installed legacy LaunchDaemon runs the provider as the non-login
+`_hplj1020` account. It installs a root-owned app bundle and plist, creates the
+complete private state hierarchy, limits IPP to loopback, and reconciles only
+the `HP_LaserJet_1020` queue. Readiness requires the final service UID, both
+loopback listeners, and queue health; launchd's temporary root trampoline is
+not accepted as ready. No privileged USB helper is installed.
+
+Every lifecycle change has a preview and uses the same convergent command:
+
+```sh
+python3 scripts/personal_install.py disable
+python3 scripts/personal_install.py disable --apply --yes
+python3 scripts/personal_install.py enable
+python3 scripts/personal_install.py enable --apply --yes
+python3 scripts/personal_install.py uninstall
+python3 scripts/personal_install.py uninstall --apply --yes
+python3 scripts/personal_install.py status
+```
+
+Disable preserves product data. Complete uninstall requires explicit
+confirmation, removes only the fixed product paths/account/queue/receipt, and
+audits their absence. Failed operations leave the service disabled and report
+the exact failed command or remaining artifacts. The local structured audit is
+written under `build/personal-install/audit.jsonl`; it contains operation and
+command metadata, never print or firmware contents.
+
 ## Validation artifacts
 
 `validation/capability-matrix.json` is the machine-readable inventory of every

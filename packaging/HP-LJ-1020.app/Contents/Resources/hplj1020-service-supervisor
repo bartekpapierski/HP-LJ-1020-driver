@@ -1,0 +1,49 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Fixed, unprivileged, bounded restart policy for the personal service.
+
+set -u
+
+PROVIDER="/Library/Application Support/HP-LJ-1020/HP-LJ-1020.app/Contents/MacOS/hplj1020"
+STATE_ROOT="/Library/Application Support/HP-LJ-1020/state"
+RUN_ROOT="/Library/Application Support/HP-LJ-1020/run"
+CRASH_MARKER="$RUN_ROOT/crash-loop"
+CHILD_PID=""
+
+terminate() {
+  if [[ -n "$CHILD_PID" ]]; then
+    kill -TERM "$CHILD_PID" 2>/dev/null || true
+    wait "$CHILD_PID" 2>/dev/null || true
+  fi
+  exit 0
+}
+
+trap terminate TERM INT
+rm -f "$CRASH_MARKER"
+
+for attempt in 1 2 3; do
+  printf '{"event":"provider-start","attempt":%d}\n' "$attempt" >&2
+  "$PROVIDER" --serve \
+    --state "$STATE_ROOT/system.state" \
+    --spool "/Library/Application Support/HP-LJ-1020/spool" \
+    --log "/Library/Logs/HP-LJ-1020/service.log" \
+    --socket "$RUN_ROOT/service.sock" \
+    --device-uri "usb://HP/LaserJet%201020" \
+    --firmware "/Library/Application Support/HP-LJ-1020/firmware/sihp1020.dl" &
+  CHILD_PID=$!
+  wait "$CHILD_PID"
+  status=$?
+  CHILD_PID=""
+  if (( status == 0 )); then
+    exit 0
+  fi
+  printf '{"event":"provider-exit","attempt":%d,"status":%d}\n' \
+    "$attempt" "$status" >&2
+  if (( attempt < 3 )); then
+    sleep 10
+  fi
+done
+
+printf '{"event":"crash-loop","attempts":3,"action":"run enable"}\n' \
+  >"$CRASH_MARKER"
+exit 1
