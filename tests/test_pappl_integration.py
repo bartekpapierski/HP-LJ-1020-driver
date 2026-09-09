@@ -300,6 +300,9 @@ def main() -> int:
             assert combined_output.count(b"@PJL JOB\n") == golden_pages + 3
             assert combined_output.count(b"@PJL EOJ\n") == golden_pages + 3
             assert_ordered_page_streams(combined_output, golden_pages + 3)
+            assert "status-during-write" not in (
+                root / "device.trace"
+            ).read_text()
         finally:
             stop_service(process)
         assert (root / "state/system.state").is_file()

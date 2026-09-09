@@ -34,6 +34,8 @@ struct hplj_pappl_backend {
   atomic_int device_error;
   pthread_mutex_t device_mutex;
   atomic_bool stopping;
+  atomic_bool test_write_delayed;
+  atomic_bool test_write_in_progress;
   bool owns_device;
   bool test_device;
   bool test_firmware_uploaded;
@@ -500,23 +502,33 @@ static enum hplj_error_category hplj_test_upload(
 static struct hplj_transfer_result hplj_test_write(
     void *context, const unsigned char *bytes, size_t byte_count) {
   struct hplj_pappl_backend *backend = context;
+  if (!atomic_exchange(&backend->test_write_delayed, true)) {
+    const struct timespec delay = {.tv_sec = 1, .tv_nsec = 250000000};
+    atomic_store(&backend->test_write_in_progress, true);
+    (void)nanosleep(&delay, NULL);
+  }
   size_t total = 0;
   while (total < byte_count) {
     ssize_t written =
         write(backend->test_output, bytes + total, byte_count - total);
     if (written <= 0) {
+      atomic_store(&backend->test_write_in_progress, false);
       return (struct hplj_transfer_result){HPLJ_ERROR_DEVICE_DISCONNECTED,
                                            total};
     }
     total += (size_t)written;
   }
+  atomic_store(&backend->test_write_in_progress, false);
   hplj_test_trace(backend, "print-write\n");
   return (struct hplj_transfer_result){HPLJ_ERROR_NONE, total};
 }
 
 static enum hplj_error_category hplj_test_status(
     void *context, unsigned int *conditions) {
-  (void)context;
+  struct hplj_pappl_backend *backend = context;
+  if (atomic_load(&backend->test_write_in_progress)) {
+    hplj_test_trace(backend, "status-during-write\n");
+  }
   *conditions = HPLJ_DEVICE_CONDITION_NONE;
   return HPLJ_ERROR_NONE;
 }
@@ -624,11 +636,13 @@ static bool hplj_rstartjob(pappl_job_t *job, pappl_pr_options_t *options,
     firmware = backend->firmware;
     firmware_size = backend->firmware_size;
     firmware_version = backend->firmware_version;
-    pthread_mutex_unlock(&backend->device_mutex);
   }
   struct hplj_error error =
       hplj_job_prepare(&data->lifecycle, firmware, firmware_size,
                        firmware_version);
+  if (backend != NULL && backend->owns_device) {
+    pthread_mutex_unlock(&backend->device_mutex);
+  }
   if (error.category != HPLJ_ERROR_NONE) {
     papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "%s", error.detail);
     hplj_free_job_data(data);
@@ -786,8 +800,17 @@ static bool hplj_rendpage(pappl_job_t *job, pappl_pr_options_t *options,
       .density = 3,
   };
   (void)device;
+  pappl_pr_driver_data_t driver_data;
+  papplPrinterGetDriverData(papplJobGetPrinter(job), &driver_data);
+  struct hplj_pappl_backend *backend = driver_data.extension;
+  if (backend != NULL && backend->owns_device) {
+    pthread_mutex_lock(&backend->device_mutex);
+  }
   const struct hplj_error result =
       hplj_job_submit_page(&data->lifecycle, &raster);
+  if (backend != NULL && backend->owns_device) {
+    pthread_mutex_unlock(&backend->device_mutex);
+  }
   free(data->page_bits);
   data->page_bits = NULL;
   data->page_size = 0;
@@ -867,6 +890,8 @@ static void *hplj_backend_create(void *context,
   }
   atomic_init(&backend->stopping, false);
   atomic_init(&backend->device_error, HPLJ_ERROR_NONE);
+  atomic_init(&backend->test_write_delayed, false);
+  atomic_init(&backend->test_write_in_progress, false);
   backend->test_output = -1;
   backend->test_trace = -1;
   backend->firmware_path = config->paths.firmware_path;
