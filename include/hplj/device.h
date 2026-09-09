@@ -13,6 +13,13 @@
 #define HPLJ_MAX_AUTOMATIC_ATTEMPTS 3U
 #define HPLJ_FIRMWARE_VERSION_SIZE 64U
 
+enum hplj_device_condition {
+  HPLJ_DEVICE_CONDITION_NONE = 0,
+  HPLJ_DEVICE_CONDITION_MEDIA_EMPTY = 1U << 0,
+  HPLJ_DEVICE_CONDITION_NOT_SELECTED = 1U << 1,
+  HPLJ_DEVICE_CONDITION_FAULT = 1U << 2,
+};
+
 enum hplj_device_state {
   HPLJ_DEVICE_DISCONNECTED,
   HPLJ_DEVICE_PRE_FIRMWARE,
@@ -51,6 +58,8 @@ struct hplj_device_ops {
                                               size_t firmware_size);
   struct hplj_transfer_result (*write)(void *context, const unsigned char *bytes,
                                        size_t byte_count);
+  enum hplj_error_category (*read_status)(void *context,
+                                          unsigned int *conditions);
   void (*release)(void *context);
   void *context;
 };
@@ -82,6 +91,8 @@ struct hplj_device_result hplj_device_send_once(struct hplj_device *device,
                                                 bool cancelled);
 struct hplj_device_result hplj_device_revalidate(
     struct hplj_device *device, const char *expected_firmware_version);
+struct hplj_device_result hplj_device_get_status(
+    struct hplj_device *device, unsigned int *conditions);
 void hplj_device_disconnect(struct hplj_device *device);
 void hplj_device_suspend(struct hplj_device *device);
 

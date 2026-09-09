@@ -418,6 +418,28 @@ struct hplj_device_result hplj_device_revalidate(
   return hplj_success(0, 1);
 }
 
+struct hplj_device_result hplj_device_get_status(
+    struct hplj_device *device, unsigned int *conditions) {
+  if (conditions != NULL) {
+    *conditions = HPLJ_DEVICE_CONDITION_NONE;
+  }
+  if (device == NULL || conditions == NULL ||
+      device->state != HPLJ_DEVICE_READY || !device->opened ||
+      device->ops.read_status == NULL) {
+    return hplj_failure(HPLJ_ERROR_INVALID_STATE, HPLJ_RETRY_NEVER,
+                        HPLJ_ACTION_NONE, "printer status is unavailable", 0, 0);
+  }
+  enum hplj_error_category category =
+      device->ops.read_status(device->ops.context, conditions);
+  if (category != HPLJ_ERROR_NONE) {
+    hplj_device_disconnect(device);
+    return hplj_failure(category, HPLJ_RETRY_SAFE_AUTOMATIC,
+                        HPLJ_ACTION_RECONNECT_PRINTER,
+                        "printer status query failed", 0, 1);
+  }
+  return hplj_success(0, 1);
+}
+
 void hplj_device_disconnect(struct hplj_device *device) {
   hplj_release(device);
   device->firmware_version[0] = '\0';

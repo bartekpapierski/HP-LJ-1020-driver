@@ -27,6 +27,8 @@ struct fake_usb {
   unsigned int claims;
   unsigned int releases;
   unsigned int uploads;
+  unsigned int conditions;
+  enum hplj_error_category status_error;
 };
 
 static enum hplj_error_category fake_discover(void *context,
@@ -104,6 +106,13 @@ static void fake_release(void *context) {
   usb->releases++;
 }
 
+static enum hplj_error_category fake_status(void *context,
+                                             unsigned int *conditions) {
+  struct fake_usb *usb = context;
+  *conditions = usb->conditions;
+  return usb->status_error;
+}
+
 static struct hplj_device make_device(struct fake_usb *usb) {
   struct hplj_device device;
   const struct hplj_device_ops ops = {
@@ -113,6 +122,7 @@ static struct hplj_device make_device(struct fake_usb *usb) {
       .read_identity = fake_identity,
       .upload_firmware = fake_upload,
       .write = fake_write,
+      .read_status = fake_status,
       .release = fake_release,
       .context = usb,
   };
@@ -419,6 +429,27 @@ static void test_ready_device_power_cycle_returns_to_firmware_activation(void) {
   assert(usb.uploads == 1);
 }
 
+static void test_ready_device_reports_actionable_port_status(void) {
+  struct fake_usb usb = reference_usb();
+  usb.identities[0] = "MFG:HP;MDL:HP LaserJet 1020;FWVER:20050309;";
+  usb.conditions = HPLJ_DEVICE_CONDITION_MEDIA_EMPTY |
+                   HPLJ_DEVICE_CONDITION_FAULT;
+  struct hplj_device device = make_device(&usb);
+  assert(hplj_device_connect(&device).error.category == HPLJ_ERROR_NONE);
+  assert(hplj_device_bootstrap_firmware(&device, NULL, 0, "20050309")
+             .error.category == HPLJ_ERROR_NONE);
+  unsigned int conditions = 0;
+  assert(hplj_device_get_status(&device, &conditions).error.category ==
+         HPLJ_ERROR_NONE);
+  assert(conditions == usb.conditions);
+
+  usb.status_error = HPLJ_ERROR_DEVICE_DISCONNECTED;
+  assert(hplj_device_get_status(&device, &conditions).error.category ==
+         HPLJ_ERROR_DEVICE_DISCONNECTED);
+  assert(device.state == HPLJ_DEVICE_DISCONNECTED);
+  assert(!device.opened);
+}
+
 static void test_production_libusb_transport_binds_without_a_helper(void) {
   struct hplj_libusb_transport *transport = NULL;
   struct hplj_device_ops ops = {0};
@@ -447,6 +478,7 @@ int main(void) {
   test_transfer_retry_boundary_is_job_bytes();
   test_disconnect_and_sleep_invalidate_stale_handles();
   test_ready_device_power_cycle_returns_to_firmware_activation();
+  test_ready_device_reports_actionable_port_status();
   test_production_libusb_transport_binds_without_a_helper();
   return 0;
 }

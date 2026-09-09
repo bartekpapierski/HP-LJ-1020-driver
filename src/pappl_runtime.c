@@ -36,6 +36,12 @@ struct hplj_queue_lookup {
   pappl_printer_t *printer;
 };
 
+struct hplj_active_jobs {
+  int *ids;
+  size_t count;
+  size_t capacity;
+};
+
 struct hplj_pappl_job_data {
   unsigned char *page_bits;
   size_t page_size;
@@ -159,6 +165,66 @@ static bool hplj_backend_prepare_device(struct hplj_pappl_backend *backend) {
   return backend->device_error == HPLJ_ERROR_NONE;
 }
 
+static void hplj_collect_active_job(pappl_job_t *job, void *data) {
+  struct hplj_active_jobs *jobs = data;
+  if (jobs->count < jobs->capacity) {
+    jobs->ids[jobs->count++] = papplJobGetID(job);
+  }
+}
+
+static void hplj_update_active_jobs(pappl_printer_t *printer,
+                                    const char *message, bool resume) {
+  int count = papplPrinterGetNumberOfActiveJobs(printer);
+  if (count <= 0) {
+    return;
+  }
+  struct hplj_active_jobs jobs = {
+      .ids = calloc((size_t)count, sizeof(*jobs.ids)),
+      .capacity = (size_t)count,
+  };
+  if (jobs.ids == NULL) {
+    return;
+  }
+  papplPrinterIterateActiveJobs(printer, hplj_collect_active_job, &jobs, 1,
+                                count);
+  for (size_t index = 0; index < jobs.count; index++) {
+    pappl_job_t *job = papplPrinterFindJob(printer, jobs.ids[index]);
+    if (job == NULL || papplJobIsCanceled(job)) {
+      continue;
+    }
+    if (message != NULL) {
+      papplJobSetMessage(job, "%s", message);
+    }
+    if (resume && papplJobGetState(job) == IPP_JSTATE_STOPPED &&
+        (papplJobGetReasons(job) & PAPPL_JREASON_PRINTER_STOPPED) != 0) {
+      papplJobResume(job, PAPPL_JREASON_PRINTER_STOPPED);
+    }
+  }
+  free(jobs.ids);
+}
+
+static pappl_preason_t hplj_backend_status_reasons(
+    struct hplj_pappl_backend *backend) {
+  unsigned int conditions = HPLJ_DEVICE_CONDITION_NONE;
+  struct hplj_device_result status =
+      hplj_device_get_status(&backend->device, &conditions);
+  if (status.error.category != HPLJ_ERROR_NONE) {
+    backend->device_error = status.error.category;
+    return PAPPL_PREASON_OFFLINE;
+  }
+  pappl_preason_t reasons = PAPPL_PREASON_NONE;
+  if ((conditions & HPLJ_DEVICE_CONDITION_MEDIA_EMPTY) != 0) {
+    reasons |= PAPPL_PREASON_MEDIA_EMPTY | PAPPL_PREASON_MEDIA_NEEDED;
+  }
+  if ((conditions & HPLJ_DEVICE_CONDITION_NOT_SELECTED) != 0) {
+    reasons |= PAPPL_PREASON_OFFLINE;
+  }
+  if ((conditions & HPLJ_DEVICE_CONDITION_FAULT) != 0) {
+    reasons |= PAPPL_PREASON_OTHER;
+  }
+  return reasons;
+}
+
 static bool hplj_monitor_device(pappl_system_t *system, void *data) {
   (void)system;
   struct hplj_pappl_backend *backend = data;
@@ -166,17 +232,35 @@ static bool hplj_monitor_device(pappl_system_t *system, void *data) {
     return true;
   }
   if (hplj_backend_prepare_device(backend)) {
-    papplPrinterSetReasons(backend->printer, PAPPL_PREASON_NONE,
-                           PAPPL_PREASON_OFFLINE | PAPPL_PREASON_OTHER);
-    papplPrinterReleaseHeldNewJobs(backend->printer, NULL);
+    pappl_preason_t reasons = hplj_backend_status_reasons(backend);
+    papplPrinterSetReasons(backend->printer, reasons,
+                           PAPPL_PREASON_DEVICE_STATUS & ~reasons);
+    if (reasons == PAPPL_PREASON_NONE) {
+      papplPrinterReleaseHeldNewJobs(backend->printer, NULL);
+      hplj_update_active_jobs(backend->printer, "queued", true);
+    } else {
+      papplPrinterHoldNewJobs(backend->printer);
+      hplj_update_active_jobs(
+          backend->printer,
+          (reasons & (PAPPL_PREASON_MEDIA_EMPTY | PAPPL_PREASON_MEDIA_NEEDED)) != 0
+              ? "waiting-for-media: load paper and select the input tray"
+              : "held-for-device: reconnect the printer or clear its fault",
+          false);
+    }
   } else {
     bool firmware_required =
         backend->device_error == HPLJ_ERROR_FIRMWARE_MISSING;
-    papplPrinterSetReasons(
-        backend->printer,
-        firmware_required ? PAPPL_PREASON_OTHER : PAPPL_PREASON_OFFLINE,
-        firmware_required ? PAPPL_PREASON_OFFLINE : PAPPL_PREASON_OTHER);
+    pappl_preason_t reasons =
+        firmware_required ? PAPPL_PREASON_OTHER : PAPPL_PREASON_OFFLINE;
+    papplPrinterSetReasons(backend->printer, reasons,
+                           PAPPL_PREASON_DEVICE_STATUS & ~reasons);
     papplPrinterHoldNewJobs(backend->printer);
+    hplj_update_active_jobs(
+        backend->printer,
+        firmware_required
+            ? "firmware-required: import a lawfully acquired, allow-listed firmware file"
+            : "held-for-device: reconnect the printer",
+        false);
   }
   return true;
 }
@@ -204,6 +288,21 @@ static ssize_t hplj_device_write(pappl_device_t *device, const void *buffer,
   (void)device;
   (void)buffer;
   return (ssize_t)bytes;
+}
+
+static bool hplj_test_device_open(pappl_device_t *device,
+                                  const char *device_uri, const char *name) {
+  (void)device;
+  (void)name;
+  return strcmp(device_uri, "hpljtest://fail-write") == 0;
+}
+
+static ssize_t hplj_test_device_write(pappl_device_t *device,
+                                      const void *buffer, size_t bytes) {
+  (void)device;
+  (void)buffer;
+  (void)bytes;
+  return -1;
 }
 
 static struct hplj_transfer_result hplj_pappl_write(
@@ -378,6 +477,27 @@ static bool hplj_rstartpage(pappl_job_t *job, pappl_pr_options_t *options,
   if (papplJobIsCanceled(job)) {
     return false;
   }
+  pappl_pr_driver_data_t driver_data;
+  papplPrinterGetDriverData(papplJobGetPrinter(job), &driver_data);
+  struct hplj_pappl_backend *backend = driver_data.extension;
+  if (backend != NULL && backend->owns_device) {
+    pappl_preason_t reasons = hplj_backend_status_reasons(backend);
+    if (reasons != PAPPL_PREASON_NONE) {
+      papplPrinterSetReasons(papplJobGetPrinter(job), reasons,
+                             PAPPL_PREASON_DEVICE_STATUS & ~reasons);
+      if ((reasons &
+           (PAPPL_PREASON_MEDIA_EMPTY | PAPPL_PREASON_MEDIA_NEEDED |
+            PAPPL_PREASON_OTHER)) != 0) {
+        (void)hplj_job_wait_for_media(&data->lifecycle);
+        papplJobSetMessage(job, "%s",
+                           "waiting-for-media: load paper or clear the printer fault");
+      } else {
+        papplJobSetMessage(job, "%s", "held-for-device: reconnect the printer");
+      }
+      papplJobSuspend(job, PAPPL_JREASON_PRINTER_STOPPED);
+      return false;
+    }
+  }
   free(data->page_bits);
   data->page_size = header->cupsBytesPerLine * header->cupsHeight;
   data->page_bits = malloc(data->page_size);
@@ -528,6 +648,11 @@ static void *hplj_backend_create(void *context,
   }
   backend->firmware_path = config->paths.firmware_path;
   backend->owns_device = strncmp(config->device_uri, "usb://", 6) == 0;
+  if (strcmp(config->device_uri, "hpljtest://fail-write") == 0) {
+    papplDeviceAddScheme("hpljtest", PAPPL_DEVTYPE_CUSTOM_LOCAL, NULL,
+                         hplj_test_device_open, hplj_device_close, NULL,
+                         hplj_test_device_write, NULL, NULL);
+  }
   if (backend->owns_device) {
     struct hplj_device_ops ops;
     if (hplj_libusb_transport_create(&backend->usb) != HPLJ_ERROR_NONE) {

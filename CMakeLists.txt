@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 cmake_minimum_required(VERSION 3.25)
 
-project(hp_lj_1020 VERSION 0.1.0 LANGUAGES C)
+project(hp_lj_1020 VERSION 0.1.0 LANGUAGES C OBJC)
 
 set(HPLJ1020_LOCKED_DEPENDENCIES "" CACHE FILEPATH "Generated locked source inventory")
 if(NOT HPLJ1020_LOCKED_DEPENDENCIES OR NOT EXISTS "${HPLJ1020_LOCKED_DEPENDENCIES}")
@@ -146,9 +146,10 @@ if(BUILD_TESTING)
   add_executable(hplj1020-pappl-service-contracts tests/pappl_service_contracts.c)
   target_link_libraries(hplj1020-pappl-service-contracts PRIVATE hplj1020_build_options hplj1020_core)
   add_test(NAME hplj1020-pappl-service-contracts COMMAND hplj1020-pappl-service-contracts)
-  add_executable(hplj1020-make-test-raster tests/make_test_raster.c)
+  add_executable(hplj1020-make-test-raster tests/make_test_raster.m)
   target_link_libraries(hplj1020-make-test-raster PRIVATE
-    hplj1020_build_options ${HPLJ1020_CUPS_LIBRARY})
+    hplj1020_build_options ${HPLJ1020_CUPS_LIBRARY}
+    ${HPLJ1020_APPKIT_FRAMEWORK})
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
   add_test(NAME hplj1020-pappl-integration
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_pappl_integration.py
@@ -159,7 +160,7 @@ if(BUILD_TESTING)
       ${CMAKE_CURRENT_SOURCE_DIR}/validation/golden-corpus
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/submit-raster.test)
   set_tests_properties(hplj1020-pappl-integration PROPERTIES
-    SKIP_RETURN_CODE 77 TIMEOUT 30)
+    SKIP_RETURN_CODE 77 TIMEOUT 90)
   add_test(NAME hplj1020-queue-reconciliation
     COMMAND ${Python3_EXECUTABLE} -m unittest tests.test_queue_reconciliation)
   set_tests_properties(hplj1020-queue-reconciliation PROPERTIES

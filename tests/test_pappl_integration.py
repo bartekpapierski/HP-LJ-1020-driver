@@ -17,11 +17,17 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
 
-def start_service(executable: Path, root: Path) -> tuple[subprocess.Popen[str], int]:
+def start_service(
+    executable: Path, root: Path, *, failing_device: bool = False
+) -> tuple[subprocess.Popen[str], int]:
     for name in ("state", "spool", "log", "run"):
         (root / name).mkdir(parents=True, exist_ok=True)
     device = root / "device"
-    device.touch()
+    if failing_device:
+        device_uri = "hpljtest://fail-write"
+    else:
+        device.touch()
+        device_uri = device.as_uri()
     process = subprocess.Popen(
         [
             executable,
@@ -30,7 +36,7 @@ def start_service(executable: Path, root: Path) -> tuple[subprocess.Popen[str], 
             "--spool", str(root / "spool"),
             "--log", str(root / "log/service.log"),
             "--socket", str(root / "run/service.sock"),
-            "--device-uri", device.as_uri(),
+            "--device-uri", device_uri,
         ],
         text=True,
         stdout=subprocess.PIPE,
@@ -95,9 +101,9 @@ def submit_golden_corpus(
             assert hashlib.sha256(source.read_bytes()).hexdigest() == page["sha256"]
         expected_pages += len(pages)
         raster = root / f"private-document-{index}.pwg"
-        seed = int(pages[0]["sha256"][:2], 16) + 1
         subprocess.run(
-            [raster_maker, "pwg", raster, str(len(pages)), str(seed)],
+            [raster_maker, "pwg", raster,
+             *(str(corpus / page["path"]) for page in pages)],
             check=True,
         )
         submissions.append(raster)
@@ -112,6 +118,48 @@ def submit_golden_corpus(
         for future in futures:
             future.result()
     return expected_pages
+
+
+def assert_ordered_page_streams(output: bytes, expected_pages: int) -> None:
+    prefix = b"\x1b%-12345X@PJL JOB\n"
+    trailer = b"\x1b%-12345X@PJL EOJ\n\x1b%-12345X"
+    offset = 0
+    for _page in range(expected_pages):
+        assert output.startswith(prefix, offset)
+        end = output.find(trailer, offset + len(prefix))
+        assert end >= 0
+        stream = output[offset:end]
+        assert stream.count(b"JZJZ") == 1
+        offset = end + len(trailer)
+    assert offset == len(output)
+
+
+def assert_device_failure_propagates(
+    executable: Path, raster_maker: Path, root: Path
+) -> None:
+    process, port = start_service(executable, root, failing_device=True)
+    try:
+        raster = root / "failure-job.pwg"
+        subprocess.run([raster_maker, "pwg", raster, "--noise"], check=True)
+        result = subprocess.run(
+            [
+                "/usr/bin/ipptool", "-t",
+                "-d", f"filename={raster}",
+                "-d", "filetype=image/pwg-raster",
+                "-d", "user=host-test",
+                f"ipp://127.0.0.1:{port}/ipp/print",
+                "/usr/share/cups/ipptool/print-job-and-wait.test",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        assert result.returncode == 0, result.stdout
+        assert "job-state (enum) = aborted" in result.stdout
+        assert "aborted-by-system" in result.stdout
+    finally:
+        stop_service(process)
 
 
 def main() -> int:
@@ -201,7 +249,7 @@ def main() -> int:
             golden_pages = submit_golden_corpus(
                 uri, raster_maker, root, corpus, submit_test
             )
-            deadline = time.monotonic() + 15
+            deadline = time.monotonic() + 30
             while ((root / "device").read_bytes().count(b"JZJZ") <
                    golden_pages + 2 and time.monotonic() < deadline):
                 time.sleep(0.05)
@@ -209,6 +257,7 @@ def main() -> int:
             assert combined_output.count(b"JZJZ") == golden_pages + 2
             assert combined_output.count(b"@PJL JOB\n") == golden_pages + 2
             assert combined_output.count(b"@PJL EOJ\n") == golden_pages + 2
+            assert_ordered_page_streams(combined_output, golden_pages + 2)
         finally:
             stop_service(process)
         assert (root / "state/system.state").is_file()
@@ -220,6 +269,8 @@ def main() -> int:
         )
         assert b"private-user-sentinel" not in retained
         assert b"private-document-" not in retained
+        assert b"JZJZ" not in retained
+        assert b"@PJL JOB" not in retained
 
         process, port = start_service(executable, root)
         try:
@@ -256,6 +307,9 @@ def main() -> int:
             assert "printer-dns-sd-name (nameWithoutLanguage) = " in result.stdout
         finally:
             stop_service(process)
+
+        failure_root = root / "failure-service"
+        assert_device_failure_propagates(executable, raster_maker, failure_root)
     return 0
 
 

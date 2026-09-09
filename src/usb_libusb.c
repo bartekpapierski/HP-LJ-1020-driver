@@ -12,6 +12,7 @@
 
 #define HPLJ_USB_TIMEOUT_MS 5000U
 #define HPLJ_IEEE1284_REQUEST 0U
+#define HPLJ_PORT_STATUS_REQUEST 1U
 #define HPLJ_PRINTER_CLASS 7U
 #define HPLJ_PRINTER_SUBCLASS 1U
 
@@ -243,6 +244,34 @@ static struct hplj_transfer_result hplj_libusb_write(
   return hplj_libusb_bulk_write(context, bytes, byte_count);
 }
 
+static enum hplj_error_category hplj_libusb_status(
+    void *context, unsigned int *conditions) {
+  struct hplj_libusb_transport *transport = context;
+  unsigned char status = 0;
+  int transferred = libusb_control_transfer(
+      transport->handle,
+      LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE,
+      HPLJ_PORT_STATUS_REQUEST, 0, (uint16_t)transport->interface_number,
+      &status, sizeof(status), HPLJ_USB_TIMEOUT_MS);
+  if (transferred < 0) {
+    return hplj_libusb_error(transferred);
+  }
+  if (transferred != (int)sizeof(status)) {
+    return HPLJ_ERROR_DEVICE_PROTOCOL;
+  }
+  *conditions = HPLJ_DEVICE_CONDITION_NONE;
+  if ((status & (1U << 5)) != 0) {
+    *conditions |= HPLJ_DEVICE_CONDITION_MEDIA_EMPTY;
+  }
+  if ((status & (1U << 4)) == 0) {
+    *conditions |= HPLJ_DEVICE_CONDITION_NOT_SELECTED;
+  }
+  if ((status & (1U << 3)) == 0) {
+    *conditions |= HPLJ_DEVICE_CONDITION_FAULT;
+  }
+  return HPLJ_ERROR_NONE;
+}
+
 enum hplj_error_category hplj_libusb_transport_create(
     struct hplj_libusb_transport **transport) {
   *transport = calloc(1, sizeof(**transport));
@@ -281,6 +310,7 @@ void hplj_libusb_device_ops(struct hplj_libusb_transport *transport,
       .read_identity = hplj_libusb_identity,
       .upload_firmware = hplj_libusb_upload,
       .write = hplj_libusb_write,
+      .read_status = hplj_libusb_status,
       .release = hplj_libusb_release,
       .context = transport,
   };
