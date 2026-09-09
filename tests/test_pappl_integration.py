@@ -5,6 +5,8 @@
 from __future__ import annotations
 
 import http.client
+import hashlib
+import json
 import signal
 import socket
 import subprocess
@@ -12,6 +14,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 
 def start_service(executable: Path, root: Path) -> tuple[subprocess.Popen[str], int]:
@@ -50,14 +53,77 @@ def stop_service(process: subprocess.Popen[str]) -> None:
     assert process.wait(timeout=10) == 0
 
 
+def submit_raster(
+    uri: str, raster: Path, *, user: str = "host-test", test_file: Path | None = None
+) -> None:
+    if test_file is None:
+        test_file = Path("/usr/share/cups/ipptool/print-job-and-wait.test")
+    for _attempt in range(20):
+        result = subprocess.run(
+            [
+                "/usr/bin/ipptool", "-t",
+                "-d", f"filename={raster}",
+                "-d", "filetype=image/pwg-raster",
+                "-d", f"user={user}",
+                uri,
+                test_file,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return
+        if "server-error-busy" not in result.stdout:
+            break
+        time.sleep(0.05)
+    raise AssertionError(
+        f"raster submission failed: {result.stdout}\n{result.stderr}"
+    )
+
+
+def submit_golden_corpus(
+    uri: str, raster_maker: Path, root: Path, corpus: Path, submit_test: Path
+) -> int:
+    manifest = json.loads((corpus / "manifest.json").read_text())
+    submissions: list[Path] = []
+    expected_pages = 0
+    for index, document in enumerate(manifest["documents"]):
+        pages = document["pages"]
+        for page in pages:
+            source = corpus / page["path"]
+            assert hashlib.sha256(source.read_bytes()).hexdigest() == page["sha256"]
+        expected_pages += len(pages)
+        raster = root / f"private-document-{index}.pwg"
+        seed = int(pages[0]["sha256"][:2], 16) + 1
+        subprocess.run(
+            [raster_maker, "pwg", raster, str(len(pages)), str(seed)],
+            check=True,
+        )
+        submissions.append(raster)
+    with ThreadPoolExecutor(max_workers=len(submissions)) as executor:
+        futures = [
+            executor.submit(
+                submit_raster, uri, raster, user="private-user-sentinel",
+                test_file=submit_test
+            )
+            for raster in submissions
+        ]
+        for future in futures:
+            future.result()
+    return expected_pages
+
+
 def main() -> int:
-    if len(sys.argv) != 6:
+    if len(sys.argv) != 8:
         return 2
     executable = Path(sys.argv[1]).resolve()
     raster_maker = Path(sys.argv[2]).resolve()
     invalid_job = Path(sys.argv[3]).resolve()
     invalid_quality = Path(sys.argv[4]).resolve()
     malformed_job = Path(sys.argv[5]).resolve()
+    corpus = Path(sys.argv[6]).resolve()
+    submit_test = Path(sys.argv[7]).resolve()
     with tempfile.TemporaryDirectory(prefix="hplj1020-pappl-") as directory:
         root = Path(directory)
         try:
@@ -100,16 +166,7 @@ def main() -> int:
             assert (root / "device").stat().st_size == 0
             raster = root / "job.pwg"
             subprocess.run([raster_maker, "pwg", raster], check=True)
-            subprocess.run(
-                [
-                    "/usr/bin/ipptool", "-t",
-                    "-d", f"filename={raster}",
-                    "-d", "filetype=image/pwg-raster",
-                    uri,
-                    "/usr/share/cups/ipptool/print-job-and-wait.test",
-                ],
-                check=True,
-            )
+            submit_raster(uri, raster)
             deadline = time.monotonic() + 10
             while (root / "device").stat().st_size == 0 and time.monotonic() < deadline:
                 time.sleep(0.05)
@@ -126,10 +183,13 @@ def main() -> int:
                     "/usr/bin/ipptool", "-t",
                     "-d", f"filename={raster}",
                     "-d", "filetype=image/urf",
+                    "-d", "user=host-test",
                     uri,
                     "/usr/share/cups/ipptool/print-job-and-wait.test",
                 ],
                 check=True,
+                capture_output=True,
+                text=True,
             )
             deadline = time.monotonic() + 10
             while ((root / "device").stat().st_size <= pwg_size and
@@ -138,9 +198,28 @@ def main() -> int:
             assert (root / "device").stat().st_size > pwg_size
             combined_output = (root / "device").read_bytes()
             assert combined_output.count(b"JZJZ") == 2
+            golden_pages = submit_golden_corpus(
+                uri, raster_maker, root, corpus, submit_test
+            )
+            deadline = time.monotonic() + 15
+            while ((root / "device").read_bytes().count(b"JZJZ") <
+                   golden_pages + 2 and time.monotonic() < deadline):
+                time.sleep(0.05)
+            combined_output = (root / "device").read_bytes()
+            assert combined_output.count(b"JZJZ") == golden_pages + 2
+            assert combined_output.count(b"@PJL JOB\n") == golden_pages + 2
+            assert combined_output.count(b"@PJL EOJ\n") == golden_pages + 2
         finally:
             stop_service(process)
         assert (root / "state/system.state").is_file()
+        retained = b"".join(
+            path.read_bytes()
+            for directory in (root / "state", root / "spool", root / "log")
+            for path in directory.rglob("*")
+            if path.is_file()
+        )
+        assert b"private-user-sentinel" not in retained
+        assert b"private-document-" not in retained
 
         process, port = start_service(executable, root)
         try:

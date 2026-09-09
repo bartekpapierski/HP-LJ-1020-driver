@@ -82,6 +82,7 @@ add_library(hplj1020_core
   src/error.c
   src/firmware.c
   src/firmware_store.c
+  src/job.c
   src/pappl.c
   src/usb_libusb.c
   src/version.c)
@@ -136,6 +137,12 @@ if(BUILD_TESTING)
   add_executable(hplj1020-device-contracts tests/device_contracts.c)
   target_link_libraries(hplj1020-device-contracts PRIVATE hplj1020_build_options hplj1020_core)
   add_test(NAME hplj1020-device-contracts COMMAND hplj1020-device-contracts)
+  add_executable(hplj1020-job-lifecycle-contracts
+    tests/job_lifecycle_contracts.c)
+  target_link_libraries(hplj1020-job-lifecycle-contracts PRIVATE
+    hplj1020_build_options hplj1020_core)
+  add_test(NAME hplj1020-job-lifecycle-contracts
+    COMMAND hplj1020-job-lifecycle-contracts)
   add_executable(hplj1020-pappl-service-contracts tests/pappl_service_contracts.c)
   target_link_libraries(hplj1020-pappl-service-contracts PRIVATE hplj1020_build_options hplj1020_core)
   add_test(NAME hplj1020-pappl-service-contracts COMMAND hplj1020-pappl-service-contracts)
@@ -148,7 +155,9 @@ if(BUILD_TESTING)
       $<TARGET_FILE:hplj1020> $<TARGET_FILE:hplj1020-make-test-raster>
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/invalid-resolution.test
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/invalid-quality.test
-      ${CMAKE_CURRENT_SOURCE_DIR}/tests/malformed-raster.test)
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/malformed-raster.test
+      ${CMAKE_CURRENT_SOURCE_DIR}/validation/golden-corpus
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/submit-raster.test)
   set_tests_properties(hplj1020-pappl-integration PROPERTIES
     SKIP_RETURN_CODE 77 TIMEOUT 30)
   add_test(NAME hplj1020-queue-reconciliation

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "hplj/pappl.h"
+#include "hplj/job.h"
 
 #include <pappl/pappl.h>
 
@@ -26,10 +27,9 @@ struct hplj_pappl_job_data {
   unsigned char *page_bits;
   size_t page_size;
   unsigned int rows_received;
-};
-
-struct hplj_pappl_sink {
-  pappl_device_t *device;
+  struct hplj_device transport;
+  struct hplj_job lifecycle;
+  pappl_device_t *pappl_device;
 };
 
 static void hplj_free_job_data(struct hplj_pappl_job_data *data) {
@@ -39,13 +39,34 @@ static void hplj_free_job_data(struct hplj_pappl_job_data *data) {
   }
 }
 
-static enum hplj_error_category hplj_emit_zjstream(void *context,
-                                                    const unsigned char *bytes,
-                                                    size_t byte_count) {
-  struct hplj_pappl_sink *sink = context;
-  const ssize_t written = papplDeviceWrite(sink->device, bytes, byte_count);
-  return written == (ssize_t)byte_count ? HPLJ_ERROR_NONE
-                                        : HPLJ_ERROR_TRANSFER_INCOMPLETE;
+static struct hplj_transfer_result hplj_pappl_write(
+    void *context, const unsigned char *bytes, size_t byte_count) {
+  struct hplj_pappl_job_data *data = context;
+  const ssize_t written = papplDeviceWrite(data->pappl_device, bytes, byte_count);
+  if (written < 0) {
+    return (struct hplj_transfer_result){HPLJ_ERROR_DEVICE_DISCONNECTED, 0};
+  }
+  return (struct hplj_transfer_result){
+      written == (ssize_t)byte_count ? HPLJ_ERROR_NONE
+                                     : HPLJ_ERROR_TRANSFER_INCOMPLETE,
+      (size_t)written};
+}
+
+static bool hplj_pappl_job_cancelled(void *context, unsigned long job_id) {
+  (void)job_id;
+  return papplJobIsCanceled(context);
+}
+
+static void hplj_pappl_job_state(void *context,
+                                 const struct hplj_job_metadata *metadata) {
+  pappl_job_t *job = context;
+  static const char *messages[] = {
+      "accepted",         "held-for-firmware", "preparing", "transmitting",
+      "completed",        "canceled",          "failed",
+  };
+  if ((size_t)metadata->state < sizeof(messages) / sizeof(messages[0])) {
+    papplJobSetMessage(job, "%s", messages[metadata->state]);
+  }
 }
 
 static bool hplj_printfile(pappl_job_t *job, pappl_pr_options_t *options,
@@ -67,8 +88,28 @@ static bool hplj_rstartjob(pappl_job_t *job, pappl_pr_options_t *options,
                 "could not allocate raster job state");
     return false;
   }
+  data->pappl_device = device;
+  struct hplj_device_ops ops = {
+      .write = hplj_pappl_write,
+      .context = data,
+  };
+  hplj_device_init(&data->transport, &ops);
+  data->transport.state = HPLJ_DEVICE_READY;
+  papplCopyString(data->transport.firmware_version, "pappl-managed",
+                  sizeof(data->transport.firmware_version));
+  hplj_job_init(&data->lifecycle, (unsigned long)papplJobGetID(job),
+                &data->transport, hplj_foo2zjs_model_1(),
+                hplj_pappl_job_cancelled, hplj_pappl_job_state, job);
   papplJobSetData(job, data);
   if (papplJobIsCanceled(job)) {
+    hplj_free_job_data(data);
+    papplJobSetData(job, NULL);
+    return false;
+  }
+  struct hplj_error error =
+      hplj_job_prepare(&data->lifecycle, NULL, 0, "pappl-managed");
+  if (error.category != HPLJ_ERROR_NONE) {
+    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "%s", error.detail);
     hplj_free_job_data(data);
     papplJobSetData(job, NULL);
     return false;
@@ -79,10 +120,19 @@ static bool hplj_rstartjob(pappl_job_t *job, pappl_pr_options_t *options,
 static bool hplj_rendjob(pappl_job_t *job, pappl_pr_options_t *options,
                          pappl_device_t *device) {
   (void)options;
-  hplj_free_job_data(papplJobGetData(job));
+  struct hplj_pappl_job_data *data = papplJobGetData(job);
+  bool completed = false;
+  if (data != NULL) {
+    if (papplJobIsCanceled(job)) {
+      hplj_job_cancel(&data->lifecycle);
+    } else if (data->lifecycle.metadata.state == HPLJ_JOB_PREPARING) {
+      completed = hplj_job_complete(&data->lifecycle).category == HPLJ_ERROR_NONE;
+    }
+  }
+  hplj_free_job_data(data);
   papplJobSetData(job, NULL);
   papplDeviceFlush(device);
-  return true;
+  return completed;
 }
 
 static enum hplj_media hplj_media_from_name(const char *name) {
@@ -206,18 +256,15 @@ static bool hplj_rendpage(pappl_job_t *job, pappl_pr_options_t *options,
       .quality = HPLJ_QUALITY_NORMAL,
       .density = 3,
   };
-  struct hplj_pappl_sink pappl_sink = {.device = device};
-  const struct hplj_encode_result result = hplj_encode_raster(
-      hplj_foo2zjs_model_1(), &raster,
-      &(struct hplj_encoder_sink){.emit = hplj_emit_zjstream,
-                                 .context = &pappl_sink},
-      false);
+  (void)device;
+  const struct hplj_error result =
+      hplj_job_submit_page(&data->lifecycle, &raster);
   free(data->page_bits);
   data->page_bits = NULL;
   data->page_size = 0;
   data->rows_received = 0;
-  if (result.error.category != HPLJ_ERROR_NONE) {
-    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "%s", result.error.detail);
+  if (result.category != HPLJ_ERROR_NONE) {
+    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "%s", result.detail);
     return false;
   }
   papplDeviceFlush(device);
@@ -344,8 +391,9 @@ static bool hplj_backend_reconcile(void *service, const char *queue_name,
     return false;
   }
   papplPrinterSetDNSSDName(printer, NULL);
-  papplPrinterSetMaxCompletedJobs(printer, 20);
+  papplPrinterSetMaxCompletedJobs(printer, 0);
   papplPrinterSetMaxPreservedJobs(printer, 0);
+  papplPrinterSetMaxActiveJobs(printer, 0);
   return true;
 }
 
