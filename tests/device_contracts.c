@@ -392,6 +392,33 @@ static void test_disconnect_and_sleep_invalidate_stale_handles(void) {
   assert(usb.releases == 2);
 }
 
+static void test_ready_device_power_cycle_returns_to_firmware_activation(void) {
+  const unsigned char firmware[] = {1};
+  struct fake_usb usb = reference_usb();
+  usb.identities[0] = "MFG:HP;MDL:HP LaserJet 1020;FWVER:20050309;";
+  usb.identities[1] = "MFG:HP;MDL:HP LaserJet 1020;";
+  usb.identities[2] = "MFG:HP;MDL:HP LaserJet 1020;FWVER:20050309;";
+  usb.identity_count = 3;
+  struct hplj_device device = make_device(&usb);
+  assert(hplj_device_connect(&device).error.category == HPLJ_ERROR_NONE);
+  assert(hplj_device_bootstrap_firmware(&device, NULL, 0, "20050309")
+             .error.category == HPLJ_ERROR_NONE);
+
+  struct hplj_device_result result =
+      hplj_device_revalidate(&device, "20050309");
+  assert(result.error.category == HPLJ_ERROR_FIRMWARE_MISSING);
+  assert(result.error.retry == HPLJ_RETRY_SAFE_AUTOMATIC);
+  assert(device.state == HPLJ_DEVICE_PRE_FIRMWARE);
+  assert(device.opened);
+  assert(usb.releases == 0);
+
+  result = hplj_device_bootstrap_firmware(&device, firmware, sizeof(firmware),
+                                          "20050309");
+  assert(result.error.category == HPLJ_ERROR_NONE);
+  assert(device.state == HPLJ_DEVICE_READY);
+  assert(usb.uploads == 1);
+}
+
 static void test_production_libusb_transport_binds_without_a_helper(void) {
   struct hplj_libusb_transport *transport = NULL;
   struct hplj_device_ops ops = {0};
@@ -419,6 +446,7 @@ int main(void) {
   test_connect_retries_are_bounded_and_observable();
   test_transfer_retry_boundary_is_job_bytes();
   test_disconnect_and_sleep_invalidate_stale_handles();
+  test_ready_device_power_cycle_returns_to_firmware_activation();
   test_production_libusb_transport_binds_without_a_helper();
   return 0;
 }

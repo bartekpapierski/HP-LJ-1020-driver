@@ -322,6 +322,31 @@ static void test_cancellation_during_chunked_transfer_records_sent_bytes(void) {
   assert(job.metadata.pages_completed == 0);
 }
 
+static void test_later_chunk_failure_does_not_retry_after_job_bytes_sent(void) {
+  struct fake_pipeline fake = {
+      .identity = "MFG:HP;MDL:HP LaserJet 1020;FWVER:20050309;",
+      .transfers = {{HPLJ_ERROR_NONE, 64U * 1024U},
+                    {HPLJ_ERROR_DEVICE_TIMEOUT, 0},
+                    {HPLJ_ERROR_NONE, 5}},
+      .transfer_count = 3,
+  };
+  struct hplj_device device;
+  struct hplj_job job = make_job(&fake, &device);
+  assert(hplj_job_prepare(&job, NULL, 0, "20050309").category ==
+         HPLJ_ERROR_NONE);
+  static unsigned char large_bits[64U * 1024U + 1U];
+  struct hplj_raster raster = valid_raster();
+  raster.bits = large_bits;
+  raster.bits_size = sizeof(large_bits);
+
+  struct hplj_error error = hplj_job_submit_page(&job, &raster);
+  assert(error.category == HPLJ_ERROR_DEVICE_TIMEOUT);
+  assert(error.retry == HPLJ_RETRY_EXPLICIT);
+  assert(job.metadata.state == HPLJ_JOB_FAILED_PARTIAL);
+  assert(job.metadata.bytes_sent == 64U * 1024U);
+  assert(fake.transfer_index == 2);
+}
+
 static void test_failures_cancellation_limits_and_shutdown_release_resources(void) {
   struct fake_pipeline fake = {
       .identity = "MFG:HP;MDL:HP LaserJet 1020;FWVER:20050309;"};
@@ -382,6 +407,7 @@ int main(void) {
   test_malformed_raster_is_rejected_before_encoding_or_output();
   test_media_wait_resumes_and_can_be_canceled();
   test_cancellation_during_chunked_transfer_records_sent_bytes();
+  test_later_chunk_failure_does_not_retry_after_job_bytes_sent();
   test_failures_cancellation_limits_and_shutdown_release_resources();
   return 0;
 }

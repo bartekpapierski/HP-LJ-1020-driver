@@ -302,9 +302,9 @@ struct hplj_device_result hplj_device_bootstrap_firmware(
                       0, HPLJ_MAX_AUTOMATIC_ATTEMPTS);
 }
 
-struct hplj_device_result hplj_device_send(struct hplj_device *device,
-                                           const unsigned char *bytes, size_t byte_count,
-                                           bool cancelled) {
+static struct hplj_device_result hplj_device_send_attempts(
+    struct hplj_device *device, const unsigned char *bytes, size_t byte_count,
+    bool cancelled, unsigned int maximum_attempts) {
   if (device->state != HPLJ_DEVICE_READY) {
     return hplj_failure(HPLJ_ERROR_INVALID_STATE, HPLJ_RETRY_NEVER, HPLJ_ACTION_NONE,
                         "print transfer requires a ready printer", 0, 0);
@@ -319,7 +319,7 @@ struct hplj_device_result hplj_device_send(struct hplj_device *device,
   }
 
   struct hplj_transfer_result transfer = {0};
-  for (unsigned int attempt = 1; attempt <= HPLJ_MAX_AUTOMATIC_ATTEMPTS; attempt++) {
+  for (unsigned int attempt = 1; attempt <= maximum_attempts; attempt++) {
     transfer = device->ops.write(device->ops.context, bytes, byte_count);
     if (transfer.bytes_transferred > byte_count) {
       device->state = HPLJ_DEVICE_DISCONNECTED;
@@ -357,7 +357,65 @@ struct hplj_device_result hplj_device_send(struct hplj_device *device,
                           : transfer.category,
                       HPLJ_RETRY_EXPLICIT, HPLJ_ACTION_RETRY_JOB,
                       "print transfer retry limit reached before bytes were sent", 0,
-                      HPLJ_MAX_AUTOMATIC_ATTEMPTS);
+                      maximum_attempts);
+}
+
+struct hplj_device_result hplj_device_send(struct hplj_device *device,
+                                           const unsigned char *bytes,
+                                           size_t byte_count, bool cancelled) {
+  return hplj_device_send_attempts(device, bytes, byte_count, cancelled,
+                                   HPLJ_MAX_AUTOMATIC_ATTEMPTS);
+}
+
+struct hplj_device_result hplj_device_send_once(struct hplj_device *device,
+                                                const unsigned char *bytes,
+                                                size_t byte_count,
+                                                bool cancelled) {
+  return hplj_device_send_attempts(device, bytes, byte_count, cancelled, 1);
+}
+
+struct hplj_device_result hplj_device_revalidate(
+    struct hplj_device *device, const char *expected_firmware_version) {
+  if (device == NULL || device->state != HPLJ_DEVICE_READY || !device->opened) {
+    return hplj_failure(HPLJ_ERROR_INVALID_STATE, HPLJ_RETRY_NEVER,
+                        HPLJ_ACTION_NONE, "ready printer cannot be revalidated", 0, 0);
+  }
+  char identity[HPLJ_IDENTITY_SIZE];
+  size_t identity_length = 0;
+  enum hplj_error_category category = device->ops.read_identity(
+      device->ops.context, identity, sizeof(identity), &identity_length);
+  if (category != HPLJ_ERROR_NONE || identity_length >= sizeof(identity) ||
+      identity[identity_length] != '\0') {
+    hplj_device_disconnect(device);
+    return hplj_failure(category == HPLJ_ERROR_NONE ? HPLJ_ERROR_DEVICE_PROTOCOL
+                                                     : category,
+                        HPLJ_RETRY_SAFE_AUTOMATIC,
+                        HPLJ_ACTION_RECONNECT_PRINTER,
+                        "ready printer identity query failed", 0, 1);
+  }
+  if (!hplj_exact_reference_identity(identity)) {
+    hplj_device_disconnect(device);
+    device->state = HPLJ_DEVICE_UNSUPPORTED;
+    return hplj_failure(HPLJ_ERROR_UNSUPPORTED_DEVICE, HPLJ_RETRY_EXPLICIT,
+                        HPLJ_ACTION_RECONNECT_PRINTER,
+                        "ready printer identity changed", 0, 1);
+  }
+  if (!hplj_read_firmware_version(identity, device->firmware_version)) {
+    device->state = HPLJ_DEVICE_PRE_FIRMWARE;
+    return hplj_failure(HPLJ_ERROR_FIRMWARE_MISSING,
+                        HPLJ_RETRY_SAFE_AUTOMATIC,
+                        HPLJ_ACTION_IMPORT_FIRMWARE,
+                        "printer power cycle requires firmware", 0, 1);
+  }
+  if (!hplj_firmware_version_matches(device, expected_firmware_version)) {
+    hplj_release(device);
+    device->state = HPLJ_DEVICE_FIRMWARE_UNVERIFIED;
+    return hplj_failure(HPLJ_ERROR_FIRMWARE_UNVERIFIED,
+                        HPLJ_RETRY_EXPLICIT,
+                        HPLJ_ACTION_POWER_CYCLE_PRINTER,
+                        "ready printer firmware version changed", 0, 1);
+  }
+  return hplj_success(0, 1);
 }
 
 void hplj_device_disconnect(struct hplj_device *device) {

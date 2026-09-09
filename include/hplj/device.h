@@ -76,6 +76,12 @@ struct hplj_device_result hplj_device_bootstrap_firmware(
 struct hplj_device_result hplj_device_send(struct hplj_device *device,
                                            const unsigned char *bytes, size_t byte_count,
                                            bool cancelled);
+struct hplj_device_result hplj_device_send_once(struct hplj_device *device,
+                                                const unsigned char *bytes,
+                                                size_t byte_count,
+                                                bool cancelled);
+struct hplj_device_result hplj_device_revalidate(
+    struct hplj_device *device, const char *expected_firmware_version);
 void hplj_device_disconnect(struct hplj_device *device);
 void hplj_device_suspend(struct hplj_device *device);
 

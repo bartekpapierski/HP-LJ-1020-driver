@@ -27,6 +27,7 @@ struct hplj_pappl_backend {
   char firmware_version[HPLJ_FIRMWARE_VERSION_SIZE];
   const char *firmware_path;
   pappl_printer_t *printer;
+  enum hplj_error_category device_error;
   bool owns_device;
 };
 
@@ -132,20 +133,30 @@ static bool hplj_backend_prepare_device(struct hplj_pappl_backend *backend) {
   if (!backend->owns_device) {
     return true;
   }
-  if (backend->device.state == HPLJ_DEVICE_DISCONNECTED &&
-      hplj_device_connect(&backend->device).error.category != HPLJ_ERROR_NONE) {
-    return false;
-  }
-  if (backend->device.state == HPLJ_DEVICE_READY) {
-    return true;
-  }
   bool firmware_available = hplj_load_firmware(backend);
+  if (backend->device.state == HPLJ_DEVICE_READY) {
+    const char *expected = firmware_available
+                               ? backend->firmware_version
+                               : backend->device.firmware_version;
+    struct hplj_device_result refreshed =
+        hplj_device_revalidate(&backend->device, expected);
+    backend->device_error = refreshed.error.category;
+    return backend->device_error == HPLJ_ERROR_NONE;
+  }
+  if (backend->device.state == HPLJ_DEVICE_DISCONNECTED) {
+    struct hplj_device_result connected = hplj_device_connect(&backend->device);
+    if (connected.error.category != HPLJ_ERROR_NONE) {
+      backend->device_error = connected.error.category;
+      return false;
+    }
+  }
   struct hplj_device_result result = hplj_device_bootstrap_firmware(
       &backend->device,
       firmware_available ? backend->firmware : NULL,
       firmware_available ? backend->firmware_size : 0,
       firmware_available ? backend->firmware_version : "firmware-required");
-  return result.error.category == HPLJ_ERROR_NONE;
+  backend->device_error = result.error.category;
+  return backend->device_error == HPLJ_ERROR_NONE;
 }
 
 static bool hplj_monitor_device(pappl_system_t *system, void *data) {
@@ -156,11 +167,15 @@ static bool hplj_monitor_device(pappl_system_t *system, void *data) {
   }
   if (hplj_backend_prepare_device(backend)) {
     papplPrinterSetReasons(backend->printer, PAPPL_PREASON_NONE,
-                           PAPPL_PREASON_OFFLINE);
+                           PAPPL_PREASON_OFFLINE | PAPPL_PREASON_OTHER);
     papplPrinterReleaseHeldNewJobs(backend->printer, NULL);
   } else {
-    papplPrinterSetReasons(backend->printer, PAPPL_PREASON_OFFLINE,
-                           PAPPL_PREASON_NONE);
+    bool firmware_required =
+        backend->device_error == HPLJ_ERROR_FIRMWARE_MISSING;
+    papplPrinterSetReasons(
+        backend->printer,
+        firmware_required ? PAPPL_PREASON_OTHER : PAPPL_PREASON_OFFLINE,
+        firmware_required ? PAPPL_PREASON_OFFLINE : PAPPL_PREASON_OTHER);
     papplPrinterHoldNewJobs(backend->printer);
   }
   return true;
@@ -251,14 +266,7 @@ static bool hplj_rstartjob(pappl_job_t *job, pappl_pr_options_t *options,
   size_t firmware_size = 0;
   const char *firmware_version = "pappl-managed";
   if (backend != NULL && backend->owns_device) {
-    if (!hplj_backend_prepare_device(backend)) {
-      hplj_job_init(&data->lifecycle, (unsigned long)papplJobGetID(job),
-                    &backend->device, hplj_foo2zjs_model_1(),
-                    hplj_pappl_job_cancelled, hplj_pappl_job_state, job);
-      papplJobSetData(job, data);
-      papplJobSuspend(job, PAPPL_JREASON_PRINTER_STOPPED);
-      return false;
-    }
+    (void)hplj_backend_prepare_device(backend);
     transport = &backend->device;
     if (hplj_load_firmware(backend)) {
       firmware = backend->firmware;
@@ -292,6 +300,10 @@ static bool hplj_rstartjob(pappl_job_t *job, pappl_pr_options_t *options,
                        firmware_version);
   if (error.category != HPLJ_ERROR_NONE) {
     papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "%s", error.detail);
+    if (data->lifecycle.metadata.state == HPLJ_JOB_HELD_FOR_FIRMWARE ||
+        data->lifecycle.metadata.state == HPLJ_JOB_HELD_FOR_DEVICE) {
+      papplJobSuspend(job, PAPPL_JREASON_PRINTER_STOPPED);
+    }
     hplj_free_job_data(data);
     papplJobSetData(job, NULL);
     return false;

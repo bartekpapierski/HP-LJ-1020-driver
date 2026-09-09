@@ -206,8 +206,11 @@ struct hplj_error hplj_job_submit_page(struct hplj_job *job,
     if (chunk > HPLJ_TRANSFER_CHUNK_BYTES) {
       chunk = HPLJ_TRANSFER_CHUNK_BYTES;
     }
-    struct hplj_device_result sent = hplj_device_send(
-        job->device, page.bytes + offset, chunk, false);
+    struct hplj_device_result sent =
+        job->metadata.bytes_sent == 0
+            ? hplj_device_send(job->device, page.bytes + offset, chunk, false)
+            : hplj_device_send_once(job->device, page.bytes + offset, chunk,
+                                    false);
     if (sent.error.category != HPLJ_ERROR_NONE) {
       free(page.bytes);
       hplj_job_fail(job, sent.error, sent.bytes_transferred);
