@@ -31,7 +31,7 @@ struct hplj_pappl_backend {
   char firmware_version[HPLJ_FIRMWARE_VERSION_SIZE];
   const char *firmware_path;
   pappl_printer_t *printer;
-  enum hplj_error_category device_error;
+  atomic_int device_error;
   pthread_mutex_t device_mutex;
   atomic_bool stopping;
   bool owns_device;
@@ -213,13 +213,13 @@ static bool hplj_backend_prepare_device_unlocked(
                                : backend->device.firmware_version;
     struct hplj_device_result refreshed =
         hplj_device_revalidate(&backend->device, expected);
-    backend->device_error = refreshed.error.category;
-    return backend->device_error == HPLJ_ERROR_NONE;
+    atomic_store(&backend->device_error, refreshed.error.category);
+    return refreshed.error.category == HPLJ_ERROR_NONE;
   }
   if (backend->device.state == HPLJ_DEVICE_DISCONNECTED) {
     struct hplj_device_result connected = hplj_device_connect(&backend->device);
     if (connected.error.category != HPLJ_ERROR_NONE) {
-      backend->device_error = connected.error.category;
+      atomic_store(&backend->device_error, connected.error.category);
       return false;
     }
   }
@@ -228,8 +228,8 @@ static bool hplj_backend_prepare_device_unlocked(
       firmware_available ? backend->firmware : NULL,
       firmware_available ? backend->firmware_size : 0,
       firmware_available ? backend->firmware_version : "firmware-required");
-  backend->device_error = result.error.category;
-  return backend->device_error == HPLJ_ERROR_NONE;
+  atomic_store(&backend->device_error, result.error.category);
+  return result.error.category == HPLJ_ERROR_NONE;
 }
 
 static bool hplj_backend_prepare_device(struct hplj_pappl_backend *backend) {
@@ -284,7 +284,7 @@ static pappl_preason_t hplj_backend_status_reasons(
   struct hplj_device_result status =
       hplj_device_get_status(&backend->device, &conditions);
   if (status.error.category != HPLJ_ERROR_NONE) {
-    backend->device_error = status.error.category;
+    atomic_store(&backend->device_error, status.error.category);
     pthread_mutex_unlock(&backend->device_mutex);
     return PAPPL_PREASON_OFFLINE;
   }
@@ -331,7 +331,7 @@ static bool hplj_wait_for_ready(struct hplj_pappl_backend *backend,
       }
     } else {
       bool firmware_required =
-          backend->device_error == HPLJ_ERROR_FIRMWARE_MISSING;
+          atomic_load(&backend->device_error) == HPLJ_ERROR_FIRMWARE_MISSING;
       papplJobSetMessage(
           job, "%s",
           firmware_required
@@ -367,7 +367,7 @@ static bool hplj_monitor_device(pappl_system_t *system, void *data) {
     }
   } else {
     bool firmware_required =
-        backend->device_error == HPLJ_ERROR_FIRMWARE_MISSING;
+        atomic_load(&backend->device_error) == HPLJ_ERROR_FIRMWARE_MISSING;
     pappl_preason_t reasons =
         firmware_required ? PAPPL_PREASON_OTHER : PAPPL_PREASON_OFFLINE;
     papplPrinterSetReasons(backend->printer, reasons,
@@ -866,6 +866,7 @@ static void *hplj_backend_create(void *context,
     return NULL;
   }
   atomic_init(&backend->stopping, false);
+  atomic_init(&backend->device_error, HPLJ_ERROR_NONE);
   backend->test_output = -1;
   backend->test_trace = -1;
   backend->firmware_path = config->paths.firmware_path;
