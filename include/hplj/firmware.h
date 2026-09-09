@@ -59,6 +59,11 @@ struct hplj_firmware_result {
 };
 
 const char *hplj_firmware_import_disclosure(void);
+bool hplj_firmware_digest_matches(const unsigned char *contents,
+                                  size_t byte_count, const char *sha256);
+bool hplj_firmware_is_production_allowlisted(const unsigned char *contents,
+                                             size_t byte_count,
+                                             const char *version_build);
 struct hplj_firmware_result hplj_firmware_import(
     const struct hplj_firmware_import_request *request,
     const struct hplj_firmware_store *store);

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "hplj/pappl.h"
+#include "hplj/firmware.h"
 #include "hplj/job.h"
 #include "hplj/usb_libusb.h"
 
@@ -7,11 +8,14 @@
 
 #include <fcntl.h>
 #include <limits.h>
+#include <pthread.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 
 #if CUPS_VERSION_MAJOR < 3
@@ -28,7 +32,15 @@ struct hplj_pappl_backend {
   const char *firmware_path;
   pappl_printer_t *printer;
   enum hplj_error_category device_error;
+  pthread_mutex_t device_mutex;
+  atomic_bool stopping;
   bool owns_device;
+  bool test_device;
+  bool test_firmware_uploaded;
+  int test_output;
+  int test_trace;
+  char test_output_path[PATH_MAX];
+  char test_trace_path[PATH_MAX];
 };
 
 struct hplj_queue_lookup {
@@ -59,6 +71,8 @@ static bool hplj_read_file(const char *path, unsigned char **contents,
   struct stat status;
   if (descriptor < 0 || fstat(descriptor, &status) != 0 ||
       !S_ISREG(status.st_mode) || status.st_size <= 0 ||
+      status.st_uid != geteuid() || (status.st_mode & 0777) != 0600 ||
+      status.st_nlink != 1 ||
       (uintmax_t)status.st_size > HPLJ_MAX_FIRMWARE_BYTES) {
     if (descriptor >= 0) {
       close(descriptor);
@@ -91,16 +105,59 @@ static bool hplj_read_file(const char *path, unsigned char **contents,
   return true;
 }
 
+static bool hplj_private_directory(const char *path) {
+  struct stat status;
+  return lstat(path, &status) == 0 && S_ISDIR(status.st_mode) &&
+         status.st_uid == geteuid() && (status.st_mode & 0077) == 0;
+}
+
+static bool hplj_metadata_value(const unsigned char *metadata,
+                                size_t metadata_size, const char *name,
+                                char *value, size_t value_size) {
+  if (metadata == NULL || strlen((const char *)metadata) != metadata_size) {
+    return false;
+  }
+  size_t name_length = strlen(name);
+  const char *cursor = (const char *)metadata;
+  const char *matched = NULL;
+  while (*cursor != '\0') {
+    const char *line_end = strchr(cursor, '\n');
+    if (line_end == NULL) {
+      return false;
+    }
+    if ((size_t)(line_end - cursor) > name_length + 1 &&
+        memcmp(cursor, name, name_length) == 0 && cursor[name_length] == '=') {
+      if (matched != NULL) {
+        return false;
+      }
+      matched = cursor + name_length + 1;
+      size_t length = (size_t)(line_end - matched);
+      if (length == 0 || length >= value_size) {
+        return false;
+      }
+      memcpy(value, matched, length);
+      value[length] = '\0';
+    }
+    cursor = line_end + 1;
+  }
+  return matched != NULL;
+}
+
 static bool hplj_load_firmware(struct hplj_pappl_backend *backend) {
   if (backend->firmware != NULL || backend->firmware_path == NULL) {
     return backend->firmware != NULL;
   }
   char contents_path[PATH_MAX];
   char metadata_path[PATH_MAX];
+  char active_path[PATH_MAX];
   if (snprintf(contents_path, sizeof(contents_path), "%s/active/contents",
                backend->firmware_path) >= (int)sizeof(contents_path) ||
       snprintf(metadata_path, sizeof(metadata_path), "%s/active/metadata",
-               backend->firmware_path) >= (int)sizeof(metadata_path)) {
+               backend->firmware_path) >= (int)sizeof(metadata_path) ||
+      snprintf(active_path, sizeof(active_path), "%s/active",
+               backend->firmware_path) >= (int)sizeof(active_path) ||
+      !hplj_private_directory(backend->firmware_path) ||
+      !hplj_private_directory(active_path)) {
     return false;
   }
   unsigned char *metadata = NULL;
@@ -114,19 +171,28 @@ static bool hplj_load_firmware(struct hplj_pappl_backend *backend) {
     free(metadata);
     return false;
   }
-  const char prefix[] = "version-build=";
-  char *version = strstr((char *)metadata, prefix);
-  if (version != NULL) {
-    version += sizeof(prefix) - 1;
-    char *newline = strchr(version, '\n');
-    size_t length = newline == NULL ? 0 : (size_t)(newline - version);
-    if (length > 0 && length < sizeof(backend->firmware_version)) {
-      memcpy(backend->firmware_version, version, length);
-      backend->firmware_version[length] = '\0';
-    }
-  }
+  char schema[8];
+  char affirmation[64];
+  char sha256[HPLJ_SHA256_HEX_SIZE];
+  bool metadata_valid =
+      hplj_metadata_value(metadata, metadata_size, "schema", schema,
+                          sizeof(schema)) &&
+      strcmp(schema, "1") == 0 &&
+      hplj_metadata_value(metadata, metadata_size, "affirmation", affirmation,
+                          sizeof(affirmation)) &&
+      strcmp(affirmation, "lawful-acquisition") == 0 &&
+      hplj_metadata_value(metadata, metadata_size, "version-build",
+                          backend->firmware_version,
+                          sizeof(backend->firmware_version)) &&
+      hplj_metadata_value(metadata, metadata_size, "sha256", sha256,
+                          sizeof(sha256)) &&
+      hplj_firmware_digest_matches(backend->firmware, backend->firmware_size,
+                                   sha256) &&
+      (backend->test_device || hplj_firmware_is_production_allowlisted(
+                                   backend->firmware, backend->firmware_size,
+                                   backend->firmware_version));
   free(metadata);
-  if (backend->firmware_version[0] == '\0') {
+  if (!metadata_valid) {
     free(backend->firmware);
     backend->firmware = NULL;
     backend->firmware_size = 0;
@@ -135,7 +201,8 @@ static bool hplj_load_firmware(struct hplj_pappl_backend *backend) {
   return true;
 }
 
-static bool hplj_backend_prepare_device(struct hplj_pappl_backend *backend) {
+static bool hplj_backend_prepare_device_unlocked(
+    struct hplj_pappl_backend *backend) {
   if (!backend->owns_device) {
     return true;
   }
@@ -163,6 +230,13 @@ static bool hplj_backend_prepare_device(struct hplj_pappl_backend *backend) {
       firmware_available ? backend->firmware_version : "firmware-required");
   backend->device_error = result.error.category;
   return backend->device_error == HPLJ_ERROR_NONE;
+}
+
+static bool hplj_backend_prepare_device(struct hplj_pappl_backend *backend) {
+  pthread_mutex_lock(&backend->device_mutex);
+  bool ready = hplj_backend_prepare_device_unlocked(backend);
+  pthread_mutex_unlock(&backend->device_mutex);
+  return ready;
 }
 
 static void hplj_collect_active_job(pappl_job_t *job, void *data) {
@@ -205,11 +279,13 @@ static void hplj_update_active_jobs(pappl_printer_t *printer,
 
 static pappl_preason_t hplj_backend_status_reasons(
     struct hplj_pappl_backend *backend) {
+  pthread_mutex_lock(&backend->device_mutex);
   unsigned int conditions = HPLJ_DEVICE_CONDITION_NONE;
   struct hplj_device_result status =
       hplj_device_get_status(&backend->device, &conditions);
   if (status.error.category != HPLJ_ERROR_NONE) {
     backend->device_error = status.error.category;
+    pthread_mutex_unlock(&backend->device_mutex);
     return PAPPL_PREASON_OFFLINE;
   }
   pappl_preason_t reasons = PAPPL_PREASON_NONE;
@@ -222,7 +298,49 @@ static pappl_preason_t hplj_backend_status_reasons(
   if ((conditions & HPLJ_DEVICE_CONDITION_FAULT) != 0) {
     reasons |= PAPPL_PREASON_OTHER;
   }
+  pthread_mutex_unlock(&backend->device_mutex);
   return reasons;
+}
+
+static bool hplj_wait_for_ready(struct hplj_pappl_backend *backend,
+                                pappl_job_t *job,
+                                struct hplj_job *lifecycle) {
+  const struct timespec interval = {.tv_sec = 0, .tv_nsec = 100000000};
+  while (!papplJobIsCanceled(job) && !atomic_load(&backend->stopping) &&
+         !papplSystemIsShutdown(backend->system)) {
+    if (hplj_backend_prepare_device(backend)) {
+      pappl_preason_t reasons = hplj_backend_status_reasons(backend);
+      papplPrinterSetReasons(backend->printer, reasons,
+                             PAPPL_PREASON_DEVICE_STATUS & ~reasons);
+      if (reasons == PAPPL_PREASON_NONE) {
+        papplPrinterReleaseHeldNewJobs(backend->printer, NULL);
+        if (lifecycle != NULL &&
+            lifecycle->metadata.state == HPLJ_JOB_WAITING_FOR_MEDIA) {
+          (void)hplj_job_resume_media(lifecycle);
+        }
+        return true;
+      }
+      papplJobSetMessage(
+          job, "%s",
+          (reasons & (PAPPL_PREASON_MEDIA_EMPTY | PAPPL_PREASON_MEDIA_NEEDED)) != 0
+              ? "waiting-for-media: load paper and select the input tray"
+              : "held-for-device: reconnect the printer or clear its fault");
+      if (lifecycle != NULL &&
+          lifecycle->metadata.state == HPLJ_JOB_PREPARING) {
+        (void)hplj_job_wait_for_media(lifecycle);
+      }
+    } else {
+      bool firmware_required =
+          backend->device_error == HPLJ_ERROR_FIRMWARE_MISSING;
+      papplJobSetMessage(
+          job, "%s",
+          firmware_required
+              ? "firmware-required: import a lawfully acquired, allow-listed firmware file"
+              : "held-for-device: reconnect the printer");
+    }
+    (void)nanosleep(&interval, NULL);
+  }
+  return false;
 }
 
 static bool hplj_monitor_device(pappl_system_t *system, void *data) {
@@ -239,7 +357,7 @@ static bool hplj_monitor_device(pappl_system_t *system, void *data) {
       papplPrinterReleaseHeldNewJobs(backend->printer, NULL);
       hplj_update_active_jobs(backend->printer, "queued", true);
     } else {
-      papplPrinterHoldNewJobs(backend->printer);
+      papplPrinterReleaseHeldNewJobs(backend->printer, NULL);
       hplj_update_active_jobs(
           backend->printer,
           (reasons & (PAPPL_PREASON_MEDIA_EMPTY | PAPPL_PREASON_MEDIA_NEEDED)) != 0
@@ -254,7 +372,7 @@ static bool hplj_monitor_device(pappl_system_t *system, void *data) {
         firmware_required ? PAPPL_PREASON_OTHER : PAPPL_PREASON_OFFLINE;
     papplPrinterSetReasons(backend->printer, reasons,
                            PAPPL_PREASON_DEVICE_STATUS & ~reasons);
-    papplPrinterHoldNewJobs(backend->printer);
+    papplPrinterReleaseHeldNewJobs(backend->printer, NULL);
     hplj_update_active_jobs(
         backend->printer,
         firmware_required
@@ -303,6 +421,116 @@ static ssize_t hplj_test_device_write(pappl_device_t *device,
   (void)buffer;
   (void)bytes;
   return -1;
+}
+
+static void hplj_test_trace(struct hplj_pappl_backend *backend,
+                            const char *event) {
+  if (backend->test_trace < 0 && backend->test_trace_path[0] != '\0') {
+    backend->test_trace =
+        open(backend->test_trace_path, O_WRONLY | O_APPEND | O_CREAT, 0600);
+  }
+  if (backend->test_trace >= 0) {
+    (void)write(backend->test_trace, event, strlen(event));
+  }
+}
+
+static enum hplj_error_category hplj_test_discover(
+    void *context, struct hplj_usb_descriptor *descriptor) {
+  struct hplj_pappl_backend *backend = context;
+  descriptor->vendor_id = HPLJ_REFERENCE_VENDOR_ID;
+  descriptor->product_id = HPLJ_REFERENCE_PRODUCT_ID;
+  hplj_test_trace(backend, "discover\n");
+  return HPLJ_ERROR_NONE;
+}
+
+static enum hplj_error_category hplj_test_open(void *context) {
+  struct hplj_pappl_backend *backend = context;
+  if (backend->test_output < 0) {
+    backend->test_output =
+        open(backend->test_output_path, O_WRONLY | O_APPEND | O_CREAT, 0600);
+  }
+  if (backend->test_trace < 0) {
+    backend->test_trace =
+        open(backend->test_trace_path, O_WRONLY | O_APPEND | O_CREAT, 0600);
+  }
+  return backend->test_output >= 0 && backend->test_trace >= 0
+             ? HPLJ_ERROR_NONE
+             : HPLJ_ERROR_DEVICE_ACCESS_DENIED;
+}
+
+static enum hplj_error_category hplj_test_claim(void *context) {
+  (void)context;
+  return HPLJ_ERROR_NONE;
+}
+
+static enum hplj_error_category hplj_test_identity(
+    void *context, char *identity, size_t identity_size,
+    size_t *identity_length) {
+  struct hplj_pappl_backend *backend = context;
+  char value[HPLJ_FIRMWARE_VERSION_SIZE + 48];
+  int length = backend->test_firmware_uploaded
+                   ? snprintf(value, sizeof(value),
+                              "MFG:HP;MDL:HP LaserJet 1020;FWVER:%s;",
+                              backend->firmware_version)
+                   : snprintf(value, sizeof(value),
+                              "MFG:HP;MDL:HP LaserJet 1020;");
+  if (length <= 0 || (size_t)length + 1 > identity_size ||
+      (size_t)length >= sizeof(value)) {
+    return HPLJ_ERROR_DEVICE_PROTOCOL;
+  }
+  memcpy(identity, value, (size_t)length + 1);
+  *identity_length = (size_t)length;
+  hplj_test_trace(backend, backend->test_firmware_uploaded
+                               ? "identity-ready\n"
+                               : "identity-pre-firmware\n");
+  return HPLJ_ERROR_NONE;
+}
+
+static enum hplj_error_category hplj_test_upload(
+    void *context, const unsigned char *firmware, size_t firmware_size) {
+  struct hplj_pappl_backend *backend = context;
+  if (firmware == NULL || firmware_size == 0) {
+    return HPLJ_ERROR_FIRMWARE_TRANSFER_FAILED;
+  }
+  backend->test_firmware_uploaded = true;
+  hplj_test_trace(backend, "firmware-upload\n");
+  return HPLJ_ERROR_NONE;
+}
+
+static struct hplj_transfer_result hplj_test_write(
+    void *context, const unsigned char *bytes, size_t byte_count) {
+  struct hplj_pappl_backend *backend = context;
+  size_t total = 0;
+  while (total < byte_count) {
+    ssize_t written =
+        write(backend->test_output, bytes + total, byte_count - total);
+    if (written <= 0) {
+      return (struct hplj_transfer_result){HPLJ_ERROR_DEVICE_DISCONNECTED,
+                                           total};
+    }
+    total += (size_t)written;
+  }
+  hplj_test_trace(backend, "print-write\n");
+  return (struct hplj_transfer_result){HPLJ_ERROR_NONE, total};
+}
+
+static enum hplj_error_category hplj_test_status(
+    void *context, unsigned int *conditions) {
+  (void)context;
+  *conditions = HPLJ_DEVICE_CONDITION_NONE;
+  return HPLJ_ERROR_NONE;
+}
+
+static void hplj_test_release(void *context) {
+  struct hplj_pappl_backend *backend = context;
+  if (backend->test_output >= 0) {
+    close(backend->test_output);
+    backend->test_output = -1;
+  }
+  if (backend->test_trace >= 0) {
+    close(backend->test_trace);
+    backend->test_trace = -1;
+  }
 }
 
 static struct hplj_transfer_result hplj_pappl_write(
@@ -365,15 +593,7 @@ static bool hplj_rstartjob(pappl_job_t *job, pappl_pr_options_t *options,
   size_t firmware_size = 0;
   const char *firmware_version = "pappl-managed";
   if (backend != NULL && backend->owns_device) {
-    (void)hplj_backend_prepare_device(backend);
     transport = &backend->device;
-    if (hplj_load_firmware(backend)) {
-      firmware = backend->firmware;
-      firmware_size = backend->firmware_size;
-      firmware_version = backend->firmware_version;
-    } else {
-      firmware_version = "firmware-required";
-    }
   } else {
     struct hplj_device_ops ops = {
         .write = hplj_pappl_write,
@@ -394,15 +614,23 @@ static bool hplj_rstartjob(pappl_job_t *job, pappl_pr_options_t *options,
     papplJobSetData(job, NULL);
     return false;
   }
+  if (backend != NULL && backend->owns_device) {
+    if (!hplj_wait_for_ready(backend, job, NULL)) {
+      hplj_free_job_data(data);
+      papplJobSetData(job, NULL);
+      return false;
+    }
+    pthread_mutex_lock(&backend->device_mutex);
+    firmware = backend->firmware;
+    firmware_size = backend->firmware_size;
+    firmware_version = backend->firmware_version;
+    pthread_mutex_unlock(&backend->device_mutex);
+  }
   struct hplj_error error =
       hplj_job_prepare(&data->lifecycle, firmware, firmware_size,
                        firmware_version);
   if (error.category != HPLJ_ERROR_NONE) {
     papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "%s", error.detail);
-    if (data->lifecycle.metadata.state == HPLJ_JOB_HELD_FOR_FIRMWARE ||
-        data->lifecycle.metadata.state == HPLJ_JOB_HELD_FOR_DEVICE) {
-      papplJobSuspend(job, PAPPL_JREASON_PRINTER_STOPPED);
-    }
     hplj_free_job_data(data);
     papplJobSetData(job, NULL);
     return false;
@@ -481,20 +709,7 @@ static bool hplj_rstartpage(pappl_job_t *job, pappl_pr_options_t *options,
   papplPrinterGetDriverData(papplJobGetPrinter(job), &driver_data);
   struct hplj_pappl_backend *backend = driver_data.extension;
   if (backend != NULL && backend->owns_device) {
-    pappl_preason_t reasons = hplj_backend_status_reasons(backend);
-    if (reasons != PAPPL_PREASON_NONE) {
-      papplPrinterSetReasons(papplJobGetPrinter(job), reasons,
-                             PAPPL_PREASON_DEVICE_STATUS & ~reasons);
-      if ((reasons &
-           (PAPPL_PREASON_MEDIA_EMPTY | PAPPL_PREASON_MEDIA_NEEDED |
-            PAPPL_PREASON_OTHER)) != 0) {
-        (void)hplj_job_wait_for_media(&data->lifecycle);
-        papplJobSetMessage(job, "%s",
-                           "waiting-for-media: load paper or clear the printer fault");
-      } else {
-        papplJobSetMessage(job, "%s", "held-for-device: reconnect the printer");
-      }
-      papplJobSuspend(job, PAPPL_JREASON_PRINTER_STOPPED);
+    if (!hplj_wait_for_ready(backend, job, &data->lifecycle)) {
       return false;
     }
   }
@@ -646,8 +861,31 @@ static void *hplj_backend_create(void *context,
   if (backend == NULL) {
     return NULL;
   }
+  if (pthread_mutex_init(&backend->device_mutex, NULL) != 0) {
+    free(backend);
+    return NULL;
+  }
+  atomic_init(&backend->stopping, false);
+  backend->test_output = -1;
+  backend->test_trace = -1;
   backend->firmware_path = config->paths.firmware_path;
-  backend->owns_device = strncmp(config->device_uri, "usb://", 6) == 0;
+  const char test_prefix[] = "hpljtest:///";
+  backend->test_device =
+      strncmp(config->device_uri, test_prefix, sizeof(test_prefix) - 1) == 0;
+  backend->owns_device = strncmp(config->device_uri, "usb://", 6) == 0 ||
+                         backend->test_device;
+  if (backend->test_device) {
+    const char *output_path = config->device_uri + sizeof("hpljtest://") - 1;
+    if (output_path[0] != '/' ||
+        snprintf(backend->test_output_path, sizeof(backend->test_output_path),
+                 "%s", output_path) >= (int)sizeof(backend->test_output_path) ||
+        snprintf(backend->test_trace_path, sizeof(backend->test_trace_path),
+                 "%s.trace", output_path) >= (int)sizeof(backend->test_trace_path)) {
+      pthread_mutex_destroy(&backend->device_mutex);
+      free(backend);
+      return NULL;
+    }
+  }
   if (strcmp(config->device_uri, "hpljtest://fail-write") == 0) {
     papplDeviceAddScheme("hpljtest", PAPPL_DEVTYPE_CUSTOM_LOCAL, NULL,
                          hplj_test_device_open, hplj_device_close, NULL,
@@ -655,11 +893,26 @@ static void *hplj_backend_create(void *context,
   }
   if (backend->owns_device) {
     struct hplj_device_ops ops;
-    if (hplj_libusb_transport_create(&backend->usb) != HPLJ_ERROR_NONE) {
-      free(backend);
-      return NULL;
+    if (backend->test_device) {
+      ops = (struct hplj_device_ops){
+          .discover = hplj_test_discover,
+          .open = hplj_test_open,
+          .claim_interface = hplj_test_claim,
+          .read_identity = hplj_test_identity,
+          .upload_firmware = hplj_test_upload,
+          .write = hplj_test_write,
+          .read_status = hplj_test_status,
+          .release = hplj_test_release,
+          .context = backend,
+      };
+    } else {
+      if (hplj_libusb_transport_create(&backend->usb) != HPLJ_ERROR_NONE) {
+        pthread_mutex_destroy(&backend->device_mutex);
+        free(backend);
+        return NULL;
+      }
+      hplj_libusb_device_ops(backend->usb, &ops);
     }
-    hplj_libusb_device_ops(backend->usb, &ops);
     hplj_device_init(&backend->device, &ops);
     papplDeviceAddScheme("hplj", PAPPL_DEVTYPE_CUSTOM_LOCAL, NULL,
                          hplj_device_open, hplj_device_close, NULL,
@@ -671,6 +924,7 @@ static void *hplj_backend_create(void *context,
       NULL, false);
   if (backend->system == NULL) {
     hplj_libusb_transport_destroy(backend->usb);
+    pthread_mutex_destroy(&backend->device_mutex);
     free(backend);
     return NULL;
   }
@@ -752,6 +1006,7 @@ static bool hplj_backend_run(void *service) {
 
 static void hplj_backend_shutdown(void *service) {
   struct hplj_pappl_backend *backend = service;
+  atomic_store(&backend->stopping, true);
   papplSystemShutdown(backend->system);
 }
 
@@ -767,6 +1022,7 @@ static void hplj_backend_destroy(void *service) {
     hplj_device_disconnect(&backend->device);
   }
   hplj_libusb_transport_destroy(backend->usb);
+  pthread_mutex_destroy(&backend->device_mutex);
   free(backend->firmware);
   free(backend);
 }
@@ -789,13 +1045,14 @@ int hplj_pappl_serve(const struct hplj_service_config *config) {
     return 1;
   }
   struct hplj_pappl_backend *backend = service.backend;
-  if (!papplSystemAddTimerCallback(backend->system, 0, 0, hplj_report_ready,
-                                   NULL)) {
+  time_t now = time(NULL);
+  if (!papplSystemAddTimerCallback(backend->system, now, 0,
+                                   hplj_report_ready, NULL)) {
     (void)hplj_service_finish(&service);
     return 1;
   }
   if (backend->owns_device &&
-      !papplSystemAddTimerCallback(backend->system, 1, 1,
+      !papplSystemAddTimerCallback(backend->system, now + 1, 1,
                                    hplj_monitor_device, backend)) {
     (void)hplj_service_finish(&service);
     return 1;

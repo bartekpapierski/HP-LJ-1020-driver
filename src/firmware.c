@@ -46,6 +46,29 @@ const char *hplj_firmware_import_disclosure(void) {
          "and its metadata remain private on this Mac and complete uninstall removes both.";
 }
 
+bool hplj_firmware_digest_matches(const unsigned char *contents,
+                                  size_t byte_count, const char *sha256) {
+  if (contents == NULL || byte_count == 0 || byte_count > UINT_MAX ||
+      sha256 == NULL || strlen(sha256) != HPLJ_SHA256_HEX_SIZE - 1) {
+    return false;
+  }
+  unsigned char digest[HPLJ_SHA256_SIZE];
+  char actual[HPLJ_SHA256_HEX_SIZE];
+  CC_SHA256(contents, (CC_LONG)byte_count, digest);
+  hplj_sha256_hex(digest, actual);
+  return memcmp(actual, sha256, sizeof(actual)) == 0;
+}
+
+bool hplj_firmware_is_production_allowlisted(const unsigned char *contents,
+                                             size_t byte_count,
+                                             const char *version_build) {
+  (void)contents;
+  (void)byte_count;
+  (void)version_build;
+  /* Remains fail-closed until reference-printer evidence admits an exact hash. */
+  return false;
+}
+
 static struct hplj_firmware_result hplj_firmware_validate_request(
     const struct hplj_firmware_import_request *request,
     const struct hplj_firmware_store *store) {

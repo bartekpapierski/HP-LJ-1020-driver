@@ -263,6 +263,20 @@ static void test_local_store_atomically_persists_private_data_and_removes_it(voi
   assert(rmdir(temporary) == 0);
 }
 
+static void test_stored_firmware_digest_is_checked_before_use(void) {
+  const char sha256[] =
+      "a2c3eb951d8361cc94d9424333c265a64e5d1778f275210201bf0201b9a9324b";
+  assert(hplj_firmware_digest_matches(
+      synthetic_firmware, sizeof(synthetic_firmware) - 1, sha256));
+  unsigned char changed[sizeof(synthetic_firmware) - 1];
+  memcpy(changed, synthetic_firmware, sizeof(changed));
+  changed[0] ^= 1U;
+  assert(!hplj_firmware_digest_matches(changed, sizeof(changed), sha256));
+  assert(!hplj_firmware_is_production_allowlisted(
+      synthetic_firmware, sizeof(synthetic_firmware) - 1,
+      "synthetic-reference-build"));
+}
+
 int main(void) {
   test_supported_firmware_is_committed_with_local_metadata();
   test_import_requires_affirmation_after_presenting_separate_terms();
@@ -271,5 +285,6 @@ int main(void) {
   test_complete_removal_deletes_firmware_and_metadata();
   test_storage_and_removal_failures_never_report_success();
   test_local_store_atomically_persists_private_data_and_removes_it();
+  test_stored_firmware_digest_is_checked_before_use();
   return 0;
 }

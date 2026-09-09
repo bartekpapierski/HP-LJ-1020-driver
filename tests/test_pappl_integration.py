@@ -27,7 +27,7 @@ def start_service(
         device_uri = "hpljtest://fail-write"
     else:
         device.touch()
-        device_uri = device.as_uri()
+        device_uri = f"hpljtest://{device}"
     process = subprocess.Popen(
         [
             executable,
@@ -37,6 +37,7 @@ def start_service(
             "--log", str(root / "log/service.log"),
             "--socket", str(root / "run/service.sock"),
             "--device-uri", device_uri,
+            *([] if failing_device else ["--firmware", str(root / "firmware")]),
         ],
         text=True,
         stdout=subprocess.PIPE,
@@ -52,6 +53,26 @@ def start_service(
             raise PermissionError("sandbox denied loopback listener")
         raise AssertionError(f"service did not become ready: {line!r} {stderr!r}\n{log}")
     return process, int(fields[2])
+
+
+def install_test_firmware(root: Path) -> None:
+    firmware = b"host-only synthetic firmware fixture"
+    active = root / "firmware/active"
+    active.mkdir(parents=True, mode=0o700)
+    (root / "firmware").chmod(0o700)
+    active.chmod(0o700)
+    contents = active / "contents"
+    metadata = active / "metadata"
+    contents.write_bytes(firmware)
+    metadata.write_text(
+        "schema=1\n"
+        "affirmation=lawful-acquisition\n"
+        "source=host-only synthetic fixture\n"
+        "version-build=20050309\n"
+        f"sha256={hashlib.sha256(firmware).hexdigest()}\n"
+    )
+    contents.chmod(0o600)
+    metadata.chmod(0o600)
 
 
 def stop_service(process: subprocess.Popen[str]) -> None:
@@ -188,6 +209,26 @@ def main() -> int:
             response.read()
             web.close()
             assert response.status == 404
+            queued = root / "queued-before-firmware.pwg"
+            subprocess.run([raster_maker, "pwg", queued], check=True)
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                queued_submission = executor.submit(
+                    submit_raster, uri, queued, test_file=submit_test
+                )
+                time.sleep(0.25)
+                assert (root / "device").stat().st_size == 0
+                install_test_firmware(root)
+                queued_submission.result(timeout=10)
+            deadline = time.monotonic() + 10
+            while (root / "device").stat().st_size == 0 and time.monotonic() < deadline:
+                time.sleep(0.05)
+            assert (root / "device").stat().st_size > 0
+            trace = (root / "device.trace").read_text().splitlines()
+            assert trace.index("discover") < trace.index("identity-pre-firmware")
+            assert trace.index("identity-pre-firmware") < trace.index("firmware-upload")
+            assert trace.index("firmware-upload") < trace.index("identity-ready")
+            assert trace.index("identity-ready") < trace.index("print-write")
+            baseline_size = (root / "device").stat().st_size
             subprocess.run(
                 [
                     "/usr/bin/ipptool", "-t",
@@ -195,12 +236,12 @@ def main() -> int:
                 ],
                 check=True,
             )
-            assert (root / "device").stat().st_size == 0
+            assert (root / "device").stat().st_size == baseline_size
             subprocess.run(
                 ["/usr/bin/ipptool", "-t", uri, invalid_quality],
                 check=True,
             )
-            assert (root / "device").stat().st_size == 0
+            assert (root / "device").stat().st_size == baseline_size
             malformed = root / "malformed.pwg"
             malformed.write_bytes(b"not a PWG raster document")
             subprocess.run(
@@ -211,15 +252,16 @@ def main() -> int:
                 ],
                 check=True,
             )
-            assert (root / "device").stat().st_size == 0
+            assert (root / "device").stat().st_size == baseline_size
             raster = root / "job.pwg"
             subprocess.run([raster_maker, "pwg", raster], check=True)
             submit_raster(uri, raster)
             deadline = time.monotonic() + 10
-            while (root / "device").stat().st_size == 0 and time.monotonic() < deadline:
+            while ((root / "device").stat().st_size <= baseline_size and
+                   time.monotonic() < deadline):
                 time.sleep(0.05)
             pwg_size = (root / "device").stat().st_size
-            assert pwg_size > 0
+            assert pwg_size > baseline_size
             pwg_output = (root / "device").read_bytes()
             assert pwg_output.startswith(b"\x1b%-12345X@PJL JOB\n")
             assert b"JZJZ" in pwg_output
@@ -245,19 +287,19 @@ def main() -> int:
                 time.sleep(0.05)
             assert (root / "device").stat().st_size > pwg_size
             combined_output = (root / "device").read_bytes()
-            assert combined_output.count(b"JZJZ") == 2
+            assert combined_output.count(b"JZJZ") == 3
             golden_pages = submit_golden_corpus(
                 uri, raster_maker, root, corpus, submit_test
             )
             deadline = time.monotonic() + 30
             while ((root / "device").read_bytes().count(b"JZJZ") <
-                   golden_pages + 2 and time.monotonic() < deadline):
+                   golden_pages + 3 and time.monotonic() < deadline):
                 time.sleep(0.05)
             combined_output = (root / "device").read_bytes()
-            assert combined_output.count(b"JZJZ") == golden_pages + 2
-            assert combined_output.count(b"@PJL JOB\n") == golden_pages + 2
-            assert combined_output.count(b"@PJL EOJ\n") == golden_pages + 2
-            assert_ordered_page_streams(combined_output, golden_pages + 2)
+            assert combined_output.count(b"JZJZ") == golden_pages + 3
+            assert combined_output.count(b"@PJL JOB\n") == golden_pages + 3
+            assert combined_output.count(b"@PJL EOJ\n") == golden_pages + 3
+            assert_ordered_page_streams(combined_output, golden_pages + 3)
         finally:
             stop_service(process)
         assert (root / "state/system.state").is_file()
