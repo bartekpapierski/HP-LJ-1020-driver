@@ -579,6 +579,16 @@ static enum hplj_error_category hplj_test_status(
     *conditions = HPLJ_DEVICE_CONDITION_MANUAL_FEED;
   } else if (strcmp(value, "cover-open\n") == 0) {
     *conditions = HPLJ_DEVICE_CONDITION_COVER_OPEN;
+  } else if (strcmp(value, "disconnect\n") == 0) {
+    hplj_test_trace(backend, "disconnect\n");
+    return HPLJ_ERROR_DEVICE_DISCONNECTED;
+  } else if (strcmp(value, "power-cycle\n") == 0) {
+    backend->test_firmware_uploaded = false;
+    hplj_test_trace(backend, "power-cycle\n");
+    return HPLJ_ERROR_DEVICE_DISCONNECTED;
+  } else if (strcmp(value, "sleep-wake\n") == 0) {
+    hplj_test_trace(backend, "sleep-wake\n");
+    return HPLJ_ERROR_DEVICE_DISCONNECTED;
   } else {
     return HPLJ_ERROR_DEVICE_PROTOCOL;
   }

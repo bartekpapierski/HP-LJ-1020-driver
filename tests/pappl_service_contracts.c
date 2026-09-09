@@ -188,6 +188,13 @@ static void test_status_mapping_is_stable_and_actionable(void) {
   assert(status.diagnostic == HPLJ_ERROR_FIRMWARE_MISSING);
 
   status = hplj_status_from_error(hplj_error_make(
+      HPLJ_ERROR_FIRMWARE_STORAGE_FAILED, HPLJ_RETRY_EXPLICIT,
+      HPLJ_ACTION_RETRY_FIRMWARE_IMPORT, "firmware storage failed"));
+  assert(status.code == HPLJ_STATUS_FIRMWARE_FAILED);
+  assert(status.action == HPLJ_ACTION_RETRY_FIRMWARE_IMPORT);
+  assert(status.diagnostic == HPLJ_ERROR_FIRMWARE_STORAGE_FAILED);
+
+  status = hplj_status_from_error(hplj_error_make(
       HPLJ_ERROR_ENCODING_FAILED, HPLJ_RETRY_SAFE_AUTOMATIC,
       HPLJ_ACTION_RETRY_JOB, "encoding failed"));
   assert(status.code == HPLJ_STATUS_ENCODING_FAILED);

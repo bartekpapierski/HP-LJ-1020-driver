@@ -109,6 +109,40 @@ def submit_raster(
     )
 
 
+def submit_raster_without_wait(uri: str, raster: Path) -> None:
+    subprocess.run(
+        [
+            "/usr/bin/ipptool", "-t",
+            "-d", f"filename={raster}",
+            "-d", "filetype=image/pwg-raster",
+            "-d", "user=host-test",
+            uri,
+            "/usr/share/cups/ipptool/print-job.test",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def wait_for_printer_reason(uri: str, reason: str) -> None:
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        result = subprocess.run(
+            [
+                "/usr/bin/ipptool", "-tv", uri,
+                "/usr/share/cups/ipptool/get-printer-attributes.test",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        if reason in result.stdout:
+            return
+        time.sleep(0.05)
+    raise AssertionError(f"printer reason was not observed: {reason}")
+
+
 def submit_golden_corpus(
     uri: str, raster_maker: Path, root: Path, corpus: Path, submit_test: Path
 ) -> int:
@@ -199,23 +233,7 @@ def assert_media_condition_recovers(
     try:
         with ThreadPoolExecutor(max_workers=1) as executor:
             submission = executor.submit(submit_raster, uri, raster)
-            deadline = time.monotonic() + 5
-            observed = False
-            while time.monotonic() < deadline:
-                result = subprocess.run(
-                    [
-                        "/usr/bin/ipptool", "-tv", uri,
-                        "/usr/share/cups/ipptool/get-printer-attributes.test",
-                    ],
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                )
-                if expected_reason in result.stdout:
-                    observed = True
-                    break
-                time.sleep(0.05)
-            assert observed
+            wait_for_printer_reason(uri, expected_reason)
             assert device.stat().st_size == baseline_size
             conditions.unlink()
             submission.result(timeout=10)
@@ -225,6 +243,67 @@ def assert_media_condition_recovers(
     while device.stat().st_size == baseline_size and time.monotonic() < deadline:
         time.sleep(0.05)
     assert device.stat().st_size > baseline_size
+    return device.stat().st_size
+
+
+def assert_cancellation_while_waiting_allows_next_job(
+    uri: str, raster_maker: Path, root: Path
+) -> int:
+    device = root / "device"
+    conditions = root / "device.conditions"
+    baseline_size = device.stat().st_size
+    conditions.write_text("media-empty\n")
+    raster = root / "cancel-while-waiting.pwg"
+    subprocess.run([raster_maker, "pwg", raster], check=True)
+    try:
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            submission = executor.submit(submit_raster_without_wait, uri, raster)
+            wait_for_printer_reason(uri, "media-empty")
+            subprocess.run(
+                [
+                    "/usr/bin/ipptool", "-t", "-d", "user=host-test", uri,
+                    "/usr/share/cups/ipptool/cancel-current-job.test",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            submission.result(timeout=10)
+        time.sleep(0.25)
+        assert device.stat().st_size == baseline_size
+    finally:
+        conditions.unlink(missing_ok=True)
+
+    next_raster = root / "after-cancellation.pwg"
+    subprocess.run([raster_maker, "pwg", next_raster], check=True)
+    submit_raster(uri, next_raster)
+    deadline = time.monotonic() + 10
+    while device.stat().st_size == baseline_size and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert device.stat().st_size > baseline_size
+    return device.stat().st_size
+
+
+def assert_transport_recovery_allows_next_job(
+    uri: str, raster_maker: Path, root: Path, condition: str
+) -> int:
+    device = root / "device"
+    conditions = root / "device.conditions"
+    baseline_size = device.stat().st_size
+    conditions.write_text(f"{condition}\n")
+    try:
+        wait_for_printer_reason(uri, "offline")
+    finally:
+        conditions.unlink(missing_ok=True)
+
+    raster = root / f"after-{condition}.pwg"
+    subprocess.run([raster_maker, "pwg", raster], check=True)
+    submit_raster(uri, raster)
+    deadline = time.monotonic() + 10
+    while device.stat().st_size == baseline_size and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert device.stat().st_size > baseline_size
+    assert condition in (root / "device.trace").read_text().splitlines()
     return device.stat().st_size
 
 
@@ -281,6 +360,13 @@ def main() -> int:
             ):
                 baseline_size = assert_media_condition_recovers(
                     uri, raster_maker, root, condition, expected_reason
+                )
+            baseline_size = assert_cancellation_while_waiting_allows_next_job(
+                uri, raster_maker, root
+            )
+            for condition in ("disconnect", "power-cycle", "sleep-wake"):
+                baseline_size = assert_transport_recovery_allows_next_job(
+                    uri, raster_maker, root, condition
                 )
             baseline_pages = (root / "device").read_bytes().count(b"JZJZ")
             subprocess.run(

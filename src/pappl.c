@@ -215,6 +215,11 @@ struct hplj_status hplj_status_from_firmware_error(enum hplj_error_category cate
                                   .queue = HPLJ_QUEUE_HELD,
                                   .action = HPLJ_ACTION_REACQUIRE_FIRMWARE,
                                   .diagnostic = category};
+    case HPLJ_ERROR_FIRMWARE_STORAGE_FAILED:
+      return (struct hplj_status){.code = HPLJ_STATUS_FIRMWARE_FAILED,
+                                  .queue = HPLJ_QUEUE_HELD,
+                                  .action = HPLJ_ACTION_RETRY_FIRMWARE_IMPORT,
+                                  .diagnostic = category};
     case HPLJ_ERROR_FIRMWARE_TRANSFER_FAILED:
       return (struct hplj_status){.code = HPLJ_STATUS_FIRMWARE_FAILED,
                                   .queue = HPLJ_QUEUE_HELD,
@@ -241,6 +246,7 @@ struct hplj_status hplj_status_from_error(struct hplj_error error) {
     case HPLJ_ERROR_FIRMWARE_AFFIRMATION_REQUIRED:
     case HPLJ_ERROR_FIRMWARE_UNSUPPORTED:
     case HPLJ_ERROR_FIRMWARE_CORRUPT:
+    case HPLJ_ERROR_FIRMWARE_STORAGE_FAILED:
     case HPLJ_ERROR_FIRMWARE_TRANSFER_FAILED:
     case HPLJ_ERROR_FIRMWARE_UNVERIFIED:
       return hplj_status_from_firmware_error(error.category);
