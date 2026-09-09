@@ -18,6 +18,8 @@ enum hplj_device_condition {
   HPLJ_DEVICE_CONDITION_MEDIA_EMPTY = 1U << 0,
   HPLJ_DEVICE_CONDITION_NOT_SELECTED = 1U << 1,
   HPLJ_DEVICE_CONDITION_FAULT = 1U << 2,
+  HPLJ_DEVICE_CONDITION_MANUAL_FEED = 1U << 3,
+  HPLJ_DEVICE_CONDITION_COVER_OPEN = 1U << 4,
 };
 
 enum hplj_device_state {
@@ -93,6 +95,7 @@ struct hplj_device_result hplj_device_revalidate(
     struct hplj_device *device, const char *expected_firmware_version);
 struct hplj_device_result hplj_device_get_status(
     struct hplj_device *device, unsigned int *conditions);
+struct hplj_error hplj_error_from_conditions(unsigned int conditions);
 void hplj_device_disconnect(struct hplj_device *device);
 void hplj_device_suspend(struct hplj_device *device);
 

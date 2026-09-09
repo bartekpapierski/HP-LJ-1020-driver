@@ -235,6 +235,10 @@ struct hplj_error hplj_job_complete(struct hplj_job *job) {
                           HPLJ_ACTION_NONE,
                           "job cannot complete before page transmission");
   }
+  if (hplj_job_is_cancelled(job)) {
+    hplj_job_cancel(job);
+    return job->metadata.error;
+  }
   hplj_job_set_state(
       job, HPLJ_JOB_COMPLETED,
       hplj_job_error(HPLJ_ERROR_NONE, HPLJ_RETRY_NEVER, HPLJ_ACTION_NONE,
@@ -258,15 +262,21 @@ struct hplj_error hplj_job_retry(struct hplj_job *job) {
   return job->metadata.error;
 }
 
-struct hplj_error hplj_job_wait_for_media(struct hplj_job *job) {
+struct hplj_error hplj_job_wait_for_media(struct hplj_job *job,
+                                          unsigned int conditions) {
   if (job == NULL || job->metadata.state != HPLJ_JOB_PREPARING) {
     return hplj_job_error(HPLJ_ERROR_INVALID_STATE, HPLJ_RETRY_NEVER,
                           HPLJ_ACTION_NONE, "job cannot wait for media");
   }
-  hplj_job_set_state(
-      job, HPLJ_JOB_WAITING_FOR_MEDIA,
-      hplj_job_error(HPLJ_ERROR_NONE, HPLJ_RETRY_SAFE_AUTOMATIC,
-                     HPLJ_ACTION_NONE, "waiting for media"));
+  struct hplj_error error = hplj_error_from_conditions(conditions);
+  if (error.category != HPLJ_ERROR_MEDIA_EMPTY &&
+      error.category != HPLJ_ERROR_MANUAL_FEED_REQUIRED &&
+      error.category != HPLJ_ERROR_COVER_OPEN) {
+    return hplj_job_error(HPLJ_ERROR_INVALID_STATE, HPLJ_RETRY_NEVER,
+                          HPLJ_ACTION_NONE,
+                          "job requires an actionable media condition");
+  }
+  hplj_job_set_state(job, HPLJ_JOB_WAITING_FOR_MEDIA, error);
   return job->metadata.error;
 }
 

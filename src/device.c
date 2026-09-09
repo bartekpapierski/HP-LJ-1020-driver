@@ -449,3 +449,31 @@ void hplj_device_disconnect(struct hplj_device *device) {
 void hplj_device_suspend(struct hplj_device *device) {
   hplj_device_disconnect(device);
 }
+
+struct hplj_error hplj_error_from_conditions(unsigned int conditions) {
+  if ((conditions & HPLJ_DEVICE_CONDITION_COVER_OPEN) != 0) {
+    return hplj_error_make(HPLJ_ERROR_COVER_OPEN, HPLJ_RETRY_SAFE_AUTOMATIC,
+                           HPLJ_ACTION_CLOSE_COVER,
+                           "close the printer cover");
+  }
+  if ((conditions & HPLJ_DEVICE_CONDITION_MANUAL_FEED) != 0) {
+    return hplj_error_make(HPLJ_ERROR_MANUAL_FEED_REQUIRED,
+                           HPLJ_RETRY_SAFE_AUTOMATIC,
+                           HPLJ_ACTION_LOAD_MANUAL_FEED,
+                           "load the manual feed slot");
+  }
+  if ((conditions & HPLJ_DEVICE_CONDITION_MEDIA_EMPTY) != 0) {
+    return hplj_error_make(HPLJ_ERROR_MEDIA_EMPTY,
+                           HPLJ_RETRY_SAFE_AUTOMATIC,
+                           HPLJ_ACTION_LOAD_MEDIA, "load paper");
+  }
+  if ((conditions & (HPLJ_DEVICE_CONDITION_FAULT |
+                     HPLJ_DEVICE_CONDITION_NOT_SELECTED)) != 0) {
+    return hplj_error_make(HPLJ_ERROR_DEVICE_FAULT,
+                           HPLJ_RETRY_SAFE_AUTOMATIC,
+                           HPLJ_ACTION_CLEAR_DEVICE_FAULT,
+                           "clear the printer fault");
+  }
+  return hplj_error_make(HPLJ_ERROR_NONE, HPLJ_RETRY_SAFE_AUTOMATIC,
+                         HPLJ_ACTION_NONE, "ready");
+}

@@ -1,0 +1,151 @@
+diff --git a/pappl/libpappl1.def b/pappl/libpappl1.def
+index 479c6ff..a292f49 100644
+--- a/pappl/libpappl1.def
++++ b/pappl/libpappl1.def
+@@ -1,5 +1,7 @@
+ LIBRARY libpappl1
+ VERSION 1.2
++; HP-LJ-1020-driver modification: export synchronized log rotation; see
++; dependencies.lock.json.
+ EXPORTS
+ papplClientGetCSRFToken
+ papplClientGetCookie
+@@ -241,6 +243,7 @@ papplSystemRemoveResource
+ papplSystemRemoveTimerCallback
+ papplSystemRun
+ papplSystemSaveState
++papplSystemRotateLog
+ papplSystemSetAdminGroup
+ papplSystemSetAuthCallback
+ papplSystemSetContact
+diff --git a/pappl/log.c b/pappl/log.c
+index 744a01b..6bacc51 100644
+--- a/pappl/log.c
++++ b/pappl/log.c
+@@ -7,6 +7,9 @@
+ // information.
+ //
+ 
++// HP-LJ-1020-driver modification: expose synchronized, immediate log rotation
++// for the service retention policy; see dependencies.lock.json.
++//
+ #include "client-private.h"
+ #include "job-private.h"
+ #include "log-private.h"
+@@ -22,7 +25,7 @@
+ // Local functions...
+ //
+ 
+-static void	rotate_log_no_lock(pappl_system_t *system);
++static bool	rotate_log_no_lock(pappl_system_t *system, bool force);
+ static void	write_log_no_lock(pappl_system_t *system, pappl_loglevel_t level, const char *message, va_list ap);
+ 
+ 
+@@ -427,22 +430,58 @@ papplLogPrinter(
+ }
+ 
+ 
++//
++// 'papplSystemRotateLog()' - Rotate the system log immediately.
++//
++
++bool
++papplSystemRotateLog(
++    pappl_system_t *system,              // I - System
++    time_t         not_after)            // I - Latest log creation time
++{
++  bool rotated;                          // Did the log rotate?
++  struct stat loginfo;                   // Log file information
++
++
++  if (!system || system->log_is_syslog || !strcmp(system->log_file, "-"))
++    return (false);
++
++  pthread_mutex_lock(&system->log_mutex);
++  rotated = false;
++  if (!fstat(system->log_fd, &loginfo))
++  {
++#if defined(__APPLE__)
++    time_t log_time = loginfo.st_birthtimespec.tv_sec;
++#else
++    time_t log_time = loginfo.st_mtime;
++#endif // __APPLE__
++    if (log_time <= not_after)
++      rotated = rotate_log_no_lock(system, true);
++  }
++  pthread_mutex_unlock(&system->log_mutex);
++
++  return (rotated);
++}
++
++
+ //
+ // 'rotate_log_no_lock()' - Rotate the log file...
+ //
+ 
+-static void
++static bool
+ rotate_log_no_lock(
+-    pappl_system_t *system)		// I - System
++    pappl_system_t *system,             // I - System
++    bool           force)               // I - Force rotation?
+ {
+   struct stat	loginfo;		// Lof file information
+ 
+ 
+   // Re-check whether we need to rotate the log file...
+-  if (!fstat(system->log_fd, &loginfo) && loginfo.st_size >= (off_t)system->log_max_size)
++  if (!fstat(system->log_fd, &loginfo) && (force || loginfo.st_size >= (off_t)system->log_max_size))
+   {
+     // Rename existing log file to "xxx.O"
+     char	backname[1024];		// Backup log filename
++    bool	rotated;		// Did the rename succeed?
+ 
+ #if _WIN32
+     // Windows doesn't allow an open file to be renamed...
+@@ -452,10 +491,13 @@ rotate_log_no_lock(
+ 
+     snprintf(backname, sizeof(backname), "%s.O", system->log_file);
+     unlink(backname);
+-    rename(system->log_file, backname);
++    rotated = rename(system->log_file, backname) == 0;
+ 
+     _papplLogOpenNoLock(system);
++    return (rotated);
+   }
++
++  return (false);
+ }
+ 
+ 
+@@ -713,7 +755,7 @@ write_log_no_lock(
+ 
+   // Rotate log as needed...
+   if (system->log_max_size > 0 && !fstat(system->log_fd, &loginfo) && loginfo.st_size >= (off_t)system->log_max_size)
+-    rotate_log_no_lock(system);
++    rotate_log_no_lock(system, false);
+ 
+   // Write the log entry...
+   write(system->log_fd, buffer, (size_t)(bufptr - buffer));
+diff --git a/pappl/system.h b/pappl/system.h
+index ce83464..687d630 100644
+--- a/pappl/system.h
++++ b/pappl/system.h
+@@ -7,6 +7,9 @@
+ // information.
+ //
+ 
++// HP-LJ-1020-driver modification: expose synchronized, immediate log rotation
++// for the service retention policy; see dependencies.lock.json.
++//
+ #ifndef _PAPPL_SYSTEM_H_
+ #  define _PAPPL_SYSTEM_H_
+ #  include "device.h"
+@@ -198,6 +201,7 @@ extern void		papplSystemRemoveResource(pappl_system_t *system, const char *path)
+ extern void		papplSystemRemoveTimerCallback(pappl_system_t *system, pappl_timer_cb_t cb, void *cb_data) _PAPPL_PUBLIC;
+ extern void		papplSystemRun(pappl_system_t *system) _PAPPL_PUBLIC;
+ extern bool		papplSystemSaveState(pappl_system_t *system, const char *filename) _PAPPL_PUBLIC;
++extern bool		papplSystemRotateLog(pappl_system_t *system, time_t not_after) _PAPPL_PUBLIC;
+ 
+ extern void		papplSystemSetAdminGroup(pappl_system_t *system, const char *value) _PAPPL_PUBLIC;
+ extern void		papplSystemSetAuthCallback(pappl_system_t *system, const char *auth_scheme, pappl_auth_cb_t auth_cb, void *auth_cbdata) _PAPPL_PUBLIC;

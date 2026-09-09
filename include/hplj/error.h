@@ -21,6 +21,12 @@ enum hplj_error_category {
   HPLJ_ERROR_RASTER_INVALID,
   HPLJ_ERROR_CANCELLED,
   HPLJ_ERROR_ENCODING_FAILED,
+  HPLJ_ERROR_QUEUE_UNAVAILABLE,
+  HPLJ_ERROR_MEDIA_EMPTY,
+  HPLJ_ERROR_MANUAL_FEED_REQUIRED,
+  HPLJ_ERROR_COVER_OPEN,
+  HPLJ_ERROR_DEVICE_FAULT,
+  HPLJ_ERROR_CATEGORY_COUNT,
 };
 
 enum hplj_retry_safety {
@@ -42,6 +48,11 @@ enum hplj_human_action {
   HPLJ_ACTION_RECONNECT_PRINTER,
   HPLJ_ACTION_RETRY_JOB,
   HPLJ_ACTION_CORRECT_RASTER,
+  HPLJ_ACTION_LOAD_MEDIA,
+  HPLJ_ACTION_LOAD_MANUAL_FEED,
+  HPLJ_ACTION_CLOSE_COVER,
+  HPLJ_ACTION_CLEAR_DEVICE_FAULT,
+  HPLJ_ACTION_RETRY_QUEUE,
 };
 
 struct hplj_error {
@@ -55,5 +66,6 @@ struct hplj_error hplj_error_make(enum hplj_error_category category,
                                   enum hplj_retry_safety retry,
                                   enum hplj_human_action action,
                                   const char *detail);
+const char *hplj_error_category_name(enum hplj_error_category category);
 
 #endif

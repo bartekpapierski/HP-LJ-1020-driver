@@ -30,9 +30,11 @@ PAPPL 1.4.12 is built from commit
 Software Products. PAPPL is Apache-2.0; the complete license text is in
 `LICENSES/Apache-2.0.txt`.
 
-The hash-pinned patch in `patches/pappl/` narrows advertised document formats,
+The hash-pinned patches in `patches/pappl/` narrow advertised document formats,
 the default document format, and print quality to the production capability
-envelope. Every modified upstream file carries a project modification marker.
+envelope, and expose synchronized conditional log rotation for the service's
+age-based retention policy. Every modified upstream file carries a project
+modification marker.
 
 PAPPL's NOTICE grants an optional exception for object-form embedded portions
 from Apache sections 4(a), 4(b), and 4(d), and a GPLv2 `Combined Software`

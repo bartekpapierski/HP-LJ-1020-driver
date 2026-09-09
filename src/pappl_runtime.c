@@ -30,6 +30,7 @@ struct hplj_pappl_backend {
   size_t firmware_size;
   char firmware_version[HPLJ_FIRMWARE_VERSION_SIZE];
   const char *firmware_path;
+  struct hplj_retention_policy retention;
   pappl_printer_t *printer;
   atomic_int device_error;
   pthread_mutex_t device_mutex;
@@ -43,6 +44,7 @@ struct hplj_pappl_backend {
   int test_trace;
   char test_output_path[PATH_MAX];
   char test_trace_path[PATH_MAX];
+  char test_conditions_path[PATH_MAX];
 };
 
 struct hplj_queue_lookup {
@@ -280,15 +282,25 @@ static void hplj_update_active_jobs(pappl_printer_t *printer,
 }
 
 static pappl_preason_t hplj_backend_status_reasons(
-    struct hplj_pappl_backend *backend) {
+    struct hplj_pappl_backend *backend, unsigned int *observed_conditions,
+    struct hplj_error *observed_error) {
   pthread_mutex_lock(&backend->device_mutex);
   unsigned int conditions = HPLJ_DEVICE_CONDITION_NONE;
   struct hplj_device_result status =
       hplj_device_get_status(&backend->device, &conditions);
   if (status.error.category != HPLJ_ERROR_NONE) {
     atomic_store(&backend->device_error, status.error.category);
+    if (observed_error != NULL) {
+      *observed_error = status.error;
+    }
     pthread_mutex_unlock(&backend->device_mutex);
     return PAPPL_PREASON_OFFLINE;
+  }
+  if (observed_conditions != NULL) {
+    *observed_conditions = conditions;
+  }
+  if (observed_error != NULL) {
+    *observed_error = hplj_error_from_conditions(conditions);
   }
   pappl_preason_t reasons = PAPPL_PREASON_NONE;
   if ((conditions & HPLJ_DEVICE_CONDITION_MEDIA_EMPTY) != 0) {
@@ -299,6 +311,12 @@ static pappl_preason_t hplj_backend_status_reasons(
   }
   if ((conditions & HPLJ_DEVICE_CONDITION_FAULT) != 0) {
     reasons |= PAPPL_PREASON_OTHER;
+  }
+  if ((conditions & HPLJ_DEVICE_CONDITION_MANUAL_FEED) != 0) {
+    reasons |= PAPPL_PREASON_MEDIA_NEEDED;
+  }
+  if ((conditions & HPLJ_DEVICE_CONDITION_COVER_OPEN) != 0) {
+    reasons |= PAPPL_PREASON_COVER_OPEN | PAPPL_PREASON_DOOR_OPEN;
   }
   pthread_mutex_unlock(&backend->device_mutex);
   return reasons;
@@ -311,7 +329,10 @@ static bool hplj_wait_for_ready(struct hplj_pappl_backend *backend,
   while (!papplJobIsCanceled(job) && !atomic_load(&backend->stopping) &&
          !papplSystemIsShutdown(backend->system)) {
     if (hplj_backend_prepare_device(backend)) {
-      pappl_preason_t reasons = hplj_backend_status_reasons(backend);
+      unsigned int conditions = HPLJ_DEVICE_CONDITION_NONE;
+      struct hplj_error observed_error = {0};
+      pappl_preason_t reasons =
+          hplj_backend_status_reasons(backend, &conditions, &observed_error);
       papplPrinterSetReasons(backend->printer, reasons,
                              PAPPL_PREASON_DEVICE_STATUS & ~reasons);
       if (reasons == PAPPL_PREASON_NONE) {
@@ -322,14 +343,13 @@ static bool hplj_wait_for_ready(struct hplj_pappl_backend *backend,
         }
         return true;
       }
-      papplJobSetMessage(
-          job, "%s",
-          (reasons & (PAPPL_PREASON_MEDIA_EMPTY | PAPPL_PREASON_MEDIA_NEEDED)) != 0
-              ? "waiting-for-media: load paper and select the input tray"
-              : "held-for-device: reconnect the printer or clear its fault");
+      papplJobSetMessage(job, "%s", observed_error.detail);
       if (lifecycle != NULL &&
-          lifecycle->metadata.state == HPLJ_JOB_PREPARING) {
-        (void)hplj_job_wait_for_media(lifecycle);
+          lifecycle->metadata.state == HPLJ_JOB_PREPARING &&
+          (conditions & (HPLJ_DEVICE_CONDITION_MEDIA_EMPTY |
+                         HPLJ_DEVICE_CONDITION_MANUAL_FEED |
+                         HPLJ_DEVICE_CONDITION_COVER_OPEN)) != 0) {
+        (void)hplj_job_wait_for_media(lifecycle, conditions);
       }
     } else {
       bool firmware_required =
@@ -352,7 +372,10 @@ static bool hplj_monitor_device(pappl_system_t *system, void *data) {
     return true;
   }
   if (hplj_backend_prepare_device(backend)) {
-    pappl_preason_t reasons = hplj_backend_status_reasons(backend);
+    unsigned int conditions = HPLJ_DEVICE_CONDITION_NONE;
+    struct hplj_error observed_error = {0};
+    pappl_preason_t reasons =
+        hplj_backend_status_reasons(backend, &conditions, &observed_error);
     papplPrinterSetReasons(backend->printer, reasons,
                            PAPPL_PREASON_DEVICE_STATUS & ~reasons);
     if (reasons == PAPPL_PREASON_NONE) {
@@ -360,12 +383,7 @@ static bool hplj_monitor_device(pappl_system_t *system, void *data) {
       hplj_update_active_jobs(backend->printer, "queued", true);
     } else {
       papplPrinterReleaseHeldNewJobs(backend->printer, NULL);
-      hplj_update_active_jobs(
-          backend->printer,
-          (reasons & (PAPPL_PREASON_MEDIA_EMPTY | PAPPL_PREASON_MEDIA_NEEDED)) != 0
-              ? "waiting-for-media: load paper and select the input tray"
-              : "held-for-device: reconnect the printer or clear its fault",
-          false);
+      hplj_update_active_jobs(backend->printer, observed_error.detail, false);
     }
   } else {
     bool firmware_required =
@@ -381,6 +399,20 @@ static bool hplj_monitor_device(pappl_system_t *system, void *data) {
             ? "firmware-required: import a lawfully acquired, allow-listed firmware file"
             : "held-for-device: reconnect the printer",
         false);
+  }
+  return true;
+}
+
+static bool hplj_rotate_log_by_age(pappl_system_t *system, void *data) {
+  struct hplj_pappl_backend *backend = data;
+  const time_t now = time(NULL);
+  if (now >= 0 && (unsigned long long)now >=
+                      backend->retention.maximum_log_age_seconds) {
+    const time_t cutoff =
+        now - (time_t)backend->retention.maximum_log_age_seconds;
+    if (papplSystemRotateLog(system, cutoff)) {
+      papplLog(system, PAPPL_LOGLEVEL_INFO, "log-rotation reason=age");
+    }
   }
   return true;
 }
@@ -529,7 +561,27 @@ static enum hplj_error_category hplj_test_status(
   if (atomic_load(&backend->test_write_in_progress)) {
     hplj_test_trace(backend, "status-during-write\n");
   }
-  *conditions = HPLJ_DEVICE_CONDITION_NONE;
+  char value[32] = {0};
+  int descriptor = open(backend->test_conditions_path, O_RDONLY);
+  if (descriptor < 0) {
+    *conditions = HPLJ_DEVICE_CONDITION_NONE;
+    return HPLJ_ERROR_NONE;
+  }
+  ssize_t length = read(descriptor, value, sizeof(value) - 1);
+  close(descriptor);
+  if (length < 0) {
+    return HPLJ_ERROR_DEVICE_DISCONNECTED;
+  }
+  value[length] = '\0';
+  if (strcmp(value, "media-empty\n") == 0) {
+    *conditions = HPLJ_DEVICE_CONDITION_MEDIA_EMPTY;
+  } else if (strcmp(value, "manual-feed\n") == 0) {
+    *conditions = HPLJ_DEVICE_CONDITION_MANUAL_FEED;
+  } else if (strcmp(value, "cover-open\n") == 0) {
+    *conditions = HPLJ_DEVICE_CONDITION_COVER_OPEN;
+  } else {
+    return HPLJ_ERROR_DEVICE_PROTOCOL;
+  }
   return HPLJ_ERROR_NONE;
 }
 
@@ -566,15 +618,10 @@ static bool hplj_pappl_job_cancelled(void *context, unsigned long job_id) {
 static void hplj_pappl_job_state(void *context,
                                  const struct hplj_job_metadata *metadata) {
   pappl_job_t *job = context;
-  static const char *messages[] = {
-      "accepted",          "held-for-firmware", "held-for-device",
-      "preparing",         "transmitting",      "waiting-for-media",
-      "completed",         "canceled",          "failed",
-      "failed-partial",
-  };
-  if ((size_t)metadata->state < sizeof(messages) / sizeof(messages[0])) {
-    papplJobSetMessage(job, "%s", messages[metadata->state]);
-  }
+  struct hplj_status status =
+      hplj_status_from_job(metadata->state, metadata->error);
+  papplJobSetMessage(job, "%s: %s", hplj_status_name(status.code),
+                     metadata->error.detail);
 }
 
 static bool hplj_printfile(pappl_job_t *job, pappl_pr_options_t *options,
@@ -911,6 +958,13 @@ static void *hplj_backend_create(void *context,
       free(backend);
       return NULL;
     }
+    if (snprintf(backend->test_conditions_path,
+                 sizeof(backend->test_conditions_path), "%s.conditions",
+                 output_path) >= (int)sizeof(backend->test_conditions_path)) {
+      pthread_mutex_destroy(&backend->device_mutex);
+      free(backend);
+      return NULL;
+    }
   }
   if (strcmp(config->device_uri, "hpljtest://fail-write") == 0) {
     papplDeviceAddScheme("hpljtest", PAPPL_DEVTYPE_CUSTOM_LOCAL, NULL,
@@ -958,7 +1012,7 @@ static void *hplj_backend_create(void *context,
       {HPLJ_DRIVER_NAME, "HP LaserJet 1020", "MFG:HP;MDL:HP LaserJet 1020;", NULL},
   };
   papplSystemSetDNSSDName(backend->system, NULL);
-  papplSystemSetMaxLogSize(backend->system, 1024 * 1024);
+  papplSystemSetMaxLogSize(backend->system, HPLJ_MAX_LOG_BYTES);
   papplSystemSetPrinterDrivers(backend->system, 1, drivers, NULL, NULL,
                                hplj_driver, backend);
   return backend;
@@ -1024,6 +1078,23 @@ static bool hplj_backend_reconcile(void *service, const char *queue_name,
   return true;
 }
 
+static bool hplj_backend_configure_policy(
+    void *service, const struct hplj_retention_policy *policy) {
+  struct hplj_pappl_backend *backend = service;
+  if (backend->printer == NULL || policy == NULL ||
+      policy->maximum_completed_jobs == 0 ||
+      policy->maximum_log_bytes == 0 ||
+      policy->maximum_log_age_seconds == 0) {
+    return false;
+  }
+  papplPrinterSetMaxCompletedJobs(backend->printer,
+                                  (int)policy->maximum_completed_jobs);
+  papplPrinterSetMaxPreservedJobs(backend->printer, 0);
+  papplSystemSetMaxLogSize(backend->system, policy->maximum_log_bytes);
+  backend->retention = *policy;
+  return true;
+}
+
 static bool hplj_backend_run(void *service) {
   struct hplj_pappl_backend *backend = service;
   papplSystemRun(backend->system);
@@ -1060,6 +1131,7 @@ int hplj_pappl_serve(const struct hplj_service_config *config) {
       .add_listener = hplj_backend_add_listener,
       .load_state = hplj_backend_load_state,
       .reconcile_queue = hplj_backend_reconcile,
+      .configure_policy = hplj_backend_configure_policy,
       .run = hplj_backend_run,
       .shutdown = hplj_backend_shutdown,
       .save_state = hplj_backend_save_state,
@@ -1080,6 +1152,11 @@ int hplj_pappl_serve(const struct hplj_service_config *config) {
   if (backend->owns_device &&
       !papplSystemAddTimerCallback(backend->system, now + 1, 1,
                                    hplj_monitor_device, backend)) {
+    (void)hplj_service_finish(&service);
+    return 1;
+  }
+  if (!papplSystemAddTimerCallback(backend->system, now, 60U * 60U,
+                                   hplj_rotate_log_by_age, backend)) {
     (void)hplj_service_finish(&service);
     return 1;
   }

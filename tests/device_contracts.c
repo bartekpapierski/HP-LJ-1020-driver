@@ -29,6 +29,10 @@ struct fake_usb {
   unsigned int uploads;
   unsigned int conditions;
   enum hplj_error_category status_error;
+  enum hplj_error_category open_errors[8];
+  size_t open_error_count;
+  enum hplj_error_category claim_errors[8];
+  size_t claim_error_count;
 };
 
 static enum hplj_error_category fake_discover(void *context,
@@ -47,12 +51,18 @@ static enum hplj_error_category fake_discover(void *context,
 static enum hplj_error_category fake_open(void *context) {
   struct fake_usb *usb = context;
   usb->opens++;
+  if (usb->opens <= usb->open_error_count) {
+    return usb->open_errors[usb->opens - 1];
+  }
   return HPLJ_ERROR_NONE;
 }
 
 static enum hplj_error_category fake_claim(void *context) {
   struct fake_usb *usb = context;
   usb->claims++;
+  if (usb->claims <= usb->claim_error_count) {
+    return usb->claim_errors[usb->claims - 1];
+  }
   return HPLJ_ERROR_NONE;
 }
 
@@ -325,6 +335,29 @@ static void test_connect_retries_are_bounded_and_observable(void) {
   assert(hplj_status_from_device(device.state).queue == HPLJ_QUEUE_HELD);
 }
 
+static void test_fault_injection_recovers_open_and_claim_failures(void) {
+  struct fake_usb usb = reference_usb();
+  usb.open_errors[0] = HPLJ_ERROR_DEVICE_ACCESS_DENIED;
+  usb.open_errors[1] = HPLJ_ERROR_DEVICE_TIMEOUT;
+  usb.open_error_count = 2;
+  struct hplj_device device = make_device(&usb);
+  struct hplj_device_result result = hplj_device_connect(&device);
+  assert(result.error.category == HPLJ_ERROR_NONE);
+  assert(result.attempts == 3);
+  assert(usb.opens == 3);
+
+  usb = reference_usb();
+  usb.claim_errors[0] = HPLJ_ERROR_DEVICE_TIMEOUT;
+  usb.claim_errors[1] = HPLJ_ERROR_DEVICE_TIMEOUT;
+  usb.claim_error_count = 2;
+  device = make_device(&usb);
+  result = hplj_device_connect(&device);
+  assert(result.error.category == HPLJ_ERROR_NONE);
+  assert(result.attempts == 3);
+  assert(usb.claims == 3);
+  assert(usb.releases == 2);
+}
+
 static void test_transfer_retry_boundary_is_job_bytes(void) {
   const unsigned char page[] = {1, 2, 3};
   struct fake_usb usb = reference_usb();
@@ -448,6 +481,16 @@ static void test_ready_device_reports_actionable_port_status(void) {
          HPLJ_ERROR_DEVICE_DISCONNECTED);
   assert(device.state == HPLJ_DEVICE_DISCONNECTED);
   assert(!device.opened);
+
+  usb.status_error = HPLJ_ERROR_NONE;
+  usb.identities[1] =
+      "MFG:HP;MDL:HP LaserJet 1020;FWVER:20050309;";
+  usb.identity_count = 2;
+  assert(hplj_device_connect(&device).error.category == HPLJ_ERROR_NONE);
+  assert(hplj_device_bootstrap_firmware(&device, NULL, 0, "20050309")
+             .error.category == HPLJ_ERROR_NONE);
+  assert(hplj_device_get_status(&device, &conditions).error.category ==
+         HPLJ_ERROR_NONE);
 }
 
 static void test_production_libusb_transport_binds_without_a_helper(void) {
@@ -475,6 +518,7 @@ int main(void) {
   test_firmware_transfer_retries_only_to_the_bound();
   test_reenumeration_rejects_identity_change();
   test_connect_retries_are_bounded_and_observable();
+  test_fault_injection_recovers_open_and_claim_failures();
   test_transfer_retry_boundary_is_job_bytes();
   test_disconnect_and_sleep_invalidate_stale_handles();
   test_ready_device_power_cycle_returns_to_firmware_activation();

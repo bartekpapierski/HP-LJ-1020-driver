@@ -13,6 +13,10 @@
         {
           "path": "patches/pappl/0001-limit-driver-capabilities.patch",
           "sha256": "164841c2fd0712f29f4d4b0f7702554552457c428638d427f0f9437d9be85eac"
+        },
+        {
+          "path": "patches/pappl/0002-add-log-rotation-api.patch",
+          "sha256": "d2f90b9b946bb2fd73f6af5f2ce1359d5091591a355905212b9222a5683e5992"
         }
       ]
     },

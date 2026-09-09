@@ -183,6 +183,51 @@ def assert_device_failure_propagates(
         stop_service(process)
 
 
+def assert_media_condition_recovers(
+    uri: str,
+    raster_maker: Path,
+    root: Path,
+    condition: str,
+    expected_reason: str,
+) -> int:
+    device = root / "device"
+    conditions = root / "device.conditions"
+    baseline_size = device.stat().st_size
+    conditions.write_text(f"{condition}\n")
+    raster = root / f"{condition}.pwg"
+    subprocess.run([raster_maker, "pwg", raster], check=True)
+    try:
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            submission = executor.submit(submit_raster, uri, raster)
+            deadline = time.monotonic() + 5
+            observed = False
+            while time.monotonic() < deadline:
+                result = subprocess.run(
+                    [
+                        "/usr/bin/ipptool", "-tv", uri,
+                        "/usr/share/cups/ipptool/get-printer-attributes.test",
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                if expected_reason in result.stdout:
+                    observed = True
+                    break
+                time.sleep(0.05)
+            assert observed
+            assert device.stat().st_size == baseline_size
+            conditions.unlink()
+            submission.result(timeout=10)
+    finally:
+        conditions.unlink(missing_ok=True)
+    deadline = time.monotonic() + 10
+    while device.stat().st_size == baseline_size and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert device.stat().st_size > baseline_size
+    return device.stat().st_size
+
+
 def main() -> int:
     if len(sys.argv) != 8:
         return 2
@@ -229,6 +274,15 @@ def main() -> int:
             assert trace.index("firmware-upload") < trace.index("identity-ready")
             assert trace.index("identity-ready") < trace.index("print-write")
             baseline_size = (root / "device").stat().st_size
+            for condition, expected_reason in (
+                ("media-empty", "media-empty"),
+                ("manual-feed", "media-needed"),
+                ("cover-open", "cover-open"),
+            ):
+                baseline_size = assert_media_condition_recovers(
+                    uri, raster_maker, root, condition, expected_reason
+                )
+            baseline_pages = (root / "device").read_bytes().count(b"JZJZ")
             subprocess.run(
                 [
                     "/usr/bin/ipptool", "-t",
@@ -287,19 +341,21 @@ def main() -> int:
                 time.sleep(0.05)
             assert (root / "device").stat().st_size > pwg_size
             combined_output = (root / "device").read_bytes()
-            assert combined_output.count(b"JZJZ") == 3
+            assert combined_output.count(b"JZJZ") == baseline_pages + 2
             golden_pages = submit_golden_corpus(
                 uri, raster_maker, root, corpus, submit_test
             )
             deadline = time.monotonic() + 30
             while ((root / "device").read_bytes().count(b"JZJZ") <
-                   golden_pages + 3 and time.monotonic() < deadline):
+                   golden_pages + baseline_pages + 2 and
+                   time.monotonic() < deadline):
                 time.sleep(0.05)
             combined_output = (root / "device").read_bytes()
-            assert combined_output.count(b"JZJZ") == golden_pages + 3
-            assert combined_output.count(b"@PJL JOB\n") == golden_pages + 3
-            assert combined_output.count(b"@PJL EOJ\n") == golden_pages + 3
-            assert_ordered_page_streams(combined_output, golden_pages + 3)
+            expected_pages = golden_pages + baseline_pages + 2
+            assert combined_output.count(b"JZJZ") == expected_pages
+            assert combined_output.count(b"@PJL JOB\n") == expected_pages
+            assert combined_output.count(b"@PJL EOJ\n") == expected_pages
+            assert_ordered_page_streams(combined_output, expected_pages)
             assert "status-during-write" not in (
                 root / "device.trace"
             ).read_text()

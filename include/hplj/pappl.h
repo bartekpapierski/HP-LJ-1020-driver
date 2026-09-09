@@ -5,6 +5,7 @@
 #include "hplj/config.h"
 #include "hplj/device.h"
 #include "hplj/encoder.h"
+#include "hplj/job.h"
 
 #include <stdbool.h>
 
@@ -13,10 +14,36 @@
 #define HPLJ_IPV4_LOOPBACK "127.0.0.1"
 #define HPLJ_IPV6_LOOPBACK "[::1]"
 #define HPLJ_IPP_PORT 8631U
+#define HPLJ_MAX_COMPLETED_JOBS 20U
+#define HPLJ_MAX_LOG_BYTES (10U * 1024U * 1024U)
+#define HPLJ_MAX_LOG_AGE_SECONDS (14U * 24U * 60U * 60U)
 
 enum hplj_queue_state { HPLJ_QUEUE_READY, HPLJ_QUEUE_HELD, HPLJ_QUEUE_STOPPED };
 
+enum hplj_user_status {
+  HPLJ_STATUS_READY,
+  HPLJ_STATUS_JOB_ACCEPTED,
+  HPLJ_STATUS_JOB_HELD_FOR_FIRMWARE,
+  HPLJ_STATUS_JOB_HELD_FOR_DEVICE,
+  HPLJ_STATUS_JOB_PREPARING,
+  HPLJ_STATUS_JOB_TRANSMITTING,
+  HPLJ_STATUS_JOB_COMPLETED,
+  HPLJ_STATUS_DEVICE_DISCONNECTED,
+  HPLJ_STATUS_DEVICE_FAULT,
+  HPLJ_STATUS_FIRMWARE_REQUIRED,
+  HPLJ_STATUS_FIRMWARE_FAILED,
+  HPLJ_STATUS_QUEUE_UNAVAILABLE,
+  HPLJ_STATUS_RASTER_INVALID,
+  HPLJ_STATUS_ENCODING_FAILED,
+  HPLJ_STATUS_TRANSFER_FAILED,
+  HPLJ_STATUS_MEDIA_EMPTY,
+  HPLJ_STATUS_MANUAL_FEED,
+  HPLJ_STATUS_COVER_OPEN,
+  HPLJ_STATUS_CANCELED,
+};
+
 struct hplj_status {
+  enum hplj_user_status code;
   enum hplj_queue_state queue;
   enum hplj_human_action action;
   enum hplj_error_category diagnostic;
@@ -61,6 +88,12 @@ enum hplj_service_state {
   HPLJ_SERVICE_STOPPED,
 };
 
+struct hplj_retention_policy {
+  unsigned int maximum_completed_jobs;
+  size_t maximum_log_bytes;
+  unsigned long maximum_log_age_seconds;
+};
+
 /*
  * PAPPL lifecycle calls are isolated behind this interface so host tests can
  * prove binding, state, reconciliation, readiness, and shutdown policy without
@@ -72,6 +105,8 @@ struct hplj_service_ops {
   bool (*load_state)(void *service, const char *path);
   bool (*reconcile_queue)(void *service, const char *queue_name,
                           const char *driver_name, const char *device_uri);
+  bool (*configure_policy)(void *service,
+                           const struct hplj_retention_policy *policy);
   bool (*run)(void *service);
   void (*shutdown)(void *service);
   bool (*save_state)(void *service, const char *path);
@@ -111,6 +146,14 @@ typedef void (*hplj_pappl_publish_callback)(void *context, struct hplj_status st
 
 struct hplj_status hplj_status_from_device(enum hplj_device_state state);
 struct hplj_status hplj_status_from_firmware_error(enum hplj_error_category category);
+struct hplj_status hplj_status_from_error(struct hplj_error error);
+struct hplj_status hplj_status_from_conditions(unsigned int conditions);
+struct hplj_status hplj_status_from_job(enum hplj_job_state state,
+                                        struct hplj_error error);
+const char *hplj_status_name(enum hplj_user_status status);
+bool hplj_log_rotation_due(size_t bytes, unsigned long long created_at,
+                            unsigned long long now,
+                            const struct hplj_retention_policy *policy);
 void hplj_pappl_publish_status(const struct hplj_service_config *config,
                                const struct hplj_observer *observer,
                                hplj_pappl_publish_callback publish, void *context,

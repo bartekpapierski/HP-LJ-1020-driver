@@ -146,6 +146,14 @@ if(BUILD_TESTING)
   add_executable(hplj1020-pappl-service-contracts tests/pappl_service_contracts.c)
   target_link_libraries(hplj1020-pappl-service-contracts PRIVATE hplj1020_build_options hplj1020_core)
   add_test(NAME hplj1020-pappl-service-contracts COMMAND hplj1020-pappl-service-contracts)
+  add_executable(hplj1020-pappl-log-rotation-contract
+    tests/pappl_log_rotation_contract.c)
+  target_include_directories(hplj1020-pappl-log-rotation-contract PRIVATE
+    "${HPLJ1020_PAPPL_PREFIX}/include")
+  target_link_libraries(hplj1020-pappl-log-rotation-contract PRIVATE
+    hplj1020_build_options hplj1020_pappl)
+  add_test(NAME hplj1020-pappl-log-rotation-contract
+    COMMAND hplj1020-pappl-log-rotation-contract)
   add_executable(hplj1020-make-test-raster tests/make_test_raster.m)
   target_link_libraries(hplj1020-make-test-raster PRIVATE
     hplj1020_build_options ${HPLJ1020_CUPS_LIBRARY}
