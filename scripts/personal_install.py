@@ -71,6 +71,21 @@ LOG_FILES = tuple(
     Artifact(f"{LOG_ROOT}/{name}", SERVICE_USER, SERVICE_USER, "600")
     for name in ("service.log", "daemon.stdout.log", "daemon.stderr.log")
 )
+REMOVAL_ARTIFACTS = (
+    ("LaunchDaemon plist", SERVICE_PLIST),
+    ("provider app", INSTALLED_APP),
+    ("ownership marker", f"{INSTALL_ROOT}/.product-id"),
+    ("state", STATE_ROOT),
+    ("configuration", f"{INSTALL_ROOT}/config"),
+    ("spool", f"{INSTALL_ROOT}/spool"),
+    ("firmware and metadata", f"{INSTALL_ROOT}/firmware"),
+    ("cache", f"{INSTALL_ROOT}/cache"),
+    ("runtime socket state", f"{INSTALL_ROOT}/run"),
+    ("private service home", f"{INSTALL_ROOT}/home"),
+    ("remaining product root", INSTALL_ROOT),
+    *(("log", artifact.path) for artifact in LOG_FILES),
+    ("logs", LOG_ROOT),
+)
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
@@ -98,13 +113,12 @@ PREVIEWS = {
         "enable and verify queue HP_LaserJet_1020",
     ),
     "uninstall": (
-        "disable service and hold queue first",
-        "remove queue HP_LaserJet_1020",
-        "remove LaunchDaemon com.bartekpapierski.hplj1020.service",
-        "remove root-owned provider app",
-        "remove product configuration, state, spool, firmware, cache, and logs",
-        "remove product-created account _hplj1020 only when ownership markers match",
-        "forget product receipt com.bartekpapierski.hplj1020 if present",
+        f"disable service {SERVICE_LABEL} and hold queue {QUEUE} first",
+        f"remove queue {QUEUE}",
+        f"remove LaunchDaemon job {SERVICE_LABEL}",
+        *(f"remove {description} {path}" for description, path in REMOVAL_ARTIFACTS),
+        f"remove product-created account and group {SERVICE_USER} only when ownership markers match",
+        f"forget product receipt {RECEIPT} if present",
         "audit every product-owned artifact as absent",
     ),
 }
@@ -356,7 +370,65 @@ def validate_path_owner(host: CommandHost, artifact: Artifact) -> bool:
     return True
 
 
+def validate_product_marker(host: CommandHost, path: str) -> bool:
+    if not validate_path_owner(host, Artifact(path, "root", "wheel", "644")):
+        return False
+    marker = host.admin("/bin/cat", path, check=False)
+    if marker.returncode != 0 or marker.stdout.strip() != RECEIPT:
+        raise InstallError(f"refusing foreign product marker: {path}")
+    return True
+
+
+def product_marker_matches(host: CommandHost, path: str) -> bool:
+    try:
+        return validate_product_marker(host, path)
+    except InstallError:
+        return False
+
+
+def service_plist_matches(host: CommandHost) -> bool:
+    result = host.admin("/bin/cat", SERVICE_PLIST, check=False)
+    try:
+        plist = plistlib.loads(result.stdout.encode("utf-8"))
+    except (plistlib.InvalidFileException, ValueError):
+        return False
+    expected = {
+        "Label": SERVICE_LABEL,
+        "UserName": SERVICE_USER,
+        "GroupName": SERVICE_USER,
+        "WorkingDirectory": STATE_ROOT,
+        "StandardOutPath": f"{LOG_ROOT}/daemon.stdout.log",
+        "StandardErrorPath": f"{LOG_ROOT}/daemon.stderr.log",
+    }
+    arguments = plist.get("ProgramArguments")
+    expected_program = f"{INSTALLED_APP}/Contents/Resources/hplj1020-service-supervisor"
+    return (
+        result.returncode == 0
+        and all(plist.get(key) == value for key, value in expected.items())
+        and isinstance(arguments, list)
+        and bool(arguments)
+        and arguments[0] == expected_program
+    )
+
+
+def has_product_ownership_evidence(host: CommandHost) -> bool:
+    markers = (
+        f"{INSTALL_ROOT}/.product-id",
+        f"{INSTALLED_APP}/Contents/Resources/product-id",
+    )
+    if any(product_marker_matches(host, marker) for marker in markers):
+        return True
+    try:
+        plist_exists = validate_path_owner(
+            host, Artifact(SERVICE_PLIST, "root", "wheel", "644")
+        )
+    except InstallError:
+        return False
+    return plist_exists and service_plist_matches(host)
+
+
 def validate_existing_installation(host: CommandHost) -> bool:
+    product_owned = False
     root_exists = validate_path_owner(host, Artifact(INSTALL_ROOT, "root", "wheel", "755"))
     if root_exists:
         listing = host.admin("/usr/bin/find", INSTALL_ROOT, "-mindepth", "1", "-maxdepth", "1", "-print", check=False)
@@ -370,14 +442,15 @@ def validate_existing_installation(host: CommandHost) -> bool:
         if unknown:
             raise InstallError("refusing unrecognized installed paths: " + ", ".join(unknown))
     marker = f"{INSTALL_ROOT}/.product-id"
-    marker_exists = validate_path_owner(host, Artifact(marker, "root", "wheel", "644"))
+    marker_exists = validate_product_marker(host, marker)
     if marker_exists:
-        identity = host.admin("/bin/cat", marker).stdout.strip()
-        if identity != RECEIPT:
-            raise InstallError(f"refusing foreign product marker: {marker}")
+        product_owned = True
     for artifact in (*PRIVATE_DIRECTORIES, *LOG_FILES):
         validate_path_owner(host, artifact)
     if validate_path_owner(host, Artifact(INSTALLED_APP, "root", "wheel", "755")):
+        app_marker = f"{INSTALLED_APP}/Contents/Resources/product-id"
+        if not validate_product_marker(host, app_marker):
+            raise InstallError(f"refusing provider app without product marker: {INSTALLED_APP}")
         identity = host.admin(
             "/usr/libexec/PlistBuddy", "-c", "Print :CFBundleIdentifier",
             f"{INSTALLED_APP}/Contents/Info.plist",
@@ -385,13 +458,12 @@ def validate_existing_installation(host: CommandHost) -> bool:
         if identity != RECEIPT:
             raise InstallError(f"refusing foreign provider app: {INSTALLED_APP}")
         host.admin("/usr/bin/codesign", "--verify", "--strict", "--deep", INSTALLED_APP)
+        product_owned = True
     if validate_path_owner(host, Artifact(SERVICE_PLIST, "root", "wheel", "644")):
-        label = host.admin(
-            "/usr/bin/plutil", "-extract", "Label", "raw", "-o", "-", SERVICE_PLIST
-        ).stdout.strip()
-        if label != SERVICE_LABEL:
+        if not service_plist_matches(host):
             raise InstallError(f"refusing foreign LaunchDaemon plist: {SERVICE_PLIST}")
-    return marker_exists
+        product_owned = True
+    return product_owned
 
 
 def install_paths(host: CommandHost) -> None:
@@ -464,7 +536,12 @@ def wait_ready(host: CommandHost) -> None:
 
 def disable(host: CommandHost) -> None:
     failures: list[str] = []
-    if validate_queue_ownership(host):
+    try:
+        queue_owned = validate_queue_ownership(host)
+    except InstallError as error:
+        failures.append(str(error))
+        queue_owned = False
+    if queue_owned:
         policy = host.admin("/usr/sbin/lpadmin", "-p", QUEUE, "-o", "printer-is-shared=false", "-o", "printer-error-policy=stop-printer", check=False)
         if policy.returncode != 0:
             failures.append("queue policy update failed")
@@ -533,49 +610,181 @@ def install(host: CommandHost) -> None:
 
 
 def uninstall(host: CommandHost) -> None:
-    product_owned = validate_existing_installation(host)
-    validate_account_state(host, product_owned=product_owned)
-    queue_owned = validate_queue_ownership(host)
+    ownership_evidence = has_product_ownership_evidence(host)
+    try:
+        product_owned = validate_existing_installation(host)
+    except InstallError as error:
+        if not ownership_evidence:
+            raise
+        failures = [str(error)]
+        try:
+            disable(host)
+        except InstallError as disable_error:
+            failures.append(str(disable_error))
+        raise_removal_failure(host, failures)
+    receipt = host.run(["/usr/sbin/pkgutil", "--pkg-info", RECEIPT], check=False)
     user = account_record(host, "user")
     group = account_record(host, "group")
-    receipt = host.run(["/usr/sbin/pkgutil", "--pkg-info", RECEIPT], check=False)
-    installed_state = any((
-        product_owned,
-        queue_owned,
-        user is not None,
-        group is not None,
-        receipt.returncode == 0,
-        host.admin("/usr/bin/test", "-e", SERVICE_PLIST, check=False).returncode == 0,
-        host.admin("/usr/bin/test", "-e", LOG_ROOT, check=False).returncode == 0,
-    ))
-    if not installed_state:
-        audit_clean(host)
+    initial_residue = find_removal_residue(host)
+    if not initial_residue:
         return
     if not product_owned:
-        raise InstallError("refusing uninstall without the signed product ownership marker")
-    disable(host)
+        receipt_residue = f"receipt:{RECEIPT}"
+        allowed_recovery_residue = {
+            receipt_residue,
+            f"launchd-disabled:{SERVICE_LABEL}",
+        }
+        if receipt.returncode == 0 and set(initial_residue) <= allowed_recovery_residue:
+            failures: list[str] = []
+            attempt_removal_step(
+                host,
+                ("/bin/launchctl", "enable", f"system/{SERVICE_LABEL}"),
+                f"clear service disable override {SERVICE_LABEL}",
+                failures,
+            )
+            if not failures:
+                attempt_removal_step(
+                    host,
+                    ("/usr/sbin/pkgutil", "--forget", RECEIPT),
+                    f"forget receipt {RECEIPT}",
+                    failures,
+                )
+            if failures:
+                host.admin("/bin/launchctl", "disable", f"system/{SERVICE_LABEL}", check=False)
+                raise_removal_failure(host, failures)
+            verify_clean_removal(host)
+            return
+        raise_removal_failure(
+            host, ["refusing uninstall without verified product ownership"]
+        )
+    try:
+        disable(host)
+    except InstallError as error:
+        raise_removal_failure(host, [str(error)])
+    try:
+        validate_account_state(host, product_owned=True)
+    except InstallError as error:
+        raise_removal_failure(host, [str(error)])
+    queue_owned = validate_queue_ownership(host)
+    failures: list[str] = []
+
     if queue_owned:
-        host.admin("/usr/sbin/lpadmin", "-x", QUEUE)
-    host.admin("/bin/rm", "-f", SERVICE_PLIST)
-    host.admin("/bin/rm", "-rf", LOG_ROOT)
-    if user is not None:
-        host.admin("/usr/bin/dscl", ".", "-delete", f"/Users/{SERVICE_USER}")
-    if group is not None:
-        host.admin("/usr/bin/dscl", ".", "-delete", f"/Groups/{SERVICE_USER}")
-    if receipt.returncode == 0:
-        host.admin("/usr/sbin/pkgutil", "--forget", RECEIPT)
-    host.admin("/bin/rm", "-rf", INSTALL_ROOT)
-    host.admin("/bin/launchctl", "enable", f"system/{SERVICE_LABEL}", check=False)
-    audit_clean(host)
+        attempt_removal_step(
+            host, ("/usr/sbin/lpadmin", "-x", QUEUE), f"remove queue {QUEUE}", failures
+        )
+    attempt_removal_step(
+        host, ("/bin/rm", "-rf", LOG_ROOT), f"remove logs {LOG_ROOT}", failures
+    )
+    if not failures:
+        attempt_removal_step(
+            host,
+            ("/bin/rm", "-rf", INSTALL_ROOT),
+            f"remove product root {INSTALL_ROOT}",
+            failures,
+        )
+    data_remains = any(
+        host.admin("/usr/bin/test", "-e", path, check=False).returncode == 0
+        for path in (INSTALL_ROOT, LOG_ROOT)
+    )
+    if not data_remains:
+        if user is not None:
+            attempt_removal_step(
+                host,
+                ("/usr/bin/dscl", ".", "-delete", f"/Users/{SERVICE_USER}"),
+                f"remove user {SERVICE_USER}",
+                failures,
+            )
+        if group is not None:
+            attempt_removal_step(
+                host,
+                ("/usr/bin/dscl", ".", "-delete", f"/Groups/{SERVICE_USER}"),
+                f"remove group {SERVICE_USER}",
+                failures,
+            )
+
+    blocking_residue = find_removal_residue(
+        host, include_service_registration=False, include_receipt=False
+    )
+    if failures or blocking_residue:
+        raise_removal_failure(host, failures)
+
+    if not failures:
+        attempt_removal_step(
+            host,
+            ("/bin/launchctl", "enable", f"system/{SERVICE_LABEL}"),
+            f"clear service disable override {SERVICE_LABEL}",
+            failures,
+        )
+    if not failures:
+        attempt_removal_step(
+            host,
+            ("/bin/rm", "-f", SERVICE_PLIST),
+            f"remove LaunchDaemon plist {SERVICE_PLIST}",
+            failures,
+        )
+    if not failures and receipt.returncode == 0:
+        attempt_removal_step(
+            host,
+            ("/usr/sbin/pkgutil", "--forget", RECEIPT),
+            f"forget receipt {RECEIPT}",
+            failures,
+        )
+    if failures:
+        host.admin("/bin/launchctl", "disable", f"system/{SERVICE_LABEL}", check=False)
+        raise_removal_failure(host, failures)
+    verify_clean_removal(host)
 
 
-def audit_clean(host: CommandHost) -> None:
+def attempt_removal_step(
+    host: CommandHost,
+    command: tuple[str, ...],
+    description: str,
+    failures: list[str],
+) -> None:
+    result = host.admin(*command, check=False)
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
+        failures.append(f"{description} failed: {detail}")
+
+
+def raise_removal_failure(host: CommandHost, failures: list[str]) -> None:
+    residue = find_removal_residue(host)
+    details = failures + (["removal residue: " + ", ".join(residue)] if residue else [])
+    raise InstallError("; ".join(details))
+
+
+def verify_clean_removal(host: CommandHost) -> None:
+    if not find_removal_residue(host):
+        return
+    host.admin("/bin/launchctl", "disable", f"system/{SERVICE_LABEL}", check=False)
+    raise_removal_failure(host, [])
+
+
+def service_disable_override_present(host: CommandHost) -> bool:
+    disabled = host.admin("/bin/launchctl", "print-disabled", "system", check=False)
+    return f'"{SERVICE_LABEL}" => true' in disabled.stdout
+
+
+def find_removal_residue(
+    host: CommandHost,
+    *,
+    include_service_registration: bool = True,
+    include_receipt: bool = True,
+) -> list[str]:
     residue: list[str] = []
-    for path in (SERVICE_PLIST, INSTALL_ROOT, LOG_ROOT):
+    paths = (
+        tuple(path for _, path in REMOVAL_ARTIFACTS)
+        if include_service_registration
+        else tuple(path for _, path in REMOVAL_ARTIFACTS if path != SERVICE_PLIST)
+    )
+    for path in paths:
         if host.admin("/usr/bin/test", "-e", path, check=False).returncode == 0:
             residue.append(path)
-    if host.admin("/bin/launchctl", "print", f"system/{SERVICE_LABEL}", check=False).returncode == 0:
-        residue.append(f"launchd:{SERVICE_LABEL}")
+    if include_service_registration:
+        if host.admin("/bin/launchctl", "print", f"system/{SERVICE_LABEL}", check=False).returncode == 0:
+            residue.append(f"launchd:{SERVICE_LABEL}")
+        if service_disable_override_present(host):
+            residue.append(f"launchd-disabled:{SERVICE_LABEL}")
     queues = host.run(["/usr/bin/lpstat", "-v"], check=False)
     if any(line.startswith(f"device for {QUEUE}: ") for line in queues.stdout.splitlines()):
         residue.append(f"queue:{QUEUE}")
@@ -583,10 +792,10 @@ def audit_clean(host: CommandHost) -> None:
         residue.append(f"user:{SERVICE_USER}")
     if account_record(host, "group") is not None:
         residue.append(f"group:{SERVICE_USER}")
-    if host.run(["/usr/sbin/pkgutil", "--pkg-info", RECEIPT], check=False).returncode == 0:
+    if (include_receipt
+            and host.run(["/usr/sbin/pkgutil", "--pkg-info", RECEIPT], check=False).returncode == 0):
         residue.append(f"receipt:{RECEIPT}")
-    if residue:
-        raise InstallError("removal residue: " + ", ".join(residue))
+    return residue
 
 
 def status(host: CommandHost, stdout: TextIO) -> None:
@@ -660,7 +869,8 @@ def main(argv: Sequence[str] | None = None, *, runner: Runner = subprocess.run, 
                 audit.write(json.dumps({"event": "failure", "operation": args.operation, "error": safe_error}, separators=(",", ":")) + "\n")
         except OSError:
             pass
-        print(f"state={args.operation}-incomplete", file=stdout)
+        failure_state = "removal-incomplete" if args.operation == "uninstall" else f"{args.operation}-incomplete"
+        print(f"state={failure_state}", file=stdout)
         print(f"error={safe_error}", file=stdout)
         print(f"audit={AUDIT_LOG}", file=stdout)
         return 1
