@@ -13,11 +13,14 @@
 enum hplj_job_state {
   HPLJ_JOB_ACCEPTED,
   HPLJ_JOB_HELD_FOR_FIRMWARE,
+  HPLJ_JOB_HELD_FOR_DEVICE,
   HPLJ_JOB_PREPARING,
   HPLJ_JOB_TRANSMITTING,
+  HPLJ_JOB_WAITING_FOR_MEDIA,
   HPLJ_JOB_COMPLETED,
   HPLJ_JOB_CANCELED,
   HPLJ_JOB_FAILED,
+  HPLJ_JOB_FAILED_PARTIAL,
 };
 
 struct hplj_job_metadata {
@@ -57,6 +60,8 @@ struct hplj_error hplj_job_submit_page(struct hplj_job *job,
                                        const struct hplj_raster *raster);
 struct hplj_error hplj_job_complete(struct hplj_job *job);
 struct hplj_error hplj_job_retry(struct hplj_job *job);
+struct hplj_error hplj_job_wait_for_media(struct hplj_job *job);
+struct hplj_error hplj_job_resume_media(struct hplj_job *job);
 void hplj_job_cancel(struct hplj_job *job);
 void hplj_job_shutdown(struct hplj_job *job);
 

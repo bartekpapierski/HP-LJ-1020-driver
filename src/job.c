@@ -12,6 +12,8 @@ struct hplj_encoded_page {
   size_t maximum_size;
 };
 
+#define HPLJ_TRANSFER_CHUNK_BYTES (64U * 1024U)
+
 static struct hplj_error hplj_job_error(enum hplj_error_category category,
                                         enum hplj_retry_safety retry,
                                         enum hplj_human_action action,
@@ -76,9 +78,12 @@ static void hplj_job_fail(struct hplj_job *job, struct hplj_error error,
     error.retry = HPLJ_RETRY_EXPLICIT;
     error.action = HPLJ_ACTION_RETRY_JOB;
   }
-  enum hplj_job_state state = error.category == HPLJ_ERROR_CANCELLED
-                                  ? HPLJ_JOB_CANCELED
-                                  : HPLJ_JOB_FAILED;
+  enum hplj_job_state state = HPLJ_JOB_FAILED;
+  if (error.category == HPLJ_ERROR_CANCELLED) {
+    state = HPLJ_JOB_CANCELED;
+  } else if (job->metadata.bytes_sent > 0) {
+    state = HPLJ_JOB_FAILED_PARTIAL;
+  }
   hplj_job_set_state(job, state, error);
 }
 
@@ -107,7 +112,8 @@ struct hplj_error hplj_job_prepare(struct hplj_job *job,
                                    const char *expected_firmware_version) {
   if (job == NULL || job->device == NULL || job->encoder == NULL ||
       (job->metadata.state != HPLJ_JOB_ACCEPTED &&
-       job->metadata.state != HPLJ_JOB_HELD_FOR_FIRMWARE)) {
+       job->metadata.state != HPLJ_JOB_HELD_FOR_FIRMWARE &&
+       job->metadata.state != HPLJ_JOB_HELD_FOR_DEVICE)) {
     return hplj_job_error(HPLJ_ERROR_INVALID_STATE, HPLJ_RETRY_NEVER,
                           HPLJ_ACTION_NONE, "job cannot be prepared");
   }
@@ -123,7 +129,7 @@ struct hplj_error hplj_job_prepare(struct hplj_job *job,
   if (job->device->state == HPLJ_DEVICE_DISCONNECTED) {
     result = hplj_device_connect(job->device);
     if (result.error.category != HPLJ_ERROR_NONE) {
-      hplj_job_fail(job, result.error, result.bytes_transferred);
+      hplj_job_set_state(job, HPLJ_JOB_HELD_FOR_DEVICE, result.error);
       return job->metadata.error;
     }
   }
@@ -186,14 +192,31 @@ struct hplj_error hplj_job_submit_page(struct hplj_job *job,
       job, HPLJ_JOB_TRANSMITTING,
       hplj_job_error(HPLJ_ERROR_NONE, HPLJ_RETRY_SAFE_AUTOMATIC,
                      HPLJ_ACTION_NONE, "transmitting"));
-  struct hplj_device_result sent = hplj_device_send(
-      job->device, page.bytes, page.size, hplj_job_is_cancelled(job));
-  free(page.bytes);
-  if (sent.error.category != HPLJ_ERROR_NONE) {
-    hplj_job_fail(job, sent.error, sent.bytes_transferred);
-    return job->metadata.error;
+  size_t offset = 0;
+  while (offset < page.size) {
+    if (hplj_job_is_cancelled(job)) {
+      free(page.bytes);
+      struct hplj_error error = hplj_job_error(
+          HPLJ_ERROR_CANCELLED, HPLJ_RETRY_NEVER, HPLJ_ACTION_NONE,
+          "job was cancelled during transmission");
+      hplj_job_fail(job, error, 0);
+      return job->metadata.error;
+    }
+    size_t chunk = page.size - offset;
+    if (chunk > HPLJ_TRANSFER_CHUNK_BYTES) {
+      chunk = HPLJ_TRANSFER_CHUNK_BYTES;
+    }
+    struct hplj_device_result sent = hplj_device_send(
+        job->device, page.bytes + offset, chunk, false);
+    if (sent.error.category != HPLJ_ERROR_NONE) {
+      free(page.bytes);
+      hplj_job_fail(job, sent.error, sent.bytes_transferred);
+      return job->metadata.error;
+    }
+    job->metadata.bytes_sent += sent.bytes_transferred;
+    offset += sent.bytes_transferred;
   }
-  job->metadata.bytes_sent += sent.bytes_transferred;
+  free(page.bytes);
   job->metadata.pages_completed++;
   hplj_job_set_state(
       job, HPLJ_JOB_PREPARING,
@@ -218,6 +241,7 @@ struct hplj_error hplj_job_complete(struct hplj_job *job) {
 
 struct hplj_error hplj_job_retry(struct hplj_job *job) {
   if (job == NULL || job->metadata.state != HPLJ_JOB_FAILED ||
+      job->metadata.bytes_sent != 0 ||
       job->metadata.error.retry != HPLJ_RETRY_EXPLICIT) {
     return hplj_job_error(HPLJ_ERROR_INVALID_STATE, HPLJ_RETRY_NEVER,
                           HPLJ_ACTION_NONE, "job is not eligible for explicit retry");
@@ -231,9 +255,35 @@ struct hplj_error hplj_job_retry(struct hplj_job *job) {
   return job->metadata.error;
 }
 
+struct hplj_error hplj_job_wait_for_media(struct hplj_job *job) {
+  if (job == NULL || job->metadata.state != HPLJ_JOB_PREPARING) {
+    return hplj_job_error(HPLJ_ERROR_INVALID_STATE, HPLJ_RETRY_NEVER,
+                          HPLJ_ACTION_NONE, "job cannot wait for media");
+  }
+  hplj_job_set_state(
+      job, HPLJ_JOB_WAITING_FOR_MEDIA,
+      hplj_job_error(HPLJ_ERROR_NONE, HPLJ_RETRY_SAFE_AUTOMATIC,
+                     HPLJ_ACTION_NONE, "waiting for media"));
+  return job->metadata.error;
+}
+
+struct hplj_error hplj_job_resume_media(struct hplj_job *job) {
+  if (job == NULL || job->metadata.state != HPLJ_JOB_WAITING_FOR_MEDIA) {
+    return hplj_job_error(HPLJ_ERROR_INVALID_STATE, HPLJ_RETRY_NEVER,
+                          HPLJ_ACTION_NONE, "job is not waiting for media");
+  }
+  hplj_job_set_state(
+      job, HPLJ_JOB_PREPARING,
+      hplj_job_error(HPLJ_ERROR_NONE, HPLJ_RETRY_SAFE_AUTOMATIC,
+                     HPLJ_ACTION_NONE, "media ready"));
+  return job->metadata.error;
+}
+
 void hplj_job_cancel(struct hplj_job *job) {
   if (job == NULL || job->metadata.state == HPLJ_JOB_COMPLETED ||
-      job->metadata.state == HPLJ_JOB_CANCELED) {
+      job->metadata.state == HPLJ_JOB_CANCELED ||
+      job->metadata.state == HPLJ_JOB_FAILED ||
+      job->metadata.state == HPLJ_JOB_FAILED_PARTIAL) {
     return;
   }
   struct hplj_error error = hplj_job_error(
