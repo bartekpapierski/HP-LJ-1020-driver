@@ -38,7 +38,7 @@ class FakeMac:
             self.queue_enabled = True
         if "lpadmin -x" in joined:
             self.queue_present = False
-        if command[:3] == ["/usr/bin/sudo", "/usr/bin/test", "-e"]:
+        if command[:3] == ["/usr/bin/sudo", "/bin/test", "-e"]:
             return subprocess.CompletedProcess(command, 1, "", "")
         if command[:2] == ["/usr/sbin/pkgutil", "--pkg-info"]:
             return subprocess.CompletedProcess(command, 1, "", "")
@@ -97,7 +97,7 @@ class FakeMac:
 
 class ForeignInstallMac(FakeMac):
     def __call__(self, command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        if (command[:3] == ["/usr/bin/sudo", "/usr/bin/test", "-e"]
+        if (command[:3] == ["/usr/bin/sudo", "/bin/test", "-e"]
                 and command[-1] == installer.INSTALL_ROOT):
             self.commands.append(command)
             return subprocess.CompletedProcess(command, 0, "", "")
@@ -122,7 +122,7 @@ class ProductInstallMac(FakeMac):
             self.root_present = True
         if command[:3] == ["/usr/bin/sudo", "/bin/rm", "-rf"] and command[-1] == installer.INSTALL_ROOT:
             self.root_present = False
-        if (command[:3] == ["/usr/bin/sudo", "/usr/bin/test", "-e"]
+        if (command[:3] == ["/usr/bin/sudo", "/bin/test", "-e"]
                 and command[-1] in {installer.INSTALL_ROOT, self.marker}
                 and self.root_present):
             self.commands.append(command)
@@ -285,7 +285,7 @@ class PersonalInstallTests(unittest.TestCase):
     def test_reinstall_does_not_truncate_existing_logs(self) -> None:
         class ExistingLogsMac(FakeMac):
             def __call__(self, command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-                if (command[:3] == ["/usr/bin/sudo", "/usr/bin/test", "-e"]
+                if (command[:3] == ["/usr/bin/sudo", "/bin/test", "-e"]
                         and command[-1].startswith("/Library/Logs/HP-LJ-1020/")):
                     self.commands.append(command)
                     return subprocess.CompletedProcess(command, 0, "", "")
@@ -336,7 +336,7 @@ class PersonalInstallTests(unittest.TestCase):
     def test_product_owned_preflight_failure_disables_service_and_reports_residue(self) -> None:
         class BadProductLogMac(ProductInstallMac):
             def __call__(self, command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-                if (command[:3] == ["/usr/bin/sudo", "/usr/bin/test", "-e"]
+                if (command[:3] == ["/usr/bin/sudo", "/bin/test", "-e"]
                         and command[-1] == installer.LOG_ROOT):
                     self.commands.append(command)
                     return subprocess.CompletedProcess(command, 0, "", "")
@@ -390,7 +390,7 @@ class PersonalInstallTests(unittest.TestCase):
 
         class PartialAccountMac(FakeMac):
             def __call__(self, command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-                if (command[:3] == ["/usr/bin/sudo", "/usr/bin/test", "-e"]
+                if (command[:3] == ["/usr/bin/sudo", "/bin/test", "-e"]
                         and command[-1] in {installer.INSTALL_ROOT, marker}):
                     self.commands.append(command)
                     return subprocess.CompletedProcess(command, 0, "", "")
@@ -449,7 +449,7 @@ class PersonalInstallTests(unittest.TestCase):
                 if command[:3] == ["/usr/bin/sudo", "/bin/rm", "-rf"]:
                     self.removal_started = True
                 if (self.removal_started
-                        and command[:3] == ["/usr/bin/sudo", "/usr/bin/test", "-e"]):
+                        and command[:3] == ["/usr/bin/sudo", "/bin/test", "-e"]):
                     self.commands.append(command)
                     return subprocess.CompletedProcess(command, 0, "", "")
                 return super().__call__(command, **kwargs)
@@ -496,7 +496,7 @@ class PersonalInstallTests(unittest.TestCase):
                 if command[:3] == ["/usr/bin/sudo", "/bin/rm", "-rf"] and command[-1] == installer.LOG_ROOT:
                     self.commands.append(command)
                     return subprocess.CompletedProcess(command, 1, "", "log denied")
-                if (command[:3] == ["/usr/bin/sudo", "/usr/bin/test", "-e"]
+                if (command[:3] == ["/usr/bin/sudo", "/bin/test", "-e"]
                         and command[-1] == installer.LOG_ROOT):
                     self.commands.append(command)
                     return subprocess.CompletedProcess(command, 0, "", "")
@@ -535,7 +535,7 @@ class PersonalInstallTests(unittest.TestCase):
                     self.commands.append(command)
                     self.plist_present = False
                     return subprocess.CompletedProcess(command, 0, "", "")
-                if (command[:3] == ["/usr/bin/sudo", "/usr/bin/test", "-e"]
+                if (command[:3] == ["/usr/bin/sudo", "/bin/test", "-e"]
                         and command[-1] == installer.SERVICE_PLIST
                         and self.plist_present):
                     self.commands.append(command)
@@ -599,7 +599,7 @@ class PersonalInstallTests(unittest.TestCase):
     def test_uninstall_refuses_a_same_label_plist_with_different_contents(self) -> None:
         class CollidingPlistMac(FakeMac):
             def __call__(self, command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-                if (command[:3] == ["/usr/bin/sudo", "/usr/bin/test", "-e"]
+                if (command[:3] == ["/usr/bin/sudo", "/bin/test", "-e"]
                         and command[-1] == installer.SERVICE_PLIST):
                     self.commands.append(command)
                     return subprocess.CompletedProcess(command, 0, "", "")

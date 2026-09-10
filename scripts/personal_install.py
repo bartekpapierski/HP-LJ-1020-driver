@@ -168,7 +168,7 @@ def preview(operation: str, stdout: TextIO) -> None:
 def preview_uninstall(host: CommandHost, stdout: TextIO) -> None:
     present = [
         path for path in (SERVICE_PLIST, INSTALL_ROOT, LOG_ROOT)
-        if host.run(["/usr/bin/test", "-e", path], check=False).returncode == 0
+        if host.run(["/bin/test", "-e", path], check=False).returncode == 0
     ]
     if host.run(["/bin/launchctl", "print", f"system/{SERVICE_LABEL}"], check=False).returncode == 0:
         present.append(f"launchd:{SERVICE_LABEL}")
@@ -362,7 +362,7 @@ def ensure_account(host: CommandHost, *, product_owned: bool) -> None:
 
 
 def validate_path_owner(host: CommandHost, artifact: Artifact) -> bool:
-    if host.admin("/usr/bin/test", "-e", artifact.path, check=False).returncode != 0:
+    if host.admin("/bin/test", "-e", artifact.path, check=False).returncode != 0:
         return False
     metadata = host.admin("/usr/bin/stat", "-f", "%Su:%Sg:%Lp", artifact.path).stdout.strip()
     if metadata != artifact.metadata:
@@ -470,7 +470,7 @@ def install_paths(host: CommandHost) -> None:
     for artifact in PRIVATE_DIRECTORIES:
         host.admin("/usr/bin/install", "-d", "-o", artifact.owner, "-g", artifact.group, "-m", artifact.mode, artifact.path)
     for artifact in LOG_FILES:
-        exists = host.admin("/usr/bin/test", "-e", artifact.path, check=False)
+        exists = host.admin("/bin/test", "-e", artifact.path, check=False)
         if exists.returncode != 0:
             host.admin("/usr/bin/install", "-o", artifact.owner, "-g", artifact.group, "-m", artifact.mode, "/dev/null", artifact.path)
 
@@ -683,7 +683,7 @@ def uninstall(host: CommandHost) -> None:
             failures,
         )
     data_remains = any(
-        host.admin("/usr/bin/test", "-e", path, check=False).returncode == 0
+        host.admin("/bin/test", "-e", path, check=False).returncode == 0
         for path in (INSTALL_ROOT, LOG_ROOT)
     )
     if not data_remains:
@@ -778,7 +778,7 @@ def find_removal_residue(
         else tuple(path for _, path in REMOVAL_ARTIFACTS if path != SERVICE_PLIST)
     )
     for path in paths:
-        if host.admin("/usr/bin/test", "-e", path, check=False).returncode == 0:
+        if host.admin("/bin/test", "-e", path, check=False).returncode == 0:
             residue.append(path)
     if include_service_registration:
         if host.admin("/bin/launchctl", "print", f"system/{SERVICE_LABEL}", check=False).returncode == 0:
@@ -801,7 +801,7 @@ def find_removal_residue(
 def status(host: CommandHost, stdout: TextIO) -> None:
     job = host.admin("/bin/launchctl", "print", f"system/{SERVICE_LABEL}", check=False)
     queue = host.run(["/usr/bin/lpstat", "-p", QUEUE], check=False)
-    crash_loop = host.admin("/usr/bin/test", "-e", f"{INSTALL_ROOT}/run/crash-loop", check=False).returncode == 0
+    crash_loop = host.admin("/bin/test", "-e", f"{INSTALL_ROOT}/run/crash-loop", check=False).returncode == 0
     service_state = "crash-loop" if crash_loop else "loaded" if job.returncode == 0 else "not-loaded"
     print(f"service={service_state}", file=stdout)
     print(f"queue={'available' if queue.returncode == 0 else 'absent-or-disabled'}", file=stdout)
