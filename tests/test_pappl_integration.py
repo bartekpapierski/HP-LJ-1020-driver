@@ -327,6 +327,15 @@ def main() -> int:
             with socket.create_connection(("::1", port), timeout=2):
                 pass
             uri = f"ipp://127.0.0.1:{port}/ipp/print"
+            subprocess.run(
+                [
+                    "/usr/bin/ipptool", "-t", uri,
+                    str(Path(__file__).with_name("validate-monochrome.test")),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
             web = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
             web.request("GET", "/")
             response = web.getresponse()

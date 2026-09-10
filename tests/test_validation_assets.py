@@ -61,6 +61,22 @@ class GoldenCorpusChecks(unittest.TestCase):
 
 
 class CapabilityMatrixChecks(unittest.TestCase):
+    def test_lifecycle_inputs_are_covered_by_affected_scope_identities(self) -> None:
+        self.assertTrue({
+            "packaging",
+            "scripts/personal_install.py",
+            "scripts/reconcile_macos_queue.py",
+            "scripts/seal_lifecycle_evidence.py",
+        } <= set(update_capability_matrix.SCOPE_PATHS["product-source"]))
+        self.assertIn(
+            "scripts/reference_lifecycle_validation.sh",
+            update_capability_matrix.SCOPE_PATHS["validation-tooling"],
+        )
+        self.assertIn(
+            "scripts/interrupt_lifecycle_validation.py",
+            update_capability_matrix.SCOPE_PATHS["validation-tooling"],
+        )
+
     def test_repository_matrix_contains_every_non_deferred_scenario(self) -> None:
         known, required = gate.requirements_for_milestone(
             ROOT / "docs/IMPLEMENTATION-SPEC.md", "PUBLIC"

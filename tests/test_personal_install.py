@@ -217,7 +217,63 @@ class PersonalInstallTests(unittest.TestCase):
         self.assertTrue(all("runtime" in command for command in signing))
         self.assertTrue(any("Contents/Frameworks/libssl.3.dylib" in command[-1] for command in signing))
         self.assertTrue(any("Contents/Frameworks/libcrypto.3.dylib" in command[-1] for command in signing))
+        provider_signing = next(
+            command for command in signing
+            if command[-1].endswith("Contents/MacOS/hplj1020")
+        )
+        self.assertEqual(
+            provider_signing[provider_signing.index("--entitlements") + 1],
+            str(installer.PERSONAL_ENTITLEMENTS),
+        )
+        app_signing = next(
+            command for command in signing if command[-1] == str(installer.STAGED_APP)
+        )
+        self.assertEqual(
+            app_signing[app_signing.index("--entitlements") + 1],
+            str(installer.PERSONAL_ENTITLEMENTS),
+        )
+        entitlements = plistlib.loads(installer.PERSONAL_ENTITLEMENTS.read_bytes())
+        self.assertIs(
+            entitlements["com.apple.security.cs.disable-library-validation"], True
+        )
         self.assertTrue(all(command[0] != "/usr/bin/sudo" for command in fake.commands[:sudo_index]))
+        self.assertIn("state=enabled", output.getvalue())
+
+    def test_install_waits_for_provider_before_creating_queue(self) -> None:
+        class DelayedListenerMac(FakeMac):
+            def __init__(self) -> None:
+                super().__init__()
+                self.listener_probes = 0
+                self.listener_ready = False
+
+            def __call__(
+                self, command: list[str], **kwargs: object
+            ) -> subprocess.CompletedProcess[str]:
+                if ("/usr/sbin/lsof" in command and "-p" in command
+                        and self.service_loaded):
+                    self.listener_probes += 1
+                    self.listener_ready = self.listener_probes >= 3
+                    if not self.listener_ready:
+                        self.commands.append(command)
+                        return subprocess.CompletedProcess(command, 1, "", "")
+                if ("/usr/sbin/lpadmin" in command and "-p" in command
+                        and "-E" in command and not self.listener_ready):
+                    self.commands.append(command)
+                    return subprocess.CompletedProcess(
+                        command, 1, "", "Unable to connect to 127.0.0.1:8631"
+                    )
+                return super().__call__(command, **kwargs)
+
+        fake = DelayedListenerMac()
+        output = io.StringIO()
+
+        with mock.patch.object(installer.time, "sleep"):
+            result = installer.main(
+                ["install", "--apply", "--yes"], runner=fake, stdout=output
+            )
+
+        self.assertEqual(result, 0, output.getvalue())
+        self.assertGreaterEqual(fake.listener_probes, 3)
         self.assertIn("state=enabled", output.getvalue())
 
     def test_uninstall_requires_confirmation_and_removes_only_fixed_product_artifacts(self) -> None:
@@ -239,6 +295,70 @@ class PersonalInstallTests(unittest.TestCase):
         self.assertFalse(any("/Library/Printers" in command or "/etc/cups" in command for command in commands))
         self.assertIn("state=clean", output.getvalue())
         self.assertTrue(any("test -e /Library/LaunchDaemons/" in command for command in commands))
+
+    def test_uninstall_accepts_macos_26_disabled_override_spelling(self) -> None:
+        class MacOS26ProductInstallMac(ProductInstallMac):
+            def __call__(
+                self, command: list[str], **kwargs: object
+            ) -> subprocess.CompletedProcess[str]:
+                if "launchctl print-disabled" in " ".join(command):
+                    self.commands.append(command)
+                    output = (
+                        f'"{installer.SERVICE_LABEL}" => disabled\n'
+                        if self.service_disabled else ""
+                    )
+                    return subprocess.CompletedProcess(command, 0, output, "")
+                return super().__call__(command, **kwargs)
+
+        output = io.StringIO()
+
+        result = installer.main(
+            ["uninstall", "--apply", "--yes"],
+            runner=MacOS26ProductInstallMac(),
+            stdout=output,
+        )
+
+        self.assertEqual(result, 0, output.getvalue())
+        self.assertIn("state=clean", output.getvalue())
+
+    def test_disable_waits_for_launchd_bootout_to_finish(self) -> None:
+        class SlowBootoutMac(ProductInstallMac):
+            def __init__(self) -> None:
+                super().__init__()
+                self.pending_prints = 0
+
+            def __call__(
+                self, command: list[str], **kwargs: object
+            ) -> subprocess.CompletedProcess[str]:
+                if command[:3] == ["/usr/bin/sudo", "/bin/launchctl", "bootout"]:
+                    self.pending_prints = 2
+                if (command[:3] == ["/usr/bin/sudo", "/bin/launchctl", "print"]
+                        and self.pending_prints):
+                    self.pending_prints -= 1
+                    self.commands.append(command)
+                    return subprocess.CompletedProcess(command, 0, "pid = 123\n", "")
+                return super().__call__(command, **kwargs)
+
+        fake = SlowBootoutMac()
+
+        with mock.patch.object(installer.time, "sleep"):
+            installer.disable(installer.CommandHost(fake))
+
+        self.assertEqual(fake.pending_prints, 0)
+
+    def test_disable_reports_service_that_remains_loaded(self) -> None:
+        class StuckBootoutMac(ProductInstallMac):
+            def __call__(
+                self, command: list[str], **kwargs: object
+            ) -> subprocess.CompletedProcess[str]:
+                if command[:3] == ["/usr/bin/sudo", "/bin/launchctl", "print"]:
+                    self.commands.append(command)
+                    return subprocess.CompletedProcess(command, 0, "pid = 123\n", "")
+                return super().__call__(command, **kwargs)
+
+        with mock.patch.object(installer.time, "sleep"):
+            with self.assertRaisesRegex(installer.InstallError, "service remains loaded"):
+                installer.disable(installer.CommandHost(StuckBootoutMac()))
 
     def test_uninstall_preview_names_every_fixed_target(self) -> None:
         output = io.StringIO()

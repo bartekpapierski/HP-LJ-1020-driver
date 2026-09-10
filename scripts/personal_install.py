@@ -25,6 +25,7 @@ BUILT_PROVIDER = ROOT / "build" / "hplj1020"
 STAGED_APP = ROOT / "build" / "personal-install" / "HP-LJ-1020.app"
 APP_TEMPLATE = ROOT / "packaging" / "HP-LJ-1020.app"
 PLIST_SOURCE = APP_TEMPLATE / "Contents" / "Library" / "LaunchDaemons" / "com.bartekpapierski.hplj1020.service.plist"
+PERSONAL_ENTITLEMENTS = ROOT / "packaging" / "personal-use.entitlements.plist"
 AUDIT_LOG = ROOT / "build" / "personal-install" / "audit.jsonl"
 
 SERVICE_USER = "_hplj1020"
@@ -251,8 +252,16 @@ def stage_and_sign(host: CommandHost) -> None:
     nested_libraries = bundle_non_system_libraries(host, executable)
     for library in nested_libraries:
         host.run(["/usr/bin/codesign", "--force", "--sign", "-", "--options", "runtime", "--timestamp=none", str(library)])
-    host.run(["/usr/bin/codesign", "--force", "--sign", "-", "--options", "runtime", "--timestamp=none", str(executable)])
-    host.run(["/usr/bin/codesign", "--force", "--sign", "-", "--options", "runtime", "--timestamp=none", str(STAGED_APP)])
+    host.run([
+        "/usr/bin/codesign", "--force", "--sign", "-", "--options", "runtime",
+        "--timestamp=none", "--entitlements", str(PERSONAL_ENTITLEMENTS),
+        str(executable),
+    ])
+    host.run([
+        "/usr/bin/codesign", "--force", "--sign", "-", "--options", "runtime",
+        "--timestamp=none", "--entitlements", str(PERSONAL_ENTITLEMENTS),
+        str(STAGED_APP),
+    ])
     host.run(["/usr/bin/codesign", "--verify", "--strict", "--deep", str(STAGED_APP)])
 
 
@@ -503,7 +512,7 @@ def validate_queue_ownership(host: CommandHost) -> bool:
     return bool(matches)
 
 
-def wait_ready(host: CommandHost) -> None:
+def wait_ready(host: CommandHost, *, require_queue: bool = True) -> None:
     expected_uid = host.run(["/usr/bin/id", "-u", SERVICE_USER]).stdout.strip()
     last = "launchd job did not reach the provider"
     for _ in range(60):
@@ -524,6 +533,8 @@ def wait_ready(host: CommandHost) -> None:
             has_v6 = "[::1]:8631" in listeners
             foreign = any("TCP" in line and "8631" in line and "127.0.0.1:8631" not in line and "[::1]:8631" not in line for line in listeners.splitlines())
             if observed_uid == expected_uid and provider_uid == expected_uid and has_v4 and has_v6 and not foreign:
+                if not require_queue:
+                    return
                 queue = host.run(["/usr/bin/lpstat", "-p", QUEUE], check=False)
                 devices = host.run(["/usr/bin/lpstat", "-v"], check=False)
                 queue_enabled = queue.returncode == 0 and "enabled" in queue.stdout.lower() and "disabled" not in queue.stdout.lower()
@@ -555,8 +566,13 @@ def disable(host: CommandHost) -> None:
     if override.returncode != 0:
         failures.append("service disable override failed")
     host.admin("/bin/launchctl", "bootout", f"system/{SERVICE_LABEL}", check=False)
-    loaded = host.admin("/bin/launchctl", "print", f"system/{SERVICE_LABEL}", check=False)
-    if loaded.returncode == 0:
+    for attempt in range(50):
+        loaded = host.admin("/bin/launchctl", "print", f"system/{SERVICE_LABEL}", check=False)
+        if loaded.returncode != 0:
+            break
+        if attempt < 49:
+            time.sleep(0.1)
+    else:
         failures.append(f"service remains loaded: {SERVICE_LABEL}")
     tcp_listeners = host.admin(
         "/usr/sbin/lsof", "-nP", "-iTCP:8631", "-sTCP:LISTEN", check=False
@@ -569,7 +585,7 @@ def disable(host: CommandHost) -> None:
     if any(line.strip() and not line.startswith("COMMAND") for line in socket_listener.stdout.splitlines()):
         failures.append("product socket listener remains active")
     disabled = host.admin("/bin/launchctl", "print-disabled", "system", check=False)
-    if f'"{SERVICE_LABEL}" => true' not in disabled.stdout:
+    if not service_disable_override_present_in(disabled.stdout):
         failures.append(f"service disable override is missing: {SERVICE_LABEL}")
     if failures:
         raise InstallError("disable incomplete: " + ", ".join(failures))
@@ -579,6 +595,7 @@ def enable(host: CommandHost) -> None:
     host.admin("/bin/launchctl", "bootout", f"system/{SERVICE_LABEL}", check=False)
     host.admin("/bin/launchctl", "enable", f"system/{SERVICE_LABEL}")
     host.admin("/bin/launchctl", "bootstrap", "system", SERVICE_PLIST)
+    wait_ready(host, require_queue=False)
     reconcile_queue(host)
     host.admin("/usr/sbin/cupsenable", QUEUE)
     wait_ready(host)
@@ -602,6 +619,7 @@ def install(host: CommandHost) -> None:
         host.admin("/bin/launchctl", "bootout", f"system/{SERVICE_LABEL}", check=False)
         host.admin("/bin/launchctl", "enable", f"system/{SERVICE_LABEL}")
         host.admin("/bin/launchctl", "bootstrap", "system", SERVICE_PLIST)
+        wait_ready(host, require_queue=False)
         reconcile_queue(host)
         wait_ready(host)
     except InstallError:
@@ -762,7 +780,16 @@ def verify_clean_removal(host: CommandHost) -> None:
 
 def service_disable_override_present(host: CommandHost) -> bool:
     disabled = host.admin("/bin/launchctl", "print-disabled", "system", check=False)
-    return f'"{SERVICE_LABEL}" => true' in disabled.stdout
+    return service_disable_override_present_in(disabled.stdout)
+
+
+def service_disable_override_present_in(output: str) -> bool:
+    prefix = f'"{SERVICE_LABEL}" => '
+    return any(
+        line.strip().startswith(prefix)
+        and line.strip()[len(prefix):].rstrip(";") in {"true", "disabled"}
+        for line in output.splitlines()
+    )
 
 
 def find_removal_residue(

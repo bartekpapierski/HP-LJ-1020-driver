@@ -918,7 +918,8 @@ static bool hplj_driver(pappl_system_t *system, const char *driver_name,
                            ? PAPPL_PWG_RASTER_TYPE_BLACK_1
                            : PAPPL_PWG_RASTER_TYPE_BLACK_8;
   data->force_raster_type = data->raster_types;
-  data->color_supported = PAPPL_COLOR_MODE_BI_LEVEL;
+  data->color_supported =
+      PAPPL_COLOR_MODE_BI_LEVEL | PAPPL_COLOR_MODE_MONOCHROME;
   data->color_default = PAPPL_COLOR_MODE_BI_LEVEL;
   data->num_media = 2;
   data->media[0] = "iso_a4_210x297mm";

@@ -105,6 +105,14 @@ python3 scripts/update_capability_matrix.py
 Validation runs remain local under the ignored `validation/runs/` directory.
 Each passing run retains a sanitized log, output measurement, and result summary;
 mark the sealed manifest and all referenced evidence read-only before gating.
+Run the administrator-authorized reference Mac lifecycle workflow with:
+
+```sh
+./scripts/reference_lifecycle_validation.sh
+```
+
+The wizard creates a temporary hidden non-admin account for queue submission,
+removes it after the final absence audit, and retains only redacted evidence.
 Evaluate a run before making a milestone or support claim with:
 
 ```sh
