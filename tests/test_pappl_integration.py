@@ -13,6 +13,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import unittest
+from unittest import mock
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
@@ -85,7 +87,8 @@ def submit_raster(
 ) -> None:
     if test_file is None:
         test_file = Path("/usr/share/cups/ipptool/print-job-and-wait.test")
-    for _attempt in range(20):
+    deadline = time.monotonic() + 10
+    while True:
         result = subprocess.run(
             [
                 "/usr/bin/ipptool", "-t",
@@ -101,12 +104,58 @@ def submit_raster(
         )
         if result.returncode == 0:
             return
-        if "server-error-busy" not in result.stdout:
+        if "server-error-busy" not in result.stdout or time.monotonic() >= deadline:
             break
-        time.sleep(0.05)
+        time.sleep(max(0, min(0.05, deadline - time.monotonic())))
     raise AssertionError(
         f"raster submission failed: {result.stdout}\n{result.stderr}"
     )
+
+
+class RasterSubmissionChecks(unittest.TestCase):
+    def test_submission_waits_for_a_busy_printer_to_finish_its_current_job(self):
+        elapsed = 0.0
+
+        def sleep(seconds: float) -> None:
+            nonlocal elapsed
+            elapsed += seconds
+
+        def run(command, **kwargs):
+            busy = elapsed < 1.25
+            return subprocess.CompletedProcess(
+                command, 1 if busy else 0,
+                "server-error-busy (Currently printing another job.)" if busy else "successful-ok",
+                "",
+            )
+
+        with mock.patch.object(subprocess, "run", side_effect=run), \
+                mock.patch.object(time, "sleep", side_effect=sleep), \
+                mock.patch.object(time, "monotonic", side_effect=lambda: elapsed):
+            submit_raster("ipp://127.0.0.1:8631/ipp/print", Path("synthetic.pwg"))
+
+    def test_submission_fails_within_its_budget_if_the_printer_stays_busy(self):
+        elapsed = 0.0
+
+        def sleep(seconds: float) -> None:
+            nonlocal elapsed
+            elapsed += seconds
+            if elapsed > 11:
+                raise AssertionError("retry budget exceeded")
+
+        busy = subprocess.CompletedProcess([], 1, "server-error-busy", "")
+        with mock.patch.object(subprocess, "run", return_value=busy), \
+                mock.patch.object(time, "sleep", side_effect=sleep), \
+                mock.patch.object(time, "monotonic", side_effect=lambda: elapsed):
+            with self.assertRaisesRegex(AssertionError, "raster submission failed"):
+                submit_raster("ipp://127.0.0.1:8631/ipp/print", Path("synthetic.pwg"))
+        self.assertLessEqual(elapsed, 10.05)
+
+    def test_submission_does_not_retry_a_non_busy_protocol_failure(self):
+        failed = subprocess.CompletedProcess([], 1, "client-error-document-format-not-supported", "")
+        with mock.patch.object(subprocess, "run", return_value=failed), \
+                mock.patch.object(time, "sleep", side_effect=AssertionError("unexpected retry")):
+            with self.assertRaisesRegex(AssertionError, "raster submission failed"):
+                submit_raster("ipp://127.0.0.1:8631/ipp/print", Path("synthetic.pwg"))
 
 
 def submit_raster_without_wait(uri: str, raster: Path) -> None:

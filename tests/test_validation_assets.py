@@ -80,6 +80,10 @@ class CapabilityMatrixChecks(unittest.TestCase):
             "validation/fixtures/lifecycle-calibration.pdf",
             update_capability_matrix.SCOPE_PATHS["validation-tooling"],
         )
+        self.assertIn(
+            "tests/test_pappl_integration.py",
+            update_capability_matrix.SCOPE_PATHS["validation-tooling"],
+        )
 
     def test_repository_matrix_contains_every_non_deferred_scenario(self) -> None:
         known, required = gate.requirements_for_milestone(

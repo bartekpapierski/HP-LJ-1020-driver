@@ -54,6 +54,7 @@ SCOPE_PATHS = {
         "scripts/interrupt_lifecycle_validation.py",
         "scripts/update_capability_matrix.py",
         "scripts/validation_gate.py",
+        "tests/test_pappl_integration.py",
         "validation/fixtures/lifecycle-calibration.pdf",
     ),
 }
