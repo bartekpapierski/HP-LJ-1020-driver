@@ -15,10 +15,12 @@ supported user-supplied firmware. Import does not grant any right
 to redistribute the firmware. The imported firmware remains local to the
 reference Mac and complete uninstall removes it and its metadata.
 
-The production allow-list is intentionally empty until an exact firmware hash
-and version/build identifier are accepted from reference-printer evidence. Host
-tests exercise the import policy with synthetic bytes through a separate test
-seam; they cannot enable production firmware import.
+The production allow-list currently contains one provisional exact image from
+HP's HPLIP 3.26.4 plug-in, with its expected printer-reported version. It is
+not a support claim until reference-printer validation passes. Host tests use
+synthetic bytes through a separate test seam; no firmware is in this repository
+or in release artifacts. Import requires the user's own lawful acquisition and
+explicit acceptance of HP's separate terms.
 
 Support claims apply only to the reference printer, macOS version, and
 connection path verified under the validation contract. This repository does
@@ -91,6 +93,27 @@ audits their absence. Failed operations leave the service disabled and report
 the exact failed command or remaining artifacts. The local structured audit is
 written under `build/personal-install/audit.jsonl`; it contains operation and
 command metadata, never print or firmware contents.
+
+### Importing user-supplied firmware
+
+Read and accept the firmware's applicable HP terms before importing. The
+command displays the ownership and redistribution disclosure before reading
+input; `--affirm-lawful-acquisition` records your affirmation, not a new license.
+It accepts only the exact supported image and does not download firmware.
+With a personal-use installation present, import a lawfully acquired local
+file as the service account (the invoking shell opens the source file):
+
+```sh
+cd /private/tmp
+sudo -u _hplj1020 "/Library/Application Support/HP-LJ-1020/HP-LJ-1020.app/Contents/MacOS/hplj1020" \
+  --import-firmware --firmware "/Library/Application Support/HP-LJ-1020/firmware" \
+  --source "HP HPLIP 3.26.4; locally acquired under accepted HP terms" \
+  --affirm-lawful-acquisition < /absolute/path/to/your/firmware
+```
+
+Do not commit the source file or private imported copy. After a printer power
+cycle, bootstrap allows 10 seconds before firmware upload and another 10 seconds
+before querying activation. Already-loaded matching firmware is not uploaded again.
 
 ## Validation artifacts
 

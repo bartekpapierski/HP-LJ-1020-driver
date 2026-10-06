@@ -163,6 +163,9 @@ class PersonalInstallTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("for attempt in 1 2 3", supervisor)
         self.assertIn("CRASH_MARKER", supervisor)
+        self.assertIn(
+            f'--firmware "{installer.INSTALL_ROOT}/firmware"', supervisor
+        )
         self.assertNotIn("sudo", supervisor)
         self.assertNotIn("sudo", " ".join(service["ProgramArguments"]))
         self.assertFalse(any("helper" in argument.lower() for argument in service["ProgramArguments"]))
@@ -320,6 +323,38 @@ class PersonalInstallTests(unittest.TestCase):
 
         self.assertEqual(result, 0, output.getvalue())
         self.assertIn("state=clean", output.getvalue())
+
+    def test_enable_restores_missing_runtime_directories_before_bootstrap(self) -> None:
+        class MissingRuntimePathsMac(ProductInstallMac):
+            def __init__(self) -> None:
+                super().__init__()
+                self.missing_paths = {
+                    f"{installer.INSTALL_ROOT}/run", installer.LOG_ROOT
+                }
+
+            def __call__(
+                self, command: list[str], **kwargs: object
+            ) -> subprocess.CompletedProcess[str]:
+                if command[:3] == ["/usr/bin/sudo", "/usr/bin/install", "-d"]:
+                    self.missing_paths.discard(command[-1])
+                if (command[:3] == ["/usr/bin/sudo", "/bin/launchctl", "bootstrap"]
+                        and self.missing_paths):
+                    self.commands.append(command)
+                    return subprocess.CompletedProcess(
+                        command, 1, "", "missing service runtime directories"
+                    )
+                return super().__call__(command, **kwargs)
+
+        fake = MissingRuntimePathsMac()
+        output = io.StringIO()
+
+        result = installer.main(
+            ["enable", "--apply", "--yes"], runner=fake, stdout=output
+        )
+
+        self.assertEqual(result, 0, output.getvalue())
+        self.assertFalse(fake.missing_paths)
+        self.assertIn("state=enabled", output.getvalue())
 
     def test_disable_waits_for_launchd_bootout_to_finish(self) -> None:
         class SlowBootoutMac(ProductInstallMac):

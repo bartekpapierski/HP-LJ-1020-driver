@@ -177,6 +177,10 @@ if(BUILD_TESTING)
     COMMAND ${Python3_EXECUTABLE} -m unittest tests.test_personal_install)
   set_tests_properties(hplj1020-personal-install PROPERTIES
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  add_test(NAME hplj1020-firmware-import-cli
+    COMMAND ${Python3_EXECUTABLE} -m unittest tests.test_firmware_import_cli)
+  set_tests_properties(hplj1020-firmware-import-cli PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
   add_test(NAME hplj1020-version COMMAND hplj1020 --version)
   set_tests_properties(hplj1020-version PROPERTIES
     PASS_REGULAR_EXPRESSION "hplj1020 0\\.1\\.0")

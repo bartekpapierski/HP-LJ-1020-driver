@@ -5,6 +5,16 @@
 #include <limits.h>
 #include <string.h>
 
+/* HP HPLIP 3.26.4 LaserJet 1020 member; provisional until printer validation. */
+static const struct hplj_firmware_allowlist_entry production_allowlist[] = {{
+    .sha256 = {0x9a, 0x6d, 0x03, 0xc8, 0x58, 0xd9, 0xcf, 0x64,
+               0xba, 0x86, 0xfd, 0xbe, 0x6c, 0xf0, 0xbe, 0xec,
+               0x12, 0x97, 0xd2, 0xe4, 0x5e, 0x60, 0x61, 0x62,
+               0xb1, 0x9f, 0x38, 0x57, 0xef, 0xae, 0x4f, 0xf4},
+    .byte_count = 128999,
+    .version_build = "20080222",
+}};
+
 static bool hplj_metadata_text_is_valid(const char *text, size_t maximum_length) {
   if (text == NULL) {
     return false;
@@ -62,10 +72,32 @@ bool hplj_firmware_digest_matches(const unsigned char *contents,
 bool hplj_firmware_is_production_allowlisted(const unsigned char *contents,
                                              size_t byte_count,
                                              const char *version_build) {
-  (void)contents;
-  (void)byte_count;
-  (void)version_build;
-  /* Remains fail-closed until reference-printer evidence admits an exact hash. */
+  if (contents == NULL || byte_count == 0 || byte_count > UINT_MAX) {
+    return false;
+  }
+  unsigned char digest[HPLJ_SHA256_SIZE];
+  CC_SHA256(contents, (CC_LONG)byte_count, digest);
+  return hplj_firmware_production_digest_allowed(digest, byte_count,
+                                                  version_build);
+}
+
+bool hplj_firmware_production_digest_allowed(
+    const unsigned char digest[HPLJ_SHA256_SIZE], size_t byte_count,
+    const char *version_build) {
+  if (digest == NULL || version_build == NULL) {
+    return false;
+  }
+  for (size_t index = 0;
+       index < sizeof(production_allowlist) / sizeof(production_allowlist[0]);
+       index++) {
+    const struct hplj_firmware_allowlist_entry *entry =
+        &production_allowlist[index];
+    if (entry->byte_count == byte_count &&
+        strcmp(entry->version_build, version_build) == 0 &&
+        memcmp(entry->sha256, digest, sizeof(entry->sha256)) == 0) {
+      return true;
+    }
+  }
   return false;
 }
 
@@ -158,13 +190,9 @@ static struct hplj_firmware_result hplj_firmware_import_with_policy(
 struct hplj_firmware_result hplj_firmware_import(
     const struct hplj_firmware_import_request *request,
     const struct hplj_firmware_store *store) {
-  struct hplj_firmware_result validation = hplj_firmware_validate_request(request, store);
-  if (validation.error.category != HPLJ_ERROR_NONE) {
-    return validation;
-  }
-  return hplj_firmware_failure(
-      HPLJ_ERROR_FIRMWARE_UNSUPPORTED, HPLJ_ACTION_SELECT_SUPPORTED_FIRMWARE,
-      "no production firmware is allow-listed without accepted reference-printer evidence");
+  return hplj_firmware_import_with_policy(
+      request, production_allowlist,
+      sizeof(production_allowlist) / sizeof(production_allowlist[0]), store);
 }
 
 struct hplj_firmware_result hplj_firmware_import_synthetic_host_fixture(

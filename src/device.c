@@ -272,6 +272,10 @@ struct hplj_device_result hplj_device_bootstrap_firmware(
     }
 
     if (!upload_completed) {
+      /* USB enumeration precedes the reference printer's firmware-ready state. */
+      if (device->ops.wait_milliseconds != NULL) {
+        device->ops.wait_milliseconds(device->ops.context, 10000U);
+      }
       enum hplj_error_category upload_error =
           device->ops.upload_firmware(device->ops.context, firmware, firmware_size);
       if (upload_error != HPLJ_ERROR_NONE) {
@@ -280,6 +284,10 @@ struct hplj_device_result hplj_device_bootstrap_firmware(
         continue;
       }
       upload_completed = true;
+      /* The reference printer needs time to boot before control requests work. */
+      if (device->ops.wait_milliseconds != NULL) {
+        device->ops.wait_milliseconds(device->ops.context, 10000U);
+      }
     }
     struct hplj_device_result verified = hplj_verify_post_upload(
         device, expected_firmware_version, attempt);

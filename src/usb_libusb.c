@@ -3,12 +3,14 @@
 
 #include <libusb.h>
 
+#include <errno.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #define HPLJ_USB_TIMEOUT_MS 5000U
 #define HPLJ_IEEE1284_REQUEST 0U
@@ -244,6 +246,16 @@ static struct hplj_transfer_result hplj_libusb_write(
   return hplj_libusb_bulk_write(context, bytes, byte_count);
 }
 
+static void hplj_libusb_wait(void *context, unsigned int milliseconds) {
+  (void)context;
+  struct timespec remaining = {
+      .tv_sec = milliseconds / 1000U,
+      .tv_nsec = (long)(milliseconds % 1000U) * 1000000L,
+  };
+  while (nanosleep(&remaining, &remaining) != 0 && errno == EINTR) {
+  }
+}
+
 static enum hplj_error_category hplj_libusb_status(
     void *context, unsigned int *conditions) {
   struct hplj_libusb_transport *transport = context;
@@ -309,6 +321,7 @@ void hplj_libusb_device_ops(struct hplj_libusb_transport *transport,
       .claim_interface = hplj_libusb_claim,
       .read_identity = hplj_libusb_identity,
       .upload_firmware = hplj_libusb_upload,
+      .wait_milliseconds = hplj_libusb_wait,
       .write = hplj_libusb_write,
       .read_status = hplj_libusb_status,
       .release = hplj_libusb_release,

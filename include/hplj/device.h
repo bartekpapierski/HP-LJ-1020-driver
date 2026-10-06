@@ -58,6 +58,8 @@ struct hplj_device_ops {
   enum hplj_error_category (*upload_firmware)(void *context,
                                               const unsigned char *firmware,
                                               size_t firmware_size);
+  /* Optional for synchronous transports; hardware waits for startup and activation. */
+  void (*wait_milliseconds)(void *context, unsigned int milliseconds);
   struct hplj_transfer_result (*write)(void *context, const unsigned char *bytes,
                                        size_t byte_count);
   enum hplj_error_category (*read_status)(void *context,

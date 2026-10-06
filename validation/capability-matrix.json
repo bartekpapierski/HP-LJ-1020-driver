@@ -6,7 +6,7 @@
     "build-inputs": "b24d3ec70e0f897be50f5a109641e9f423905f7cd8fe25f3498b949c0818bf92",
     "golden-corpus": "031eb7c2a6271d55789733b5ad20f7cacb7abc79c072fafc285055828fef911a",
     "implementation-contract": "023d62deb58abd365734c621767f7a35c324e91a07607c3a17f7b7e16afe44ba",
-    "product-source": "b9db55119434bf99a9027ccd8b75688ab97dc6f1ff69d464ea1d114d7d2e2e48",
+    "product-source": "4a94b6cb0123ac5d031c288ee034c3634aa92c8b508102d546d91ff805ea075d",
     "validation-tooling": "317deae4c759326b2bb31821f4617306cf3cf52499962e2a51eeaca003494532"
   },
   "scenarios": [

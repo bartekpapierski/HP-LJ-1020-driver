@@ -109,6 +109,7 @@ PREVIEWS = {
         "preserve configuration, state, spool, firmware, cache, and logs",
     ),
     "enable": (
+        "restore private directories and missing log files",
         "enable and bootstrap LaunchDaemon com.bartekpapierski.hplj1020.service",
         "wait for final service UID and loopback listeners",
         "enable and verify queue HP_LaserJet_1020",
@@ -593,6 +594,7 @@ def disable(host: CommandHost) -> None:
 
 def enable(host: CommandHost) -> None:
     host.admin("/bin/launchctl", "bootout", f"system/{SERVICE_LABEL}", check=False)
+    install_paths(host)
     host.admin("/bin/launchctl", "enable", f"system/{SERVICE_LABEL}")
     host.admin("/bin/launchctl", "bootstrap", "system", SERVICE_PLIST)
     wait_ready(host, require_queue=False)

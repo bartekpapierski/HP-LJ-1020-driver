@@ -277,6 +277,20 @@ static void test_stored_firmware_digest_is_checked_before_use(void) {
       "synthetic-reference-build"));
 }
 
+static void test_production_allowlist_pins_exact_digest_size_and_version(void) {
+  unsigned char digest[HPLJ_SHA256_SIZE] = {
+      0x9a, 0x6d, 0x03, 0xc8, 0x58, 0xd9, 0xcf, 0x64,
+      0xba, 0x86, 0xfd, 0xbe, 0x6c, 0xf0, 0xbe, 0xec,
+      0x12, 0x97, 0xd2, 0xe4, 0x5e, 0x60, 0x61, 0x62,
+      0xb1, 0x9f, 0x38, 0x57, 0xef, 0xae, 0x4f, 0xf4};
+  assert(hplj_firmware_production_digest_allowed(digest, 128999, "20080222"));
+  assert(!hplj_firmware_production_digest_allowed(digest, 128999, "20050309"));
+  assert(!hplj_firmware_production_digest_allowed(digest, 128998, "20080222"));
+  assert(!hplj_firmware_production_digest_allowed(digest, 128999, "unknown"));
+  digest[0] ^= 1U;
+  assert(!hplj_firmware_production_digest_allowed(digest, 128999, "20080222"));
+}
+
 int main(void) {
   test_supported_firmware_is_committed_with_local_metadata();
   test_import_requires_affirmation_after_presenting_separate_terms();
@@ -286,5 +300,6 @@ int main(void) {
   test_storage_and_removal_failures_never_report_success();
   test_local_store_atomically_persists_private_data_and_removes_it();
   test_stored_firmware_digest_is_checked_before_use();
+  test_production_allowlist_pins_exact_digest_size_and_version();
   return 0;
 }

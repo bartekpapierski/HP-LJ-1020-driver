@@ -29,7 +29,7 @@ for attempt in 1 2 3; do
     --log "/Library/Logs/HP-LJ-1020/service.log" \
     --socket "$RUN_ROOT/service.sock" \
     --device-uri "usb://HP/LaserJet%201020" \
-    --firmware "/Library/Application Support/HP-LJ-1020/firmware/sihp1020.dl" &
+    --firmware "/Library/Application Support/HP-LJ-1020/firmware" &
   CHILD_PID=$!
   wait "$CHILD_PID"
   status=$?

@@ -27,6 +27,11 @@ struct fake_usb {
   unsigned int claims;
   unsigned int releases;
   unsigned int uploads;
+  unsigned int activation_elapsed_ms;
+  unsigned int upload_completed_at_ms;
+  bool requires_activation_wait;
+  bool requires_startup_wait;
+  bool uploaded_too_early;
   unsigned int conditions;
   enum hplj_error_category status_error;
   enum hplj_error_category open_errors[8];
@@ -70,6 +75,13 @@ static enum hplj_error_category fake_identity(void *context, char *identity,
                                               size_t identity_size,
                                               size_t *identity_length) {
   struct fake_usb *usb = context;
+  if (usb->uploaded_too_early) {
+    return HPLJ_ERROR_DEVICE_TIMEOUT;
+  }
+  if (usb->requires_activation_wait && usb->uploads != 0 &&
+      usb->activation_elapsed_ms - usb->upload_completed_at_ms < 10000U) {
+    return HPLJ_ERROR_DEVICE_TIMEOUT;
+  }
   size_t index = usb->identity_index++;
   if (index < sizeof(usb->identity_errors) / sizeof(usb->identity_errors[0]) &&
       usb->identity_errors[index] != HPLJ_ERROR_NONE) {
@@ -92,11 +104,20 @@ static enum hplj_error_category fake_upload(void *context,
   struct fake_usb *usb = context;
   assert(firmware != NULL);
   assert(firmware_size > 0);
+  if (usb->requires_startup_wait && usb->activation_elapsed_ms < 10000U) {
+    usb->uploaded_too_early = true;
+  }
   usb->uploads++;
   if (usb->uploads <= usb->upload_error_count) {
     return usb->upload_errors[usb->uploads - 1];
   }
+  usb->upload_completed_at_ms = usb->activation_elapsed_ms;
   return HPLJ_ERROR_NONE;
+}
+
+static void fake_wait(void *context, unsigned int milliseconds) {
+  struct fake_usb *usb = context;
+  usb->activation_elapsed_ms += milliseconds;
 }
 
 static struct hplj_transfer_result fake_write(void *context,
@@ -131,6 +152,7 @@ static struct hplj_device make_device(struct fake_usb *usb) {
       .claim_interface = fake_claim,
       .read_identity = fake_identity,
       .upload_firmware = fake_upload,
+      .wait_milliseconds = fake_wait,
       .write = fake_write,
       .read_status = fake_status,
       .release = fake_release,
@@ -146,6 +168,42 @@ static struct fake_usb reference_usb(void) {
       .identities = {"MFG:HP;MDL:HP LaserJet 1020;"},
       .identity_count = 1,
   };
+}
+
+static void test_bootstrap_allows_reference_firmware_to_finish_booting(void) {
+  struct fake_usb usb = reference_usb();
+  usb.requires_activation_wait = true;
+  usb.identities[1] = "MFG:HP;MDL:HP LaserJet 1020;FWVER:20080222;";
+  usb.identity_count = 2;
+  struct hplj_device device = make_device(&usb);
+  const unsigned char firmware[] = {1, 2, 3};
+  assert(hplj_device_connect(&device).error.category == HPLJ_ERROR_NONE);
+  struct hplj_device_result result = hplj_device_bootstrap_firmware(
+      &device, firmware, sizeof(firmware), "20080222");
+  assert(result.error.category == HPLJ_ERROR_NONE);
+  assert(device.state == HPLJ_DEVICE_READY);
+  assert(usb.uploads == 1);
+  unsigned int elapsed = usb.activation_elapsed_ms;
+  assert(hplj_device_bootstrap_firmware(&device, firmware, sizeof(firmware),
+                                      "20080222").error.category == HPLJ_ERROR_NONE);
+  assert(usb.uploads == 1);
+  assert(usb.activation_elapsed_ms == elapsed);
+}
+
+static void test_bootstrap_waits_for_printer_startup_before_upload(void) {
+  struct fake_usb usb = reference_usb();
+  usb.requires_startup_wait = true;
+  usb.requires_activation_wait = true;
+  usb.identities[1] = "MFG:HP;MDL:HP LaserJet 1020;FWVER:20080222;";
+  usb.identity_count = 2;
+  struct hplj_device device = make_device(&usb);
+  const unsigned char firmware[] = {1, 2, 3};
+  assert(hplj_device_connect(&device).error.category == HPLJ_ERROR_NONE);
+  struct hplj_device_result result = hplj_device_bootstrap_firmware(
+      &device, firmware, sizeof(firmware), "20080222");
+  assert(result.error.category == HPLJ_ERROR_NONE);
+  assert(device.state == HPLJ_DEVICE_READY);
+  assert(usb.uploads == 1);
 }
 
 static void test_discovery_requires_exact_descriptor_and_identity(void) {
@@ -504,6 +562,7 @@ static void test_production_libusb_transport_binds_without_a_helper(void) {
   assert(ops.claim_interface != NULL);
   assert(ops.read_identity != NULL);
   assert(ops.upload_firmware != NULL);
+  assert(ops.wait_milliseconds != NULL);
   assert(ops.write != NULL);
   assert(ops.release != NULL);
   assert(ops.context == transport);
@@ -511,6 +570,8 @@ static void test_production_libusb_transport_binds_without_a_helper(void) {
 }
 
 int main(void) {
+  test_bootstrap_allows_reference_firmware_to_finish_booting();
+  test_bootstrap_waits_for_printer_startup_before_upload();
   test_discovery_requires_exact_descriptor_and_identity();
   test_firmware_is_idempotent_and_verifies_expected_version();
   test_activation_survives_usb_reenumeration();
