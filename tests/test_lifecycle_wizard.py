@@ -17,6 +17,26 @@ def functions_between(start: str, end: str) -> str:
 
 
 class LifecycleWizardChecks(unittest.TestCase):
+    def test_monitor_does_not_assign_pre_exec_root_credentials_to_service(self):
+        code = '''
+ps() {
+  if [[ "$*" == *ucomm* ]]; then
+    printf '%s\\n' "0 32013 1 xpcproxy /bin/bash $INSTALL_ROOT/HP-LJ-1020.app/Contents/Resources/hplj1020-service-supervisor"
+    printf '%s\\n' "499 32013 1 bash /bin/bash $INSTALL_ROOT/HP-LJ-1020.app/Contents/Resources/hplj1020-service-supervisor"
+  else
+    printf '%s\\n' "0 32013 1 /bin/bash $INSTALL_ROOT/HP-LJ-1020.app/Contents/Resources/hplj1020-service-supervisor"
+    printf '%s\\n' "499 32013 1 /bin/bash $INSTALL_ROOT/HP-LJ-1020.app/Contents/Resources/hplj1020-service-supervisor"
+  fi
+}
+'''
+        code += functions_between("product_process_rows", "product_processes_are_unprivileged")
+        code += "product_process_rows"
+        result = subprocess.run(
+            ["bash", "-c", code], check=True, capture_output=True, text=True,
+            env={**os.environ, "INSTALL_ROOT": "/Library/Application Support/HP-LJ-1020"},
+        )
+        self.assertEqual(result.stdout.splitlines(), ["499 32013 1 supervisor"])
+
     def test_failed_process_snapshot_is_not_reported_as_root_execution(self):
         with tempfile.TemporaryDirectory() as directory:
             code = '''
@@ -39,7 +59,7 @@ ps() { return 1; }
             code = '''
 set -euo pipefail
 ps() {
-  printf '%s\\n' "0 123 1 $INSTALL_ROOT/HP-LJ-1020.app/Contents/MacOS/hplj1020 --source private-secret"
+  printf '%s\\n' "0 123 1 hplj1020 $INSTALL_ROOT/HP-LJ-1020.app/Contents/MacOS/hplj1020 --source private-secret"
   return 1
 }
 '''
@@ -118,11 +138,12 @@ OBSERVED_PAGES=0
         provider = install + "/HP-LJ-1020.app/Contents/MacOS/hplj1020"
         supervisor = install + "/HP-LJ-1020.app/Contents/Resources/hplj1020-service-supervisor"
         rows = [
-            f"0 100 1 sudo -u _hplj1020 {provider} --import-firmware",
-            f"499 101 1 {provider} --serve",
-            f"499 102 1 /bin/bash {supervisor}",
-            f"0 103 1 {provider} --serve",
-            f"501 104 1 unrelated {provider}",
+            f"0 100 1 sudo sudo -u _hplj1020 {provider} --import-firmware",
+            f"499 101 1 hplj1020 {provider} --serve",
+            f"499 102 1 bash /bin/bash {supervisor}",
+            f"0 103 1 hplj1020 {provider} --serve",
+            f"501 104 1 unrelated unrelated {provider}",
+            f"0 105 1 bash /bin/bash {supervisor}",
         ]
         code = ('ps() { printf "%s\\n" "$PROCESS_ROWS"; }\n' +
                 functions_between("product_process_rows", "product_processes_are_unprivileged") +
@@ -133,6 +154,7 @@ OBSERVED_PAGES=0
         )
         self.assertEqual(result.stdout.splitlines(), [
             "499 101 1 provider", "499 102 1 supervisor", "0 103 1 provider",
+            "0 105 1 supervisor",
         ])
 
     def test_record_redacts_command_arguments_as_well_as_output(self):

@@ -451,17 +451,22 @@ remove_validation_account() {
 }
 
 product_process_rows() {
-  ps -axo uid=,pid=,ppid=,command= | awk \
+  # uid and ucomm share the kernel snapshot. command arguments are fetched
+  # later: a launchd child can exec between those reads, mixing pre-exec root
+  # credentials with the service's post-exec arguments.
+  ps -axo uid=,pid=,ppid=,ucomm=,command= | awk \
     -v provider="$INSTALL_ROOT/HP-LJ-1020.app/Contents/MacOS/hplj1020" \
     -v supervisor="$INSTALL_ROOT/HP-LJ-1020.app/Contents/Resources/hplj1020-service-supervisor" '
       {
         command=$0
-        sub(/^[[:space:]]*[0-9]+[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+/, "", command)
-        if (command == provider || index(command, provider " ") == 1) {
+        sub(/^[[:space:]]*[0-9]+[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+[^[:space:]]+[[:space:]]+/, "", command)
+        if ($4 == "hplj1020" &&
+            (command == provider || index(command, provider " ") == 1)) {
           print $1, $2, $3, "provider"
-        } else if (command == supervisor || index(command, supervisor " ") == 1 ||
+        } else if (($4 == "bash" || $4 == "sh") &&
+            (command == supervisor || index(command, supervisor " ") == 1 ||
             command == "/bin/bash " supervisor || command == "bash " supervisor ||
-            command == "/bin/sh " supervisor) {
+            command == "/bin/sh " supervisor)) {
           print $1, $2, $3, "supervisor"
         }
       }
