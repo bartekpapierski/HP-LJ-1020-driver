@@ -47,12 +47,14 @@ SCOPE_PATHS = {
         "docs/spec",
         "scripts/check_golden_corpus.py",
         "scripts/check_implementation_spec.py",
+        "scripts/create_lifecycle_test_page.py",
         "scripts/json_schema.py",
         "scripts/output_measurement.py",
         "scripts/reference_lifecycle_validation.sh",
         "scripts/interrupt_lifecycle_validation.py",
         "scripts/update_capability_matrix.py",
         "scripts/validation_gate.py",
+        "validation/fixtures/lifecycle-calibration.pdf",
     ),
 }
 

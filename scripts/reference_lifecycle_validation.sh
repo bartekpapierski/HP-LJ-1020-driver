@@ -205,13 +205,28 @@ SERVICE_LABEL="com.bartekpapierski.hplj1020.service"
 QUEUE="HP_LaserJet_1020"
 INSTALL_ROOT="/Library/Application Support/HP-LJ-1020"
 PLIST="/Library/LaunchDaemons/$SERVICE_LABEL.plist"
-EXPECTED_VERSION="26.6.2"
-EXPECTED_BUILD="25G83"
+EXPECTED_VERSION="26.7.1"
+EXPECTED_BUILD="25G241"
+FIRMWARE_SOURCE="/Library/Application Support/HP-LJ-1020/firmware/active/contents"
+FIRMWARE_SNAPSHOT=""
+RESTORE_PRINTING=1
+while (( $# )); do
+  case "$1" in
+    --firmware-source)
+      (( $# >= 2 )) || { printf 'Missing firmware source argument\n' >&2; exit 2; }
+      FIRMWARE_SOURCE="$2"
+      shift 2
+      ;;
+    --leave-uninstalled) RESTORE_PRINTING=0; shift ;;
+    *) printf 'Unknown lifecycle option\n' >&2; exit 2 ;;
+  esac
+done
 SOURCE_COMMIT=""
 LOCK_SHA=$(shasum -a 256 "$ROOT/dependencies.lock.json" | awk '{print $1}')
 PRINTER_SERIAL_SHA=""
 SOURCE_COMMIT=$(git -C "$ROOT" rev-parse HEAD)
-SOURCE_DOCUMENT_SHA=$(shasum -a 256 /usr/share/cups/data/testprint | awk '{print $1}')
+TEST_PAGE="$ROOT/validation/fixtures/lifecycle-calibration.pdf"
+SOURCE_DOCUMENT_SHA=$(shasum -a 256 "$TEST_PAGE" | awk '{print $1}')
 UNRELATED_BEFORE=""
 CUPSD_SHA_BEFORE=""
 CUPS_CONFIG_SHA_BEFORE=""
@@ -222,6 +237,8 @@ STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 PRIVILEGE_MONITOR_PID=""
 SEALED=0
 VALIDATION_ACCOUNT_OWNED=0
+VALIDATION_GROUP_CREATED=0
+VALIDATION_USER_CREATED=0
 ERROR_LINE=unknown
 DOCK_LOCATION=""
 SCALE_ERROR_PERCENT=0
@@ -249,7 +266,7 @@ sanitize() {
 }
 
 record() {
-  printf '[%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" | tee -a "$LOG"
+  printf '[%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" | sanitize | tee -a "$LOG"
 }
 
 run_recorded() {
@@ -310,11 +327,7 @@ stop_privilege_monitor() {
 start_privilege_monitor() {
   (
     while true; do
-      if ps -axo uid=,command= | awk '
-        /[h]plj1020-service-supervisor|[H]P-LJ-1020.app\/Contents\/MacOS\/hplj1020/ {
-          if ($1 == 0) exit 1
-        }
-      '; then
+      if product_process_rows | awk '$1 == 0 {exit 1}'; then
         :
       else
         printf 'root product process observed at %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -335,6 +348,10 @@ on_exit() {
       remove_validation_account || record "temporary validation account cleanup incomplete"
     fi
     seal_run failed "unexpected wizard exit at line $ERROR_LINE" || true
+  fi
+  if [[ -n "$FIRMWARE_SNAPSHOT" ]]; then
+    warn "Private firmware recovery copy retained outside the evidence bundle: $FIRMWARE_SNAPSHOT/contents"
+    warn "Do not upload that file. A retry can use --firmware-source with that private file."
   fi
 }
 
@@ -375,11 +392,17 @@ create_validation_account() {
     VALIDATION_ACCOUNT_OWNED=1
     return
   fi
+  if dscacheutil -q group -a name "$TEST_USER" | grep -q '^name:'; then
+    fail "refusing colliding validation group without matching account"
+  fi
   account_id=$(next_validation_id) || fail "no free validation account ID"
   sudo dscl . -create "/Groups/$TEST_USER"
+  VALIDATION_GROUP_CREATED=1
+  VALIDATION_ACCOUNT_OWNED=1
   sudo dscl . -create "/Groups/$TEST_USER" PrimaryGroupID "$account_id"
   sudo dscl . -create "/Groups/$TEST_USER" Password '*'
   sudo dscl . -create "/Users/$TEST_USER"
+  VALIDATION_USER_CREATED=1
   sudo dscl . -create "/Users/$TEST_USER" UniqueID "$account_id"
   sudo dscl . -create "/Users/$TEST_USER" PrimaryGroupID "$account_id"
   sudo dscl . -create "/Users/$TEST_USER" RealName "$TEST_REAL_NAME"
@@ -395,22 +418,43 @@ create_validation_account() {
 }
 
 remove_validation_account() {
-  if id "$TEST_USER" >/dev/null 2>&1; then
-    account_matches || return 1
+  (( VALIDATION_ACCOUNT_OWNED )) || return 0
+  if (( VALIDATION_USER_CREATED )) || id "$TEST_USER" >/dev/null 2>&1; then
+    if (( ! VALIDATION_USER_CREATED )); then
+      account_matches || return 1
+    fi
     sudo dscl . -delete "/Users/$TEST_USER"
+    VALIDATION_USER_CREATED=0
   fi
-  if dscacheutil -q group -a name "$TEST_USER" | grep -q '^name:'; then
+  if (( VALIDATION_GROUP_CREATED )) || dscacheutil -q group -a name "$TEST_USER" | grep -q '^name:'; then
     sudo dscl . -delete "/Groups/$TEST_USER"
+    VALIDATION_GROUP_CREATED=0
   fi
+  VALIDATION_ACCOUNT_OWNED=0
   record "temporary validation account removed"
+}
+
+product_process_rows() {
+  ps -axo uid=,command= | awk \
+    -v provider="$INSTALL_ROOT/HP-LJ-1020.app/Contents/MacOS/hplj1020" \
+    -v supervisor="$INSTALL_ROOT/HP-LJ-1020.app/Contents/Resources/hplj1020-service-supervisor" '
+      {
+        command=$0
+        sub(/^[[:space:]]*[0-9]+[[:space:]]+/, "", command)
+        if (command == provider || index(command, provider " ") == 1 ||
+            command == supervisor || index(command, supervisor " ") == 1 ||
+            command == "/bin/bash " supervisor || command == "bash " supervisor ||
+            command == "/bin/sh " supervisor) print
+      }
+    '
 }
 
 product_processes_are_unprivileged() {
   local rows
-  rows=$(ps -axo user=,uid=,command= | awk '/[h]plj1020-service-supervisor|[H]P-LJ-1020.app\/Contents\/MacOS\/hplj1020/ {print}')
+  rows=$(product_process_rows)
   [[ -n "$rows" ]] || return 1
-  if awk '$2 == 0 {exit 1}' <<<"$rows"; then
-    awk '{printf "observed_product_process_uid=%s\n", $2}' <<<"$rows" | tee -a "$LOG"
+  if awk '$1 == 0 {exit 1}' <<<"$rows"; then
+    awk '{printf "observed_product_process_uid=%s\n", $1}' <<<"$rows" | tee -a "$LOG"
     return 0
   fi
   return 1
@@ -438,18 +482,52 @@ verify_installed_boundaries() {
 
 submit_non_admin_job() {
   local result
-  result=$(sudo -u "$TEST_USER" env HOME=/var/empty \
-    lp -d "$QUEUE" /usr/share/cups/data/testprint 2>&1) || fail "non-admin queue submission failed"
+  # The invoking account opens the public fixture; lp runs non-admin outside
+  # the private home directory and receives only its bytes, without a filename.
+  result=$(
+    cd /private/tmp
+    sudo -u "$TEST_USER" env HOME=/var/empty \
+      lp -d "$QUEUE" -o media=iso_a4_210x297mm -o print-scaling=none < "$TEST_PAGE" 2>&1
+  ) || fail "non-admin queue submission failed"
   printf '%s\n' "$result" | sanitize | tee -a "$LOG"
-  if ! confirm "Did the reference printer produce the expected CUPS test page?"; then
+  if ! confirm "Did exactly one A4 calibration page emerge? Keep it for ruler measurements at the end."; then
     fail "physical print observation failed"
   fi
   OBSERVED_PAGES=$((OBSERVED_PAGES + 1))
   record "non-admin submission and physical output observed as passed"
 }
 
+preserve_private_firmware() {
+  sudo /bin/test -f "$FIRMWARE_SOURCE" &&
+    sudo /bin/test ! -L "$FIRMWARE_SOURCE" || fail "private firmware source is unavailable"
+  [[ "$(sudo stat -f %z "$FIRMWARE_SOURCE")" == 128999 ]] || fail "private firmware source size is not supported"
+  FIRMWARE_SNAPSHOT=$(mktemp -d /private/tmp/hplj1020-lifecycle-firmware.XXXXXX)
+  chmod 700 "$FIRMWARE_SNAPSHOT"
+  sudo /usr/bin/install -o "$(id -u)" -g "$(id -g)" -m 600 \
+    "$FIRMWARE_SOURCE" "$FIRMWARE_SNAPSHOT/contents"
+  [[ "$(shasum -a 256 "$FIRMWARE_SNAPSHOT/contents" | awk '{print $1}')" == \
+     9a6d03c858d9cf64ba86fdbe6cf0beec1297d2e45e606162b19f3857efae4ff4 ]] ||
+    fail "private firmware source is not the supported exact image"
+  record "supported firmware preserved in isolated private recovery storage; no payload retained in evidence"
+}
+
+import_private_firmware() {
+  (
+    cd /private/tmp
+    sudo -u _hplj1020 "$INSTALL_ROOT/HP-LJ-1020.app/Contents/MacOS/hplj1020" \
+      --import-firmware --firmware "$INSTALL_ROOT/firmware" \
+      --source "HP HPLIP 3.26.4; previously accepted private local copy" \
+      --affirm-lawful-acquisition < "$FIRMWARE_SNAPSHOT/contents"
+  )
+}
+
 install_product() {
+  if [[ -e "$INSTALL_ROOT" || -e "$PLIST" ]]; then
+    run_recorded python3 "$INSTALLER" disable --apply --yes || fail "pre-build service pause failed"
+  fi
   run_recorded python3 "$INSTALLER" install --apply --yes || fail "install failed"
+  import_private_firmware 2>&1 | sanitize | tee -a "$LOG" || fail "private firmware re-import failed"
+  record "supported private firmware re-imported after installation"
   if [[ "$DEPLOYMENT_TARGET" == unavailable ]]; then
     ARTIFACT_SHA=$(shasum -a 256 "$ROOT/build/hplj1020" | awk '{print $1}')
     BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -509,6 +587,7 @@ PRINTER_SERIAL_SHA=$(printf '%s' "$USB_ROW" | shasum -a 256 | awk '{print $1}')
 DOCK_LOCATION=$(awk -F'= ' '/"locationID"/{print $2; exit}' <<<"$USB_RECORD")
 record "environment macOS=$EXPECTED_VERSION build=$EXPECTED_BUILD architecture=arm64 sourceCommit=$SOURCE_COMMIT dependencyLockSha256=$LOCK_SHA printer=HP-LaserJet-1020 vendorProduct=03f0:2b17 serialSha256=$PRINTER_SERIAL_SHA"
 sudo -v
+preserve_private_firmware
 create_validation_account
 start_privilege_monitor
 
@@ -536,8 +615,7 @@ record "disable/reactivate lifecycle passed"
 
 stage "Recover interrupted and partial states"
 sudo lpadmin -x "$QUEUE"
-run_recorded python3 "$INSTALLER" install --apply --yes || fail "queue partial-state recovery failed"
-verify_installed_boundaries
+install_product
 set +e
 run_recorded python3 "$INTERRUPTER"
 INTERRUPTED_STATUS=$?
@@ -545,8 +623,7 @@ set -e
 [[ "$INTERRUPTED_STATUS" == 130 ]] || fail "uninstall did not stop at its queue-removal interruption point"
 [[ -e "$INSTALL_ROOT" ]] || fail "interrupted uninstall did not retain the expected partial product state"
 record "uninstall process intentionally interrupted after queue removal"
-run_recorded python3 "$INSTALLER" install --apply --yes || fail "reinstall after interrupted uninstall failed"
-verify_installed_boundaries
+install_product
 record "queue-loss partial state and interrupted uninstall converged"
 
 stage "Complete lifecycle cycle one"
@@ -588,6 +665,9 @@ stage "Seal the redacted evidence"
 stop_privilege_monitor
 [[ ! -e "$EVIDENCE_ROOT/privilege-violation.txt" ]] || fail "a product process ran as root"
 say "Inspect all four retained test pages. Enter measured maxima; do not enter notes, filenames, or identities."
+say "Measure the 100 mm ruler between end ticks on every page. Scale error percent = absolute(measured millimeters - 100)."
+say "Each cross center is 20 mm from both nearest paper edges. Position error = absolute(measured millimeters - 20); check both edges at all four crosses."
+say "Enter the largest error across all four pages for each measurement."
 if ! confirm "Do all four pages have correct count/order, no blank/partial/duplicate pages, correct orientation/media, readable fine patterns, and no clipping/corruption/density discontinuity?"; then
   fail "physical output inspection failed"
 fi
@@ -600,4 +680,13 @@ awk -v value="$MAXIMUM_FIDUCIAL_DISPLACEMENT_MM" 'BEGIN {exit !(value <= 2)}' ||
 remove_validation_account || fail "temporary validation account cleanup failed"
 seal_run passed "all lifecycle stages and three repeated cycles passed without unexplained intermittent failure"
 note "Immutable evidence: $EVIDENCE_ROOT"
+if (( RESTORE_PRINTING )); then
+  say "Evidence is sealed. Restoring the working personal-use installation outside the validation run."
+  python3 "$INSTALLER" install --apply --yes
+  import_private_firmware
+fi
+# Remove only this run's validated temporary copy; imported firmware stays private.
+rm "$FIRMWARE_SNAPSHOT/contents"
+rmdir "$FIRMWARE_SNAPSHOT"
+FIRMWARE_SNAPSHOT=""
 finish

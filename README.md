@@ -136,6 +136,15 @@ Run the administrator-authorized reference Mac lifecycle workflow with:
 
 The wizard creates a temporary hidden non-admin account for queue submission,
 removes it after the final absence audit, and retains only redacted evidence.
+It targets macOS 26.7.1 (25G241), preserves the previously accepted firmware in
+private temporary storage outside the repository, and re-imports it between
+uninstall cycles. Four A4 calibration pages require physical confirmation and
+ruler measurements. After sealing, it restores the working installation and
+removes its temporary firmware copy. On failure, that copy stays private for
+recovery; retry with `--firmware-source PATH` if the installed copy is gone.
+Use `--leave-uninstalled` only when restoration is unwanted. The synthetic PDF
+fixture is public; its development-only generator requires ReportLab, but the
+wizard does not.
 Evaluate a run before making a milestone or support claim with:
 
 ```sh
