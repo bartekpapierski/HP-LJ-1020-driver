@@ -130,15 +130,18 @@ def wait_for_printer_reason(uri: str, reason: str) -> None:
     while time.monotonic() < deadline:
         result = subprocess.run(
             [
-                "/usr/bin/ipptool", "-tv", uri,
+                "/usr/bin/ipptool", "-T", "2", "-tv", uri,
                 "/usr/share/cups/ipptool/get-printer-attributes.test",
             ],
             check=True,
             capture_output=True,
             text=True,
         )
-        if reason in result.stdout:
-            return
+        for line in result.stdout.splitlines():
+            if "printer-state-reasons (" in line and " = " in line:
+                values = line.split(" = ", 1)[1].split(",")
+                if reason in (value.strip() for value in values):
+                    return
         time.sleep(0.05)
     raise AssertionError(f"printer reason was not observed: {reason}")
 
@@ -317,6 +320,30 @@ def main() -> int:
     malformed_job = Path(sys.argv[5]).resolve()
     corpus = Path(sys.argv[6]).resolve()
     submit_test = Path(sys.argv[7]).resolve()
+    # The physical printer retains its firmware across service restarts. Local
+    # uninstall removes the image, so import can happen after a warm discovery.
+    with tempfile.TemporaryDirectory(prefix="hplj1020-warm-import-") as directory:
+        root = Path(directory)
+        (root / "device.conditions").write_text("firmware-present\n")
+        try:
+            process, port = start_service(executable, root)
+        except PermissionError:
+            return 77
+        try:
+            uri = f"ipp://127.0.0.1:{port}/ipp/print"
+            assert (root / "device").stat().st_size == 0
+            install_test_firmware(root)
+            wait_for_printer_reason(uri, "none")
+            raster = root / "after-warm-import.pwg"
+            subprocess.run([raster_maker, "pwg", raster], check=True)
+            submit_raster(uri, raster)
+            deadline = time.monotonic() + 10
+            while (root / "device").stat().st_size == 0 and time.monotonic() < deadline:
+                time.sleep(0.05)
+            assert (root / "device").stat().st_size > 0
+            assert "firmware-upload" not in (root / "device.trace").read_text().splitlines()
+        finally:
+            stop_service(process)
     with tempfile.TemporaryDirectory(prefix="hplj1020-pappl-") as directory:
         root = Path(directory)
         try:

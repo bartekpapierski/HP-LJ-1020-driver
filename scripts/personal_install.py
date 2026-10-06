@@ -575,16 +575,28 @@ def disable(host: CommandHost) -> None:
             time.sleep(0.1)
     else:
         failures.append(f"service remains loaded: {SERVICE_LABEL}")
-    tcp_listeners = host.admin(
-        "/usr/sbin/lsof", "-nP", "-iTCP:8631", "-sTCP:LISTEN", check=False
-    )
-    if any(line.strip() and not line.startswith("COMMAND") for line in tcp_listeners.stdout.splitlines()):
-        failures.append("loopback listener remains active on port 8631")
-    socket_listener = host.admin(
-        "/usr/sbin/lsof", "-nP", f"{INSTALL_ROOT}/run/service.sock", check=False
-    )
-    if any(line.strip() and not line.startswith("COMMAND") for line in socket_listener.stdout.splitlines()):
-        failures.append("product socket listener remains active")
+    # launchd can unload the supervisor before its provider finishes PAPPL's
+    # 60-second active-job shutdown grace. Require actual listener absence.
+    for attempt in range(150):
+        tcp_listeners = host.admin(
+            "/usr/sbin/lsof", "-nP", "-iTCP:8631", "-sTCP:LISTEN", check=False
+        )
+        socket_listener = host.admin(
+            "/usr/sbin/lsof", "-nP", f"{INSTALL_ROOT}/run/service.sock", check=False
+        )
+        tcp_active = any(line.strip() and not line.startswith("COMMAND")
+                         for line in tcp_listeners.stdout.splitlines())
+        socket_active = any(line.strip() and not line.startswith("COMMAND")
+                            for line in socket_listener.stdout.splitlines())
+        if not tcp_active and not socket_active:
+            break
+        if attempt < 149:
+            time.sleep(0.5)
+    else:
+        if tcp_active:
+            failures.append("loopback listener remains active on port 8631")
+        if socket_active:
+            failures.append("product socket listener remains active")
     disabled = host.admin("/bin/launchctl", "print-disabled", "system", check=False)
     if not service_disable_override_present_in(disabled.stdout):
         failures.append(f"service disable override is missing: {SERVICE_LABEL}")

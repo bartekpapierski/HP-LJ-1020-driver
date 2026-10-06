@@ -227,6 +227,13 @@ static bool hplj_backend_prepare_device_unlocked(
       return false;
     }
   }
+  if (!firmware_available &&
+      backend->device.state == HPLJ_DEVICE_FIRMWARE_PRESENT) {
+    /* A warm printer can precede local import after uninstall/reinstall.
+     * Preserve its identity until a validated expected version is available. */
+    atomic_store(&backend->device_error, HPLJ_ERROR_FIRMWARE_MISSING);
+    return false;
+  }
   struct hplj_device_result result = hplj_device_bootstrap_firmware(
       &backend->device,
       firmware_available ? backend->firmware : NULL,
@@ -501,11 +508,24 @@ static enum hplj_error_category hplj_test_identity(
     void *context, char *identity, size_t identity_size,
     size_t *identity_length) {
   struct hplj_pappl_backend *backend = context;
+  bool firmware_present = backend->test_firmware_uploaded;
+  char condition[32] = {0};
+  int descriptor = open(backend->test_conditions_path, O_RDONLY);
+  if (descriptor >= 0) {
+    ssize_t length = read(descriptor, condition, sizeof(condition) - 1);
+    close(descriptor);
+    if (length > 0 && strcmp(condition, "firmware-present\n") == 0) {
+      firmware_present = true;
+    }
+  }
+  const char *version = backend->firmware_version[0] != '\0'
+                            ? backend->firmware_version
+                            : "20050309";
   char value[HPLJ_FIRMWARE_VERSION_SIZE + 48];
-  int length = backend->test_firmware_uploaded
+  int length = firmware_present
                    ? snprintf(value, sizeof(value),
                               "MFG:HP;MDL:HP LaserJet 1020;FWVER:%s;",
-                              backend->firmware_version)
+                              version)
                    : snprintf(value, sizeof(value),
                               "MFG:HP;MDL:HP LaserJet 1020;");
   if (length <= 0 || (size_t)length + 1 > identity_size ||
@@ -514,7 +534,7 @@ static enum hplj_error_category hplj_test_identity(
   }
   memcpy(identity, value, (size_t)length + 1);
   *identity_length = (size_t)length;
-  hplj_test_trace(backend, backend->test_firmware_uploaded
+  hplj_test_trace(backend, firmware_present
                                ? "identity-ready\n"
                                : "identity-pre-firmware\n");
   return HPLJ_ERROR_NONE;
@@ -573,7 +593,9 @@ static enum hplj_error_category hplj_test_status(
     return HPLJ_ERROR_DEVICE_DISCONNECTED;
   }
   value[length] = '\0';
-  if (strcmp(value, "media-empty\n") == 0) {
+  if (strcmp(value, "firmware-present\n") == 0) {
+    *conditions = HPLJ_DEVICE_CONDITION_NONE;
+  } else if (strcmp(value, "media-empty\n") == 0) {
     *conditions = HPLJ_DEVICE_CONDITION_MEDIA_EMPTY;
   } else if (strcmp(value, "manual-feed\n") == 0) {
     *conditions = HPLJ_DEVICE_CONDITION_MANUAL_FEED;

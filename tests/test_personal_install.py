@@ -395,6 +395,27 @@ class PersonalInstallTests(unittest.TestCase):
             with self.assertRaisesRegex(installer.InstallError, "service remains loaded"):
                 installer.disable(installer.CommandHost(StuckBootoutMac()))
 
+    def test_disable_waits_for_provider_listeners_after_launchd_unloads(self) -> None:
+        class DelayedProviderExitMac(ProductInstallMac):
+            def __init__(self) -> None:
+                super().__init__()
+                self.pending_socket_checks = 2
+
+            def __call__(self, command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+                if "/usr/sbin/lsof" in command and "-p" not in command:
+                    self.commands.append(command)
+                    if self.pending_socket_checks:
+                        if command[-1].endswith("service.sock"):
+                            self.pending_socket_checks -= 1
+                        return subprocess.CompletedProcess(
+                            command, 0, "hplj1020 321 dedicated-account listener\n", ""
+                        )
+                    return subprocess.CompletedProcess(command, 1, "", "")
+                return super().__call__(command, **kwargs)
+
+        with mock.patch.object(installer.time, "sleep"):
+            installer.disable(installer.CommandHost(DelayedProviderExitMac()))
+
     def test_uninstall_preview_names_every_fixed_target(self) -> None:
         output = io.StringIO()
 
@@ -878,9 +899,10 @@ class PersonalInstallTests(unittest.TestCase):
                 return super().__call__(command, **kwargs)
 
         output = io.StringIO()
-        result = installer.main(
-            ["disable", "--apply", "--yes"], runner=OrphanListenerMac(), stdout=output
-        )
+        with mock.patch.object(installer.time, "sleep"):
+            result = installer.main(
+                ["disable", "--apply", "--yes"], runner=OrphanListenerMac(), stdout=output
+            )
 
         self.assertEqual(result, 1)
         self.assertIn("listener remains active", output.getvalue())
