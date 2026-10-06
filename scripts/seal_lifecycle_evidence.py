@@ -193,9 +193,10 @@ def seal(
         (measurement_path, "measurement"),
         (build_identity_path, "manifest"),
     ]
-    violation_path = evidence_root / "privilege-violation.txt"
-    if violation_path.is_file():
-        evidence_paths.append((violation_path, "summary"))
+    for name in ("privilege-violation.txt", "privilege-monitor-failure.txt"):
+        monitor_evidence = evidence_root / name
+        if monitor_evidence.is_file():
+            evidence_paths.append((monitor_evidence, "summary"))
     evidence_hashes = {
         str(path.relative_to(evidence_root)): _sha256(path) for path, _ in evidence_paths
     }

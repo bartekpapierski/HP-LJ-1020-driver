@@ -17,6 +17,46 @@ def functions_between(start: str, end: str) -> str:
 
 
 class LifecycleWizardChecks(unittest.TestCase):
+    def test_failed_process_snapshot_is_not_reported_as_root_execution(self):
+        with tempfile.TemporaryDirectory() as directory:
+            code = '''
+set -euo pipefail
+ps() { return 1; }
+'''
+            code += functions_between("product_process_rows", "product_processes_are_unprivileged")
+            code += functions_between("start_privilege_monitor", "on_exit")
+            code += "start_privilege_monitor\nwait \"$PRIVILEGE_MONITOR_PID\" || true"
+            subprocess.run(
+                ["bash", "-c", code], check=True, timeout=5,
+                env={**os.environ, "INSTALL_ROOT": "/Library/Application Support/HP-LJ-1020",
+                     "EVIDENCE_ROOT": directory},
+            )
+            self.assertFalse((Path(directory) / "privilege-violation.txt").exists())
+            self.assertTrue((Path(directory) / "privilege-monitor-failure.txt").exists())
+
+    def test_monitor_retains_actual_root_identity_without_command_arguments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            code = '''
+set -euo pipefail
+ps() {
+  printf '%s\\n' "0 123 1 $INSTALL_ROOT/HP-LJ-1020.app/Contents/MacOS/hplj1020 --source private-secret"
+  return 1
+}
+'''
+            code += functions_between("product_process_rows", "product_processes_are_unprivileged")
+            code += functions_between("start_privilege_monitor", "on_exit")
+            code += "start_privilege_monitor\nwait \"$PRIVILEGE_MONITOR_PID\" || true"
+            subprocess.run(
+                ["bash", "-c", code], check=True, timeout=5,
+                env={**os.environ, "INSTALL_ROOT": "/Library/Application Support/HP-LJ-1020",
+                     "EVIDENCE_ROOT": directory},
+            )
+            violation = (Path(directory) / "privilege-violation.txt").read_text()
+            self.assertIn("uid=0 pid=123 parentPid=1 role=provider", violation)
+            self.assertNotIn("private-secret", violation)
+            self.assertNotIn("--source", violation)
+            self.assertNotIn("/Library/", violation)
+
     def test_partial_account_creation_cleans_only_created_records(self):
         for failed_field, expected_user_deletion in (("PrimaryGroupID", False), ("UniqueID", True)):
             with self.subTest(failed_field=failed_field), tempfile.TemporaryDirectory() as directory:
@@ -78,11 +118,11 @@ OBSERVED_PAGES=0
         provider = install + "/HP-LJ-1020.app/Contents/MacOS/hplj1020"
         supervisor = install + "/HP-LJ-1020.app/Contents/Resources/hplj1020-service-supervisor"
         rows = [
-            f"0 sudo -u _hplj1020 {provider} --import-firmware",
-            f"499 {provider} --serve",
-            f"499 /bin/bash {supervisor}",
-            f"0 {provider} --serve",
-            f"501 unrelated {provider}",
+            f"0 100 1 sudo -u _hplj1020 {provider} --import-firmware",
+            f"499 101 1 {provider} --serve",
+            f"499 102 1 /bin/bash {supervisor}",
+            f"0 103 1 {provider} --serve",
+            f"501 104 1 unrelated {provider}",
         ]
         code = ('ps() { printf "%s\\n" "$PROCESS_ROWS"; }\n' +
                 functions_between("product_process_rows", "product_processes_are_unprivileged") +
@@ -91,7 +131,9 @@ OBSERVED_PAGES=0
             ["bash", "-c", code], check=True, capture_output=True, text=True,
             env={**os.environ, "INSTALL_ROOT": install, "PROCESS_ROWS": "\n".join(rows)},
         )
-        self.assertEqual(result.stdout.splitlines(), rows[1:4])
+        self.assertEqual(result.stdout.splitlines(), [
+            "499 101 1 provider", "499 102 1 supervisor", "0 103 1 provider",
+        ])
 
     def test_record_redacts_command_arguments_as_well_as_output(self):
         with tempfile.TemporaryDirectory() as directory:

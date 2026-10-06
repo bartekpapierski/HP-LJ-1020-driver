@@ -82,6 +82,8 @@ class LifecycleEvidenceChecks(unittest.TestCase):
             (evidence / "sanitized.log").write_text(
                 "[2026-09-10T20:00:00Z] FAILED: install failed\n", encoding="utf-8"
             )
+            monitor_failure = evidence / "privilege-monitor-failure.txt"
+            monitor_failure.write_text("process snapshot failed status=1\n")
 
             sealer.seal(
                 evidence,
@@ -114,6 +116,9 @@ class LifecycleEvidenceChecks(unittest.TestCase):
             self.assertEqual(manifest["result"], "failed")
             self.assertTrue(manifest["sealed"])
             self.assertIn("result=failed", (evidence / "summary.txt").read_text())
+            self.assertIn("privilege-monitor-failure.txt",
+                          {entry["path"] for entry in manifest["evidence"]})
+            self.assertFalse(monitor_failure.stat().st_mode & 0o222)
             (evidence / "measurements").chmod(0o700)
             evidence.chmod(0o700)
 

@@ -324,14 +324,30 @@ stop_privilege_monitor() {
   fi
 }
 
+assert_privilege_monitor() {
+  [[ ! -e "$EVIDENCE_ROOT/privilege-violation.txt" ]] || fail "a product process ran as root"
+  [[ ! -e "$EVIDENCE_ROOT/privilege-monitor-failure.txt" ]] || fail "privilege monitoring failed; root execution was not established"
+}
+
 start_privilege_monitor() {
+  local rows root_rows status
   (
     while true; do
-      if product_process_rows | awk '$1 == 0 {exit 1}'; then
-        :
-      else
+      status=0
+      rows=$(product_process_rows 2>/dev/null) || status=$?
+      root_rows=$(awk 'NF == 4 && $1 == "0" {
+        printf "uid=0 pid=%s parentPid=%s role=%s\n", $2, $3, $4
+      }' <<<"$rows")
+      if [[ -n "$root_rows" ]]; then
         printf 'root product process observed at %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
           >"$EVIDENCE_ROOT/privilege-violation.txt"
+        printf '%s\n' "$root_rows" >>"$EVIDENCE_ROOT/privilege-violation.txt"
+        exit 1
+      fi
+      if (( status != 0 )); then
+        printf 'process snapshot failed at %s status=%s\n' \
+          "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$status" \
+          >"$EVIDENCE_ROOT/privilege-monitor-failure.txt"
         exit 1
       fi
       sleep 0.2
@@ -435,16 +451,19 @@ remove_validation_account() {
 }
 
 product_process_rows() {
-  ps -axo uid=,command= | awk \
+  ps -axo uid=,pid=,ppid=,command= | awk \
     -v provider="$INSTALL_ROOT/HP-LJ-1020.app/Contents/MacOS/hplj1020" \
     -v supervisor="$INSTALL_ROOT/HP-LJ-1020.app/Contents/Resources/hplj1020-service-supervisor" '
       {
         command=$0
-        sub(/^[[:space:]]*[0-9]+[[:space:]]+/, "", command)
-        if (command == provider || index(command, provider " ") == 1 ||
-            command == supervisor || index(command, supervisor " ") == 1 ||
+        sub(/^[[:space:]]*[0-9]+[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+/, "", command)
+        if (command == provider || index(command, provider " ") == 1) {
+          print $1, $2, $3, "provider"
+        } else if (command == supervisor || index(command, supervisor " ") == 1 ||
             command == "/bin/bash " supervisor || command == "bash " supervisor ||
-            command == "/bin/sh " supervisor) print
+            command == "/bin/sh " supervisor) {
+          print $1, $2, $3, "supervisor"
+        }
       }
     '
 }
@@ -461,6 +480,7 @@ product_processes_are_unprivileged() {
 }
 
 verify_installed_boundaries() {
+  assert_privilege_monitor
   run_recorded python3 "$INSTALLER" status
   product_processes_are_unprivileged || fail "service or supervisor missing, or running as root"
   sudo plutil -extract UserName raw "$PLIST" | grep -qx '_hplj1020' ||
@@ -663,7 +683,7 @@ record "direct-adapter install-to-print and removal smoke passed"
 
 stage "Seal the redacted evidence"
 stop_privilege_monitor
-[[ ! -e "$EVIDENCE_ROOT/privilege-violation.txt" ]] || fail "a product process ran as root"
+assert_privilege_monitor
 say "Inspect all four retained test pages. Enter measured maxima; do not enter notes, filenames, or identities."
 say "Measure the 100 mm ruler between end ticks on every page. Scale error percent = absolute(measured millimeters - 100)."
 say "Each cross center is 20 mm from both nearest paper edges. Position error = absolute(measured millimeters - 20); check both edges at all four crosses."
