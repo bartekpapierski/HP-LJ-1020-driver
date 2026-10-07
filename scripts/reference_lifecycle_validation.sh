@@ -316,6 +316,22 @@ seal_run() {
   SEALED=1
 }
 
+ask_measurement() {
+  local target="$1" prompt="$2" candidate
+  while true; do
+    printf '  %s ' "$prompt"
+    if ! read -r candidate; then
+      fail "measurement input ended before a valid number"
+    fi
+    if [[ "$candidate" =~ ^[0-9]+([.][0-9]+)?$ ]] &&
+       python3 -c 'import math, sys; sys.exit(not math.isfinite(float(sys.argv[1])))' "$candidate"; then
+      printf -v "$target" '%s' "$candidate"
+      return 0
+    fi
+    warn "Enter a finite non-negative number, such as 0.5; y/n is not a measurement."
+  done
+}
+
 stop_privilege_monitor() {
   if [[ -n "$PRIVILEGE_MONITOR_PID" ]]; then
     kill "$PRIVILEGE_MONITOR_PID" 2>/dev/null || true
@@ -696,11 +712,9 @@ say "Enter the largest error across all four pages for each measurement."
 if ! confirm "Do all four pages have correct count/order, no blank/partial/duplicate pages, correct orientation/media, readable fine patterns, and no clipping/corruption/density discontinuity?"; then
   fail "physical output inspection failed"
 fi
-ask SCALE_ERROR_PERCENT "Maximum absolute scale error percent (must be <= 1):"
-[[ "$SCALE_ERROR_PERCENT" =~ ^[0-9]+([.][0-9]+)?$ ]] || fail "scale error is not numeric"
+ask_measurement SCALE_ERROR_PERCENT "Maximum absolute scale error percent (must be <= 1):"
 awk -v value="$SCALE_ERROR_PERCENT" 'BEGIN {exit !(value <= 1)}' || fail "scale error exceeds 1 percent"
-ask MAXIMUM_FIDUCIAL_DISPLACEMENT_MM "Maximum fiducial displacement in mm (must be <= 2):"
-[[ "$MAXIMUM_FIDUCIAL_DISPLACEMENT_MM" =~ ^[0-9]+([.][0-9]+)?$ ]] || fail "fiducial displacement is not numeric"
+ask_measurement MAXIMUM_FIDUCIAL_DISPLACEMENT_MM "Maximum fiducial displacement in mm (must be <= 2):"
 awk -v value="$MAXIMUM_FIDUCIAL_DISPLACEMENT_MM" 'BEGIN {exit !(value <= 2)}' || fail "fiducial displacement exceeds 2 mm"
 remove_validation_account || fail "temporary validation account cleanup failed"
 seal_run passed "all lifecycle stages and three repeated cycles passed without unexplained intermittent failure"

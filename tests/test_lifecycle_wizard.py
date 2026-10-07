@@ -17,6 +17,38 @@ def functions_between(start: str, end: str) -> str:
 
 
 class LifecycleWizardChecks(unittest.TestCase):
+    def test_measurement_prompt_retries_text_without_overwriting_measurement(self):
+        code = '''
+warn() { printf '%s\\n' "$*" >&2; }
+fail() { exit 1; }
+SCALE_ERROR_PERCENT=0
+'''
+        code += functions_between("ask_measurement", "stop_privilege_monitor")
+        code += 'ask_measurement SCALE_ERROR_PERCENT "Measured error:"\nprintf "accepted=%s\\n" "$SCALE_ERROR_PERCENT"'
+        result = subprocess.run(
+            ["bash", "-c", code], input="y\nNaN\n0.5\n", capture_output=True,
+            text=True, timeout=5,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("accepted=0.5", result.stdout)
+        self.assertEqual(result.stderr.count("Enter a finite non-negative number"), 2)
+
+    def test_measurement_input_exhaustion_keeps_failure_sealing_value_numeric(self):
+        code = '''
+warn() { :; }
+fail() { exit 1; }
+SCALE_ERROR_PERCENT=0
+trap 'printf "sealing-value=%s\\n" "$SCALE_ERROR_PERCENT"' EXIT
+'''
+        code += functions_between("ask_measurement", "stop_privilege_monitor")
+        code += 'ask_measurement SCALE_ERROR_PERCENT "Measured error:"'
+        result = subprocess.run(
+            ["bash", "-c", code], input="y\n" + "9" * 400 + "\n",
+            capture_output=True, text=True, timeout=5,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("sealing-value=0", result.stdout)
+
     def test_monitor_does_not_assign_pre_exec_root_credentials_to_service(self):
         code = '''
 ps() {
