@@ -167,3 +167,68 @@ contain no private document content.
 pinned upstream revision and every future adaptation. The known `zjs.h` /
 `zjrca.h` provenance risk is accepted only for a personal-use installation and
 gates any public binary release; see `third_party/foo2zjs/PROVENANCE.md`.
+
+### Local personal-release operations
+
+`VERSION` is the only product SemVer source. CMake embeds it in the provider;
+app staging generates both bundle version fields from it. `scripts/build` records
+an explicit deployment target (defaults to the installed SDK version; override
+with `--deployment-target`). This target alone is not a support claim.
+
+Run `python3 -B scripts/personal_release.py --archive-root /path/outside/checkout`
+with one of these subcommands, in order:
+
+1. `prepare`: require a clean candidate merged into `main`, verify the dependency
+   lock and generated inputs, audit reachable source history, build/test, stage
+   and ad-hoc sign the app, archive it with `ditto`, and capture the Apple toolchain
+   and build configuration. Prints a new run ID before work starts. Retain it.
+2. `hosted-ci-passed --run-id ID --ci-run GITHUB_RUN_ID`: query GitHub for a
+   successful `push` run of `.github/workflows/ci.yml` on `main` at the exact
+   commit, including the required `host-checks` job. Uses the authenticated `gh`
+   CLI, with no credential copied into the record.
+3. `locally-validated --run-id ID --manifest validation/runs/RUN/manifest.json
+   --matrix validation/runs/RUN/capability-matrix.json --evidence-root /local/evidence`:
+   require the complete `PERSONAL` validation contract on the reference Mac and
+   both connection paths. The evidence manifest must identify the prepared
+   `runs/ID/inputs/build-manifest.json` by checksum, the exact commit, and lock.
+   Validation remains a separate operation; this command never fabricates passes.
+4. `sealed --run-id ID --notes /path/to/reviewed-notes.md`: create the immutable
+   local `releases/v0.x.y/` directory. Notes need `##` sections named Changes,
+   Support claims, Known limitations, Firmware requirements, Lifecycle
+   instructions, Validation results, Dependency changes, and Checksums. The last
+   section can refer to `SHA256SUMS` beside the notes.
+5. `tagged --run-id ID --manifest ... --matrix ... --evidence-root ...
+   --signing-key /path/to/ssh-key --allowed-signers /path/to/allowed-signers`:
+   explicitly authorize local tag creation after rechecking CI, validation, and
+   the seal. Git verifies an unattached SSH-signed annotated tag object against
+   the supplied allowed-signers file before creating `refs/tags/v0.x.y` with a
+   create-only compare-and-swap. A conflicting tag is never moved or deleted.
+6. `installed --run-id ID`: observe a separately completed installation. Verify
+   installed files against the exact sealed ZIP, product ownership, service
+   health, and queue readiness. This command does not deploy or rebuild a payload;
+   installation/update/rollback must use the lifecycle operations.
+
+Re-running a stage verifies its recorded inputs and checksums. `prepare --run-id
+ID` resumes an already prepared candidate; incomplete preparation needs a new
+run. Archive operations are serialized. Interrupted sealing can resume only when
+its complete inventory matches the expected bundle. A rejected operation writes
+a new immutable, redacted record under `failed/`, invalidates its attempt, and
+requires a new run ID. Failure records retain no command output or private paths.
+
+The sealed directory contains the app ZIP, a verified source Git bundle,
+dependency lock (including patch hashes), build manifest, the original validated
+build manifest, SPDX JSON SBOM, notices, reviewed release notes, repository-relative
+validation pointers, and `SHA256SUMS`. The final manifest adds CI identity while
+preserving the exact build identity used by local validation. Source-history and
+payload checks reject known firmware/private paths and credential signatures;
+only canonical app files enter the payload. Keep private print data and sensitive
+diagnostics outside the source checkout. Notes and validation evidence must be
+reviewed for redaction before promotion.
+
+Retain small redacted records indefinitely, and at least current/previous sealed
+payloads and compatible-state snapshots. During final promotion, retain the
+redacted build manifest and capability result under `validation/releases/v0.x.y/`;
+this tool never commits those records, pushes tags, publishes a GitHub Release,
+or operates public binary signing/distribution. Issue #32 supplies the host-tested
+operations; final reference-Mac validation and actual tag authorization belong to
+the promotion issue.

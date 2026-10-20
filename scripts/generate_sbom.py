@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -25,11 +27,24 @@ def main() -> None:
             "downloadLocation": dependency["sourceUrl"],
             "checksums": [{"algorithm": "SHA256", "checksumValue": dependency["sha256"]}],
             "licenseConcluded": dependency["licenseExpression"],
+            "licenseDeclared": dependency["licenseExpression"],
+            "copyrightText": "NOASSERTION",
+            "filesAnalyzed": False,
         }
         for dependency in lock["dependencies"]
     ]
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps({"spdxVersion": "SPDX-2.3", "SPDXID": "SPDXRef-DOCUMENT", "name": "hplj1020", "dataLicense": "CC0-1.0", "packages": packages}, indent=2) + "\n", encoding="utf-8")
+    document = {
+        "spdxVersion": "SPDX-2.3", "SPDXID": "SPDXRef-DOCUMENT", "name": "hplj1020",
+        "dataLicense": "CC0-1.0",
+        "documentNamespace": "https://bartekpapierski.github.io/HP-LJ-1020-driver/spdx/" + uuid.uuid4().hex,
+        "creationInfo": {"creators": ["Tool: hplj1020-generate-sbom"],
+                         "created": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")},
+        "packages": packages,
+        "relationships": [{"spdxElementId": "SPDXRef-DOCUMENT", "relationshipType": "DESCRIBES",
+                           "relatedSpdxElement": package["SPDXID"]} for package in packages],
+    }
+    output.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

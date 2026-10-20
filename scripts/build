@@ -149,7 +149,7 @@ def check_release_policy(args: argparse.Namespace) -> None:
 
 
 def prepare_pappl(dependencies: list[dict[str, object]], cache: Path,
-                  build_dir: Path) -> Path:
+                  build_dir: Path, deployment_target: str) -> Path:
     dependency = next(item for item in dependencies if item["name"] == "pappl")
     source_dir = build_dir / "locked" / f"pappl-{dependency['version']}"
     prefix = build_dir / "locked" / "pappl-install"
@@ -162,7 +162,7 @@ def prepare_pappl(dependencies: list[dict[str, object]], cache: Path,
         "--disable-libjpeg",
         "--disable-libpng",
         "--disable-libusb",
-        "CFLAGS=-arch arm64 -g -O0",
+        f"CFLAGS=-arch arm64 -g -O0 -mmacosx-version-min={deployment_target}",
     ]
     build_identity = json.dumps(
         {
@@ -209,7 +209,13 @@ def run(args: argparse.Namespace) -> None:
     prepare_cache(dependencies, cache, args.offline)
     build_dir = Path(args.build_dir).resolve() if args.build_dir else ROOT / "build"
     build_dir.mkdir(parents=True, exist_ok=True)
-    pappl_prefix = prepare_pappl(dependencies, cache, build_dir)
+    deployment_target = args.deployment_target or subprocess.run(
+        ["xcrun", "--sdk", "macosx", "--show-sdk-version"], check=True,
+        text=True, capture_output=True,
+    ).stdout.strip()
+    if not re.fullmatch(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?", deployment_target):
+        raise BuildError("invalid macOS deployment target")
+    pappl_prefix = prepare_pappl(dependencies, cache, build_dir, deployment_target)
     inventory = build_dir / "locked-dependencies.cmake"
     source_files = [str(cache / str(dependency["sha256"])) for dependency in dependencies]
     source_hashes = [str(dependency["sha256"]) for dependency in dependencies]
@@ -242,7 +248,7 @@ def run(args: argparse.Namespace) -> None:
         f"set(HPLJ1020_PAPPL_PREFIX \"{pappl_prefix}\")\n",
         encoding="utf-8",
     )
-    configure = ["cmake", "-S", str(ROOT), "-B", str(build_dir), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug", f"-DHPLJ1020_LOCKED_DEPENDENCIES={inventory}"]
+    configure = ["cmake", "-S", str(ROOT), "-B", str(build_dir), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug", f"-DCMAKE_OSX_DEPLOYMENT_TARGET={deployment_target}", f"-DHPLJ1020_LOCKED_DEPENDENCIES={inventory}"]
     subprocess.run(configure, check=True)
     subprocess.run(["cmake", "--build", str(build_dir), "--parallel"], check=True)
     subprocess.run(["ctest", "--test-dir", str(build_dir), "--output-on-failure"], check=True)
@@ -250,6 +256,7 @@ def run(args: argparse.Namespace) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--deployment-target", help="explicit macOS deployment target (default: installed SDK version)")
     parser.add_argument("--offline", action="store_true", help="require cached verified sources")
     parser.add_argument("--personal-release", action="store_true", help="enforce personal-release policy")
     parser.add_argument("--cache", help="content-addressed source cache directory")

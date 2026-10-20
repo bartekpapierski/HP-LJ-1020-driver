@@ -268,7 +268,7 @@ static void test_pappl_mapping_hides_external_types(void) {
   status = hplj_status_from_device(HPLJ_DEVICE_UNSUPPORTED);
   assert(status.queue == HPLJ_QUEUE_STOPPED);
   assert(status.diagnostic == HPLJ_ERROR_UNSUPPORTED_DEVICE);
-  assert(strcmp(hplj_product_version(), "0.1.0") == 0);
+  assert(strcmp(hplj_product_version(), HPLJ_PRODUCT_VERSION) == 0);
   assert(strcmp(hplj_dependency_version("pappl"), "1.4.12") == 0);
   assert(strcmp(hplj_dependency_version("libusb"), "1.0.30") == 0);
 }

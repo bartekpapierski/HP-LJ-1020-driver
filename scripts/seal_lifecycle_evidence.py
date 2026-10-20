@@ -13,8 +13,10 @@ from pathlib import Path
 
 if __package__:
     from scripts import output_measurement
+    from scripts.product_version import read_version
 else:
     import output_measurement  # type: ignore[no-redef]
+    from product_version import read_version
 
 
 SCENARIOS = (
@@ -124,7 +126,7 @@ def seal(
             "schemas/build-manifest-1.0.0.json"
         ),
         "schemaVersion": "1.0.0",
-        "productVersion": "0.1.0",
+        "productVersion": read_version(Path(__file__).resolve().parents[1]),
         "source": {
             "commit": source_commit,
             "cleanTree": True,

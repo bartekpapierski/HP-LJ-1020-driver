@@ -28,6 +28,11 @@ SCHEMA_ID = (
 MILESTONES = ("BASIC", "PERSONAL", "CAPABILITY", "PUBLIC")
 SCOPE_PATHS = {
     "build-inputs": (
+        "VERSION",
+        "scripts/product_version.py",
+        "scripts/personal_release.py",
+        "scripts/generate_sbom.py",
+        "scripts/check_artifacts.py",
         "dependencies.lock.json",
         "generated-inputs.json",
         "scripts/build",
@@ -55,6 +60,7 @@ SCOPE_PATHS = {
         "scripts/update_capability_matrix.py",
         "scripts/validation_gate.py",
         "tests/test_pappl_integration.py",
+        "tests/test_personal_release.py",
         "validation/fixtures/lifecycle-calibration.pdf",
     ),
 }

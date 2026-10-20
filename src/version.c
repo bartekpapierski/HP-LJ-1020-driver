@@ -4,7 +4,7 @@
 #include <string.h>
 
 const char *hplj_product_version(void) {
-  return "0.1.0";
+  return HPLJ_PRODUCT_VERSION;
 }
 
 const char *hplj_dependency_version(const char *name) {

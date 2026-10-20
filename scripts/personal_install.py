@@ -19,6 +19,12 @@ from pathlib import Path
 from typing import TextIO
 
 
+if __package__:
+    from scripts.product_version import read_version
+else:
+    from product_version import read_version
+
+
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "scripts" / "build"
 BUILT_PROVIDER = ROOT / "build" / "hplj1020"
@@ -237,14 +243,19 @@ def bundle_non_system_libraries(host: CommandHost, executable: Path) -> list[Pat
     return list(staged_by_name.values())
 
 
-def stage_and_sign(host: CommandHost) -> None:
-    host.run([str(BUILD)])
+def stage_and_sign(host: CommandHost, *, personal_release: bool = False) -> None:
+    host.run([str(BUILD), *(["--personal-release"] if personal_release else [])])
     if not BUILT_PROVIDER.is_file() or BUILT_PROVIDER.is_symlink():
         raise InstallError(f"validated provider is missing or unsafe: {BUILT_PROVIDER}")
     if BUILT_PROVIDER.stat().st_uid != os.getuid():
         raise InstallError("validated provider must be owned by the invoking user")
     shutil.rmtree(STAGED_APP, ignore_errors=True)
     shutil.copytree(APP_TEMPLATE, STAGED_APP)
+    info_path = STAGED_APP / "Contents" / "Info.plist"
+    info = plistlib.loads(info_path.read_bytes())
+    info["CFBundleShortVersionString"] = read_version(ROOT)
+    info["CFBundleVersion"] = read_version(ROOT)
+    info_path.write_bytes(plistlib.dumps(info))
     executable = STAGED_APP / "Contents" / "MacOS" / "hplj1020"
     executable.parent.mkdir(parents=True)
     shutil.copy2(BUILT_PROVIDER, executable)

@@ -1,7 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 cmake_minimum_required(VERSION 3.25)
 
-project(hp_lj_1020 VERSION 0.1.0 LANGUAGES C OBJC)
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" HPLJ1020_VERSION)
+if(NOT HPLJ1020_VERSION MATCHES "^0\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$")
+  message(FATAL_ERROR "VERSION must be a pre-1.0 SemVer")
+endif()
+project(hp_lj_1020 VERSION ${HPLJ1020_VERSION} LANGUAGES C OBJC)
 
 set(HPLJ1020_LOCKED_DEPENDENCIES "" CACHE FILEPATH "Generated locked source inventory")
 if(NOT HPLJ1020_LOCKED_DEPENDENCIES OR NOT EXISTS "${HPLJ1020_LOCKED_DEPENDENCIES}")
@@ -88,6 +92,7 @@ add_library(hplj1020_core
   src/usb_libusb.c
   src/version.c)
 target_include_directories(hplj1020_core PUBLIC include)
+target_compile_definitions(hplj1020_core PUBLIC HPLJ_PRODUCT_VERSION="${PROJECT_VERSION}")
 target_link_libraries(hplj1020_core PRIVATE
   hplj1020_build_options hplj1020_libusb hplj1020_foo2zjs)
 
@@ -195,7 +200,11 @@ if(BUILD_TESTING)
     COMMAND ${Python3_EXECUTABLE} -m unittest tests.test_firmware_import_cli)
   set_tests_properties(hplj1020-firmware-import-cli PROPERTIES
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  add_test(NAME hplj1020-personal-release
+    COMMAND ${Python3_EXECUTABLE} -B -m unittest tests.test_personal_release)
+  set_tests_properties(hplj1020-personal-release PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
   add_test(NAME hplj1020-version COMMAND hplj1020 --version)
   set_tests_properties(hplj1020-version PROPERTIES
-    PASS_REGULAR_EXPRESSION "hplj1020 0\\.1\\.0")
+    PASS_REGULAR_EXPRESSION "hplj1020 ${PROJECT_VERSION}")
 endif()
