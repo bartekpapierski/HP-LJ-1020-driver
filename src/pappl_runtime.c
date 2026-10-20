@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "hplj/pappl.h"
+#include "hplj/diagnostics.h"
 #include "hplj/firmware.h"
 #include "hplj/job.h"
 #include "hplj/usb_libusb.h"
@@ -25,6 +26,8 @@
 
 struct hplj_pappl_backend {
   pappl_system_t *system;
+  struct hplj_diagnostics diagnostics;
+  const char *state_path;
   struct hplj_libusb_transport *usb;
   struct hplj_device device;
   unsigned char *firmware;
@@ -321,6 +324,7 @@ static pappl_preason_t hplj_backend_status_reasons(
       status_changed = true;
     }
   }
+  atomic_store(&backend->device_error, hplj_error_from_conditions(conditions).category);
   if (observed_conditions != NULL) {
     *observed_conditions = conditions;
   }
@@ -497,20 +501,6 @@ static bool hplj_wait_for_output(struct hplj_pappl_backend *backend,
   }
   hplj_job_cancel(lifecycle);
   return false;
-}
-
-static bool hplj_rotate_log_by_age(pappl_system_t *system, void *data) {
-  struct hplj_pappl_backend *backend = data;
-  const time_t now = time(NULL);
-  if (now >= 0 && (unsigned long long)now >=
-                      backend->retention.maximum_log_age_seconds) {
-    const time_t cutoff =
-        now - (time_t)backend->retention.maximum_log_age_seconds;
-    if (papplSystemRotateLog(system, cutoff)) {
-      papplLog(system, PAPPL_LOGLEVEL_INFO, "log-rotation reason=age");
-    }
-  }
-  return true;
 }
 
 static void hplj_free_job_data(struct hplj_pappl_job_data *data) {
@@ -781,12 +771,10 @@ static void hplj_pappl_job_state(void *context,
       hplj_status_from_job(metadata->state, metadata->error);
   papplJobSetMessage(job, "%s: %s", hplj_status_name(status.code),
                      metadata->error.detail);
-  char transfer_record[160];
-  snprintf(transfer_record, sizeof(transfer_record),
-           "transfer-state=%s bytes-sent=%zu pages-transmitted=%u",
-           hplj_status_name(status.code), metadata->bytes_sent,
-           metadata->pages_completed);
-  papplLogJob(job, PAPPL_LOGLEVEL_INFO, "%s", transfer_record);
+  pappl_pr_driver_data_t driver_data;
+  papplPrinterGetDriverData(papplJobGetPrinter(job), &driver_data);
+  struct hplj_pappl_backend *backend = driver_data.extension;
+  (void)hplj_diagnostics_event(&backend->diagnostics, time(NULL), metadata);
 }
 
 static bool hplj_printfile(pappl_job_t *job, pappl_pr_options_t *options,
@@ -1186,9 +1174,17 @@ static void *hplj_backend_create(void *context,
   }
   backend->system = papplSystemCreate(
       PAPPL_SOPTIONS_NO_TLS, "HP LaserJet 1020", config->ipp_port, NULL,
-      config->paths.spool_path, config->paths.log_path, PAPPL_LOGLEVEL_INFO,
+      config->paths.spool_path, "/dev/null", PAPPL_LOGLEVEL_FATAL,
       NULL, false);
   if (backend->system == NULL) {
+    hplj_libusb_transport_destroy(backend->usb);
+    pthread_mutex_destroy(&backend->device_mutex);
+    free(backend);
+    return NULL;
+  }
+  backend->state_path = config->paths.state_path;
+  if (!hplj_diagnostics_open(&backend->diagnostics, config->paths.log_path)) {
+    papplSystemDelete(backend->system);
     hplj_libusb_transport_destroy(backend->usb);
     pthread_mutex_destroy(&backend->device_mutex);
     free(backend);
@@ -1261,6 +1257,7 @@ static bool hplj_backend_reconcile(void *service, const char *queue_name,
   papplSystemIteratePrinters(backend->system, hplj_find_queue, &lookup);
   if (lookup.printer != NULL) {
     backend->printer = lookup.printer;
+    papplPrinterSetDNSSDName(lookup.printer, NULL);
     bool matches =
         strcmp(papplPrinterGetDriverName(lookup.printer), driver_name) == 0 &&
         strcmp(papplPrinterGetDeviceURI(lookup.printer), runtime_device_uri) == 0;
@@ -1315,6 +1312,12 @@ static void *hplj_device_monitor_thread(void *context) {
     if (++ticks == 10) {
       ticks = 0;
       (void)hplj_monitor_device(backend->system, backend);
+      pthread_mutex_lock(&backend->device_mutex);
+      (void)hplj_diagnostics_snapshot(
+          backend->state_path, time(NULL), backend->device.state,
+          atomic_load(&backend->device_error), backend->firmware != NULL);
+      pthread_mutex_unlock(&backend->device_mutex);
+      (void)hplj_diagnostics_event(&backend->diagnostics, time(NULL), NULL);
     }
   }
   return NULL;
@@ -1351,6 +1354,7 @@ static bool hplj_backend_save_state(void *service, const char *path) {
 static void hplj_backend_destroy(void *service) {
   struct hplj_pappl_backend *backend = service;
   papplSystemDelete(backend->system);
+  hplj_diagnostics_close(&backend->diagnostics);
   if (backend->owns_device) {
     hplj_device_disconnect(&backend->device);
   }
@@ -1382,11 +1386,6 @@ int hplj_pappl_serve(const struct hplj_service_config *config) {
   time_t now = time(NULL);
   if (!papplSystemAddTimerCallback(backend->system, now, 0,
                                    hplj_report_ready, NULL)) {
-    (void)hplj_service_finish(&service);
-    return 1;
-  }
-  if (!papplSystemAddTimerCallback(backend->system, now, 60U * 60U,
-                                   hplj_rotate_log_by_age, backend)) {
     (void)hplj_service_finish(&service);
     return 1;
   }

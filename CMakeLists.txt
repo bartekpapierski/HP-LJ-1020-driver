@@ -82,6 +82,7 @@ add_dependencies(hplj1020_foo2zjs locked-sources)
 
 add_library(hplj1020_core
   src/device.c
+  src/diagnostics.c
   src/encoder.c
   src/error.c
   src/firmware.c
@@ -207,4 +208,15 @@ if(BUILD_TESTING)
   add_test(NAME hplj1020-version COMMAND hplj1020 --version)
   set_tests_properties(hplj1020-version PROPERTIES
     PASS_REGULAR_EXPRESSION "hplj1020 ${PROJECT_VERSION}")
+endif()
+
+if(BUILD_TESTING)
+  add_test(NAME hplj1020-diagnostics
+    COMMAND ${Python3_EXECUTABLE} -B -m unittest tests.test_diagnostics)
+  set_tests_properties(hplj1020-diagnostics PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  add_executable(hplj1020-diagnostics-contracts tests/diagnostics_contracts.c)
+  target_link_libraries(hplj1020-diagnostics-contracts PRIVATE
+    hplj1020_build_options hplj1020_core Threads::Threads)
+  add_test(NAME hplj1020-diagnostics-contracts COMMAND hplj1020-diagnostics-contracts)
 endif()

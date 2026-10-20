@@ -32,9 +32,10 @@ Software Products. PAPPL is Apache-2.0; the complete license text is in
 
 The hash-pinned patches in `patches/pappl/` narrow advertised document formats,
 the default document format, and print quality to the production capability
-envelope, and expose synchronized conditional log rotation for the service's
-age-based retention policy. Every modified upstream file carries a project
-modification marker.
+envelope, expose synchronized conditional log rotation, and reserve history
+capacity at job admission to enforce a strict 20-record bound while preserving
+PAPPL's 60-second lifetime safety window. Every modified upstream file carries
+a project modification marker.
 
 PAPPL's NOTICE grants an optional exception for object-form embedded portions
 from Apache sections 4(a), 4(b), and 4(d), and a GPLv2 `Combined Software`

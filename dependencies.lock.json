@@ -17,6 +17,10 @@
         {
           "path": "patches/pappl/0002-add-log-rotation-api.patch",
           "sha256": "d2f90b9b946bb2fd73f6af5f2ce1359d5091591a355905212b9222a5683e5992"
+        },
+        {
+          "path": "patches/pappl/0003-bound-job-history-admission.patch",
+          "sha256": "0dc686dd0da2adf3cd38f507cbb72a4f7d7992afeecca69819ce4eca9ff8c4ec"
         }
       ]
     },

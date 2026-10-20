@@ -94,6 +94,43 @@ the exact failed command or remaining artifacts. The local structured audit is
 written under `build/personal-install/audit.jsonl`; it contains operation and
 command metadata, never print or firmware contents.
 
+### Local status and diagnostics
+
+```sh
+python3 scripts/personal_install.py status
+python3 scripts/personal_install.py diagnostics --output /private/tmp/hplj-diagnostics.tar
+```
+
+Status reports installed versions, installation/service/queue state, validated
+firmware availability, the most recent device observation, and a stable error
+category with a recovery action. Missing or older-than-five-second observations
+are reported as unknown. USB observations do not distinguish the adapter from
+the dock; the connection path remains unclassified until physical validation.
+The commands use administrator access to read the private product state.
+
+Bundles are created only by the explicit `diagnostics --output` command, as a
+new mode-0600 tar file. They follow inventory 1.0.0: sanitized status, sanitized
+structured events when available, a versioned manifest with omission reasons,
+and checksums over final files (the manifest checksum is in `checksums.sha256`).
+Configuration is currently omitted. Review the bundle before sharing it.
+Nothing is uploaded and no update or telemetry request is made.
+
+The service writes only numeric, allow-listed events: no document names,
+usernames, serials, free-form errors, firmware, or print payloads. Its private
+mode-0600 log is reset at startup and before an event would exceed 10 MiB or
+retain events for 14 days; there are no rotated backups. A one-second
+maintenance tick enforces the age bound while idle. PAPPL free-form logging and
+launchd stdout/stderr retention are disabled. Completed PAPPL job metadata is
+capped at 20 records and job payload preservation is disabled. Active jobs
+reserve history capacity too: a burst that occupies all 20 slots receives IPP
+`server-error-busy` until a completed record is older than PAPPL's 60-second
+safety window. The next admission then removes that old record. This keeps the
+bound strict without freeing records still in that safety window.
+
+Host tests exercise redaction, archive membership/checksums, retention limits,
+and fake-device state. Installed ownership/permissions and real device behavior
+still require reference-Mac promotion under the validation contract.
+
 ### Importing user-supplied firmware
 
 Read and accept the firmware's applicable HP terms before importing. The

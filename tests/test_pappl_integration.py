@@ -260,7 +260,11 @@ def assert_monitor_and_job_completion_progress(
                 jobs = [executor.submit(submit_raster, uri, raster,
                                         test_file=submit_test) for _ in range(8)]
                 for job in jobs:
-                    job.result(timeout=20)
+                    try:
+                        job.result(timeout=20)
+                    except AssertionError as error:
+                        events = (root / "log/service.log").read_text()
+                        raise AssertionError(f"{error}\nStructured events: {events}") from error
                 probes.result(timeout=20)
             assert (root / "device").read_bytes().count(b"JZJZ") == 8
         finally:
@@ -270,6 +274,79 @@ def assert_monitor_and_job_completion_progress(
                 process.kill()
                 process.wait(timeout=5)
                 raise
+
+
+def assert_job_history_bound(executable: Path) -> None:
+    with tempfile.TemporaryDirectory(prefix="hplj1020-history-") as directory:
+        root = Path(directory)
+        process, port = start_service(executable, root)
+        uri = f"ipp://127.0.0.1:{port}/ipp/print"
+        test = root / "history.test"
+        common = """GROUP operation-attributes-tag
+ATTR charset attributes-charset utf-8
+ATTR language attributes-natural-language en
+ATTR uri printer-uri $uri
+ATTR name requesting-user-name host-test
+"""
+        try:
+            # Reserve all 20 slots with document-less jobs, then cancel them.
+            # Recent completed records must remain safe to query, and the 21st
+            # admission must report busy rather than overflowing or early-freeing.
+            requests = ["{\nOPERATION Create-Job\n" + common +
+                        "STATUS successful-ok\n}\n" for _ in range(20)]
+            requests.extend("{\nOPERATION Cancel-Job\n" + common +
+                            f"ATTR integer job-id {job_id}\nSTATUS successful-ok\n}}\n"
+                            for job_id in range(1, 21))
+            requests.append("{\nOPERATION Create-Job\n" + common +
+                            "STATUS server-error-busy\n}\n")
+            requests.append("{\nOPERATION Get-Jobs\n" + common +
+                            "ATTR keyword which-jobs all\n"
+                            "ATTR keyword requested-attributes job-id,job-state\n"
+                            "STATUS successful-ok\n}\n")
+            test.write_text("".join(requests))
+            result = subprocess.run(["/usr/bin/ipptool", "-tv", uri, test],
+                                    text=True, capture_output=True, timeout=15)
+            assert result.returncode == 0, result.stdout + result.stderr
+            history = result.stdout.split("    Get-Jobs:", 1)[1]
+            assert len(re.findall(r"job-id \(integer\) =", history)) == 20, history
+            assert not any((root / "spool").iterdir())
+        finally:
+            stop_service(process)
+
+        # Age only the oldest record in the persisted fixture, then restart.
+        # This proves slot recovery without a minute-long wall-clock wait.
+        state = root / "state/system.state"
+        original = state.read_text()
+        # PAPPL does not serialize a document format for document-less jobs;
+        # supply the required restore field in this synthetic history fixture.
+        original = "\n".join(
+            line + ' format="image/pwg-raster"' if line.lstrip().startswith("Job ")
+            else line for line in original.splitlines()
+        ) + "\n"
+        updated = "\n".join(
+            re.sub(r'\bcompleted="\d+"', f'completed="{int(time.time()) - 120}"', line)
+            if line.lstrip().startswith("Job ") and re.search(r'\bid="1"', line)
+            else line for line in original.splitlines()
+        ) + "\n"
+        assert updated != original, original
+        state.write_text(updated)
+        process, port = start_service(executable, root)
+        uri = f"ipp://127.0.0.1:{port}/ipp/print"
+        try:
+            test.write_text("{\nOPERATION Create-Job\n" + common +
+                            "STATUS successful-ok\n}\n"
+                            "{\nOPERATION Get-Jobs\n" + common +
+                            "ATTR keyword which-jobs all\n"
+                            "ATTR keyword requested-attributes job-id\n"
+                            "STATUS successful-ok\n}\n")
+            result = subprocess.run(["/usr/bin/ipptool", "-tv", uri, test],
+                                    text=True, capture_output=True, timeout=15)
+            assert result.returncode == 0, result.stdout + result.stderr
+            history = result.stdout.split("    Get-Jobs:", 1)[1]
+            assert len(re.findall(r"job-id \(integer\) =", history)) == 20, history
+            assert not re.search(r"job-id \(integer\) = 1\n", history), history
+        finally:
+            stop_service(process)
 
 
 def assert_ordered_page_streams(output: bytes, expected_pages: int) -> None:
@@ -460,6 +537,7 @@ def main() -> int:
     submit_test = Path(sys.argv[7]).resolve()
     try:
         assert_monitor_and_job_completion_progress(executable, raster_maker, submit_test)
+        assert_job_history_bound(executable)
     except PermissionError:
         return 77
     # The physical printer retains its firmware across service restarts. Local
@@ -532,11 +610,10 @@ def main() -> int:
             assert trace.index("identity-ready") < trace.index("print-write")
             baseline_size = (root / "device").stat().st_size
             transfer_log = (root / "log/service.log").read_text()
-            assert re.search(
-                rf"transfer-state=job-completed bytes-sent={baseline_size} "
-                r"pages-transmitted=1\b",
-                transfer_log,
-            ), transfer_log
+            transfer_events = [json.loads(line) for line in transfer_log.splitlines()]
+            assert any(event.get("event") == "job" and event.get("state") == 6
+                       and event.get("bytesSent") == baseline_size
+                       and event.get("pagesCompleted") == 1 for event in transfer_events), transfer_log
             for condition, expected_reason in (
                 ("media-empty", "media-empty"),
                 ("manual-feed", "media-needed"),

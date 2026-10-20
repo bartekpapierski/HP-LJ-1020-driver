@@ -1,0 +1,36 @@
+--- a/pappl/job.c
++++ b/pappl/job.c
+@@ -81,6 +81,33 @@
+   {
+     _papplRWUnlock(printer);
+     return (NULL);
++  }
++
++  // Serialize direct Print-Job admission before allocating a history record.
++  // PAPPL otherwise creates an aborted record for each raster busy retry.
++  if (attrs && ippGetOperation(attrs) == IPP_OP_PRINT_JOB && cupsArrayGetCount(printer->active_jobs) > 0)
++  {
++    _papplRWUnlock(printer);
++    return (NULL);
++  }
++
++  // HP-LJ-1020-driver modification: reserve bounded history capacity at
++  // admission. Preserve PAPPL's 60-second pointer safety window; apply
++  // backpressure instead of freeing records that clients may still use.
++  // Active jobs reserve a future history slot, so completion cannot overflow.
++  if (printer->max_completed_jobs > 0)
++  {
++    while ((int)cupsArrayGetCount(printer->all_jobs) >= printer->max_completed_jobs)
++    {
++      pappl_job_t *oldest = (pappl_job_t *)cupsArrayGetLast(printer->completed_jobs);
++      if (!oldest || !oldest->completed || oldest->completed >= time(NULL) - 60)
++      {
++        _papplRWUnlock(printer);
++        return (NULL); // IPP callers respond server-error-busy before accepting bytes.
++      }
++      cupsArrayRemove(printer->completed_jobs, oldest);
++      cupsArrayRemove(printer->all_jobs, oldest);
++    }
+   }
+ 
+   // Allocate and initialize the job object...

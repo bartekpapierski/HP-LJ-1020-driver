@@ -418,14 +418,14 @@ def service_plist_matches(host: CommandHost) -> bool:
         "UserName": SERVICE_USER,
         "GroupName": SERVICE_USER,
         "WorkingDirectory": STATE_ROOT,
-        "StandardOutPath": f"{LOG_ROOT}/daemon.stdout.log",
-        "StandardErrorPath": f"{LOG_ROOT}/daemon.stderr.log",
     }
     arguments = plist.get("ProgramArguments")
     expected_program = f"{INSTALLED_APP}/Contents/Resources/hplj1020-service-supervisor"
     return (
         result.returncode == 0
         and all(plist.get(key) == value for key, value in expected.items())
+        and plist.get("StandardOutPath") in ("/dev/null", f"{LOG_ROOT}/daemon.stdout.log")
+        and plist.get("StandardErrorPath") in ("/dev/null", f"{LOG_ROOT}/daemon.stderr.log")
         and isinstance(arguments, list)
         and bool(arguments)
         and arguments[0] == expected_program
@@ -851,27 +851,39 @@ def find_removal_residue(
 
 
 def status(host: CommandHost, stdout: TextIO) -> None:
-    job = host.admin("/bin/launchctl", "print", f"system/{SERVICE_LABEL}", check=False)
-    queue = host.run(["/usr/bin/lpstat", "-p", QUEUE], check=False)
-    crash_loop = host.admin("/bin/test", "-e", f"{INSTALL_ROOT}/run/crash-loop", check=False).returncode == 0
-    service_state = "crash-loop" if crash_loop else "loaded" if job.returncode == 0 else "not-loaded"
-    print(f"service={service_state}", file=stdout)
-    print(f"queue={'available' if queue.returncode == 0 else 'absent-or-disabled'}", file=stdout)
-    print("listener=verify with enable/install health check", file=stdout)
-    if crash_loop:
-        print("action=inspect local logs, correct the cause, then run enable", file=stdout)
+    if __package__:
+        from scripts.diagnostics import collect_status
+    else:
+        from diagnostics import collect_status
+    print(json.dumps(collect_status(host), sort_keys=True, indent=2), file=stdout)
 
 
 def main(argv: Sequence[str] | None = None, *, runner: Runner = subprocess.run, stdout: TextIO = sys.stdout) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("operation", choices=("install", "disable", "enable", "uninstall", "status"))
+    parser.add_argument("operation", choices=("install", "disable", "enable", "uninstall", "status", "diagnostics"))
     parser.add_argument("--apply", action="store_true", help="perform the previewed lifecycle operation")
     parser.add_argument("--dry-run", action="store_true", help="print the mutation preview and make no changes")
     parser.add_argument("--yes", action="store_true", help="confirm the exact preview without an interactive prompt")
+    parser.add_argument("--output", type=Path, help="new private diagnostic .tar file (explicit request only)")
     args = parser.parse_args(argv)
     if args.apply and args.dry_run:
         print("--apply and --dry-run are mutually exclusive", file=stdout)
         return 2
+    if args.operation == "diagnostics":
+        if args.output is None or args.dry_run:
+            print("diagnostics requires --output NEW_FILE and no --dry-run", file=stdout)
+            return 2
+        if __package__:
+            from scripts.diagnostics import create_bundle
+        else:
+            from diagnostics import create_bundle
+        try:
+            create_bundle(CommandHost(runner), args.output)
+        except (OSError, ValueError):
+            print("diagnostics failed: check destination permissions and use a new output file", file=stdout)
+            return 1
+        print("Private redacted diagnostic bundle created locally; review before sharing.", file=stdout)
+        return 0
     if args.operation == "status":
         status(CommandHost(runner), stdout)
         return 0
