@@ -97,6 +97,19 @@ REMOVAL_ARTIFACTS = (
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
 PREVIEWS = {
+    "update": (
+        "require a clean checkout of the explicitly selected version tag",
+        "build, validate, and sign the replacement without privilege",
+        "refuse unfinished jobs in the macOS queue and provider",
+        "close job admission; stop service; retain exact payload, plist, and compatible state",
+        "activate and migrate under a durable transaction journal; check bounded service health",
+        "restore exact retained payload and state on failure; preserve existing queue options",
+    ),
+    "rollback": (
+        "recover an interrupted transaction first, or restore the exact retained previous payload and state",
+        "refuse unfinished jobs; close admission; retain current payload and state",
+        "restore without rebuilding; check service health before releasing the existing queue",
+    ),
     "install": (
         "build and validate pinned sources without privilege",
         "ad-hoc sign nested provider code and app with hardened runtime without privilege",
@@ -456,7 +469,7 @@ def validate_existing_installation(host: CommandHost) -> bool:
         allowed = {
             f"{INSTALL_ROOT}/{name}" for name in (
                 ".product-id", "HP-LJ-1020.app", "cache", "config", "firmware",
-                "home", "run", "spool", "state",
+                "home", "run", "spool", "state", "transactions",
             )
         }
         unknown = sorted(set(listing.stdout.splitlines()) - allowed)
@@ -557,7 +570,7 @@ def wait_ready(host: CommandHost, *, require_queue: bool = True) -> None:
     raise InstallError(f"service readiness timed out ({last})")
 
 
-def disable(host: CommandHost) -> None:
+def disable(host: CommandHost, *, preserve_queue_policy: bool = False) -> None:
     failures: list[str] = []
     try:
         queue_owned = validate_queue_ownership(host)
@@ -565,9 +578,10 @@ def disable(host: CommandHost) -> None:
         failures.append(str(error))
         queue_owned = False
     if queue_owned:
-        policy = host.admin("/usr/sbin/lpadmin", "-p", QUEUE, "-o", "printer-is-shared=false", "-o", "printer-error-policy=stop-printer", check=False)
-        if policy.returncode != 0:
-            failures.append("queue policy update failed")
+        if not preserve_queue_policy:
+            policy = host.admin("/usr/sbin/lpadmin", "-p", QUEUE, "-o", "printer-is-shared=false", "-o", "printer-error-policy=stop-printer", check=False)
+            if policy.returncode != 0:
+                failures.append("queue policy update failed")
         held = host.admin("/usr/sbin/cupsdisable", QUEUE, check=False)
         if held.returncode != 0:
             failures.append("queue hold failed")
@@ -630,6 +644,8 @@ def install(host: CommandHost) -> None:
     stage_and_sign(host)
     host.admin("-v")
     product_owned = validate_existing_installation(host)
+    if host.admin("/bin/test", "-e", INSTALLED_APP, check=False).returncode == 0:
+        raise InstallError("existing payload requires update --tag; install cannot overwrite it")
     validate_account_state(host, product_owned=product_owned)
     queue_owned = validate_queue_ownership(host)
     if queue_owned and not product_owned:
@@ -858,14 +874,44 @@ def status(host: CommandHost, stdout: TextIO) -> None:
     print(json.dumps(collect_status(host), sort_keys=True, indent=2), file=stdout)
 
 
+def transaction_outcome(result: subprocess.CompletedProcess[str]) -> str:
+    prefix = "transaction-outcome="
+    return next((line[len(prefix):] for line in result.stdout.splitlines() if line.startswith(prefix)), "transaction-complete")
+
+
+def update(host: CommandHost, tag: str) -> str:
+    def git(*arguments: str) -> str:
+        return host.run(["/usr/bin/git", "-C", str(ROOT), *arguments]).stdout.strip()
+
+    if tag != f"v{read_version(ROOT)}":
+        raise InstallError("selected tag must be vVERSION in its checked-out source revision")
+    if git("status", "--porcelain", "--untracked-files=all"):
+        raise InstallError("tagged-source update requires a clean checkout")
+    commit = git("rev-parse", "HEAD")
+    if git("rev-parse", f"refs/tags/{tag}^{{commit}}") != commit:
+        raise InstallError("checkout must match the explicitly selected tag")
+    tag_object = git("rev-parse", f"refs/tags/{tag}")
+    stage_and_sign(host, personal_release=True)
+    if (git("status", "--porcelain", "--untracked-files=all")
+            or git("rev-parse", "HEAD") != commit
+            or git("rev-parse", f"refs/tags/{tag}") != tag_object):
+        raise InstallError("tagged source changed during staging")
+    result = host.admin(sys.executable, "-B", str(ROOT / "scripts/personal_update.py"), "update",
+                        "--staged", str(STAGED_APP), "--tag", tag, "--commit", commit)
+    return transaction_outcome(result)
+
+
 def main(argv: Sequence[str] | None = None, *, runner: Runner = subprocess.run, stdout: TextIO = sys.stdout) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("operation", choices=("install", "disable", "enable", "uninstall", "status", "diagnostics"))
+    parser.add_argument("operation", choices=("install", "disable", "enable", "uninstall", "status", "diagnostics", "update", "rollback"))
+    parser.add_argument("--tag", help="explicit vVERSION tag checked out for update")
     parser.add_argument("--apply", action="store_true", help="perform the previewed lifecycle operation")
     parser.add_argument("--dry-run", action="store_true", help="print the mutation preview and make no changes")
     parser.add_argument("--yes", action="store_true", help="confirm the exact preview without an interactive prompt")
     parser.add_argument("--output", type=Path, help="new private diagnostic .tar file (explicit request only)")
     args = parser.parse_args(argv)
+    if (args.operation == "update" and args.tag is None) or (args.operation != "update" and args.tag is not None):
+        parser.error("--tag is required only for update")
     if args.apply and args.dry_run:
         print("--apply and --dry-run are mutually exclusive", file=stdout)
         return 2
@@ -901,6 +947,9 @@ def main(argv: Sequence[str] | None = None, *, runner: Runner = subprocess.run, 
         with AUDIT_LOG.open("a", encoding="utf-8") as audit:
             audit.write(json.dumps({"event": "start", "operation": args.operation, "time": datetime.now(timezone.utc).isoformat()}, separators=(",", ":")) + "\n")
             host = CommandHost(runner, audit)
+            if args.operation in {"enable", "uninstall"}:
+                if host.admin("/bin/test", "-e", f"{INSTALL_ROOT}/transactions/pending.json", check=False).returncode == 0:
+                    raise InstallError("pending update transaction: run rollback --apply --yes to recover first")
             if args.operation == "install":
                 install(host)
                 state = "enabled"
@@ -914,6 +963,11 @@ def main(argv: Sequence[str] | None = None, *, runner: Runner = subprocess.run, 
                     raise InstallError("refusing enable without the signed product ownership marker")
                 enable(host)
                 state = "enabled"
+            elif args.operation == "update":
+                state = update(host, args.tag)
+            elif args.operation == "rollback":
+                result = host.admin(sys.executable, "-B", str(ROOT / "scripts/personal_update.py"), "rollback")
+                state = transaction_outcome(result)
             else:
                 uninstall(host)
                 state = "clean"

@@ -6,8 +6,8 @@
     "build-inputs": "88bb07674179b4034e3237913936ab9cfdcb78e83ad0d242b22b01adce0b86c5",
     "golden-corpus": "357e7008569b4fa9165d62d2a6b4d37abd8ae5e3727ef93afb22f6b7c77d659f",
     "implementation-contract": "023d62deb58abd365734c621767f7a35c324e91a07607c3a17f7b7e16afe44ba",
-    "product-source": "69769fffef626e12ba69c093d3b4d7ba184d9c553a930bf64404a575f00692d8",
-    "validation-tooling": "669c8544ec6491bd64176ffd4c3e93c22c5e1b4e9303129136b8ba3b6ace9508"
+    "product-source": "3305fd12f8203de1960e0922f40d714c8c160de373c2e4ed3f60023f124fe907",
+    "validation-tooling": "0eecd16917cd8ae421ca2bad19cbf8f2cf1fad01a8a4f8526b2a90d8620feaab"
   },
   "scenarios": [
     {
@@ -1210,6 +1210,7 @@
       "affectedScopes": [
         "build-inputs",
         "implementation-contract",
+        "product-source",
         "validation-tooling"
       ],
       "invalidatedBy": [],
@@ -2466,6 +2467,7 @@
       "affectedScopes": [
         "build-inputs",
         "implementation-contract",
+        "product-source",
         "validation-tooling"
       ],
       "invalidatedBy": [],
@@ -2937,6 +2939,7 @@
       "affectedScopes": [
         "build-inputs",
         "implementation-contract",
+        "product-source",
         "validation-tooling"
       ],
       "invalidatedBy": [],
@@ -2969,6 +2972,7 @@
       "affectedScopes": [
         "build-inputs",
         "implementation-contract",
+        "product-source",
         "validation-tooling"
       ],
       "invalidatedBy": [],
@@ -3032,6 +3036,7 @@
       "affectedScopes": [
         "build-inputs",
         "implementation-contract",
+        "product-source",
         "validation-tooling"
       ],
       "invalidatedBy": [],
@@ -3227,6 +3232,7 @@
       "affectedScopes": [
         "build-inputs",
         "implementation-contract",
+        "product-source",
         "validation-tooling"
       ],
       "invalidatedBy": [],
@@ -3353,6 +3359,7 @@
       "affectedScopes": [
         "build-inputs",
         "implementation-contract",
+        "product-source",
         "validation-tooling"
       ],
       "invalidatedBy": [],
@@ -3385,6 +3392,7 @@
       "affectedScopes": [
         "build-inputs",
         "implementation-contract",
+        "product-source",
         "validation-tooling"
       ],
       "invalidatedBy": [],
@@ -3608,6 +3616,7 @@
       "affectedScopes": [
         "build-inputs",
         "implementation-contract",
+        "product-source",
         "validation-tooling"
       ],
       "invalidatedBy": [],
@@ -3704,6 +3713,7 @@
       "affectedScopes": [
         "build-inputs",
         "implementation-contract",
+        "product-source",
         "validation-tooling"
       ],
       "invalidatedBy": [],

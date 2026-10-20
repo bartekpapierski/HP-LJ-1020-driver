@@ -94,6 +94,56 @@ the exact failed command or remaining artifacts. The local structured audit is
 written under `build/personal-install/audit.jsonl`; it contains operation and
 command metadata, never print or firmware contents.
 
+### Tagged-source update and rollback
+
+Check out the selected local `vVERSION` tag in a clean source checkout, then
+preview and apply the update explicitly:
+
+```sh
+python3 scripts/personal_install.py update --tag v0.1.0
+python3 scripts/personal_install.py update --tag v0.1.0 --apply --yes
+python3 scripts/personal_install.py rollback
+python3 scripts/personal_install.py rollback --apply --yes
+```
+
+Use the actual selected tag in place of `v0.1.0`. Update builds and validates
+the pinned sources, assembles and signs the app without privilege, then passes
+the staged app to the administrator transaction helper. `install` refuses to
+overwrite an existing app; use `update` for replacements. Updates require the
+existing queue and service to be enabled, accepting jobs, and healthy.
+Both installed and replacement payloads must declare the supported state and
+startup-admission contract. Older installations without that contract need a
+clean installation before they can participate in transactional updates.
+
+Unfinished jobs at either CUPS or the provider defer activation. Admission closes
+on both paths and jobs are checked again before stopping the service. Existing
+queue options stay in place. The root-only `transactions` directory under the
+product root retains the exact prior app, LaunchDaemon plist, configuration,
+PAPPL state, spool, firmware, cache, and service home, with checksums, modes, and
+ownership. Logs stay in place and runtime sockets are recreated. The
+snapshots also retain queue options and its PPD when present; activation never
+recreates the queue or rewrites its defaults. These private
+snapshots contain user data and firmware; they must not be shared or committed.
+Snapshots are retained until uninstall; repeated updates consume disk space.
+
+The versioned v0-to-v1 migration adds only state-version metadata; it is
+idempotent and refuses future state versions. Activation keeps launchd disabled
+while replacing files. A durable startup gate also holds direct IPP admission
+across provider restarts. Activation health-checks the replacement before reopening job
+admission. Failures restore the retained payload and compatible state without
+rebuilding. Explicit rollback also retains the installation it replaces, so it
+can itself be reversed.
+
+After an interruption, run `rollback --apply --yes`. A pending transaction takes
+precedence over a new operation: recovery restores the prior installation if
+activation was uncommitted, or finishes reopening admission if it had committed.
+Recovery can be repeated after another interruption. A failed restoration leaves
+the service disabled and retains its journal for retry; `enable` and `uninstall`
+refuse a pending transaction. Host-only tests inject failures and interruptions
+across activation, migration, and restoration. Administrator mutation, real
+active-job refusal, service health, and restored printing still require
+reference-Mac validation during personal-release promotion.
+
 ### Local status and diagnostics
 
 ```sh

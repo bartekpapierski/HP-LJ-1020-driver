@@ -83,6 +83,33 @@ def stop_service(process: subprocess.Popen[str]) -> None:
     assert process.wait(timeout=10) == 0
 
 
+def assert_transaction_startup_gate(executable: Path, root: Path) -> None:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from scripts import personal_install, personal_update
+
+    (root / "state").mkdir(parents=True, exist_ok=True)
+    marker = root / "state/system.state.update-held"
+    marker.write_text('{"held":true}\n')
+    runtime = personal_update.MacRuntime(personal_install.CommandHost(subprocess.run))
+    # The same gate must apply to a new printer and to reloaded PAPPL state.
+    for _ in range(2):
+        process, port = start_service(executable, root)
+        try:
+            uri = f"ipp://127.0.0.1:{port}/ipp/print"
+            result = subprocess.run(
+                ["/usr/bin/ipptool", "-tv", uri,
+                 "/usr/share/cups/ipptool/get-printer-attributes.test"],
+                check=True, text=True, capture_output=True, timeout=10,
+            )
+            assert "printer-is-accepting-jobs (boolean) = false" in result.stdout
+            runtime.ipp("Get-Jobs", empty=True, uri=uri)
+            runtime.ipp("Enable-Printer", uri=uri)
+            runtime.ipp("Get-Printer-Attributes", accepting=True, uri=uri)
+            runtime.ipp("Disable-Printer", uri=uri)
+        finally:
+            stop_service(process)
+
+
 def submit_raster(
     uri: str, raster: Path, *, user: str = "host-test", test_file: Path | None = None
 ) -> None:
@@ -775,6 +802,7 @@ def main() -> int:
         finally:
             stop_service(process)
 
+        assert_transaction_startup_gate(executable, root / "transaction-gate")
         failure_root = root / "failure-service"
         assert_device_failure_propagates(executable, raster_maker, failure_root)
     return 0

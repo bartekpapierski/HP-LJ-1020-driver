@@ -44,6 +44,7 @@ SCOPE_PATHS = {
         "include",
         "packaging",
         "scripts/personal_install.py",
+        "scripts/personal_update.py",
         "scripts/reconcile_macos_queue.py",
         "scripts/seal_lifecycle_evidence.py",
         "src",
@@ -61,6 +62,7 @@ SCOPE_PATHS = {
         "scripts/validation_gate.py",
         "tests/test_pappl_integration.py",
         "tests/test_personal_release.py",
+        "tests/test_personal_update.py",
         "validation/fixtures/lifecycle-calibration.pdf",
     ),
 }
@@ -90,7 +92,7 @@ def _scope_identity(paths: Iterable[str]) -> str:
 def _affected_scopes(requirements: list[Any]) -> list[str]:
     namespaces = {requirement.id.split("-", 1)[0] for requirement in requirements}
     scopes = {"implementation-contract"}
-    if namespaces & {"ARCH", "DEV", "FW", "JOB", "INST", "SVC", "SEC", "DIAG", "SCOPE"}:
+    if namespaces & {"ARCH", "DEV", "FW", "JOB", "INST", "SVC", "SEC", "DIAG", "SCOPE", "REL"}:
         scopes.add("product-source")
     if namespaces & {"BUILD", "LIC", "REL"}:
         scopes.add("build-inputs")

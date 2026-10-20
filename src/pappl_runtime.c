@@ -1300,6 +1300,18 @@ static bool hplj_backend_configure_policy(
   papplPrinterSetMaxPreservedJobs(backend->printer, 0);
   papplSystemSetMaxLogSize(backend->system, policy->maximum_log_bytes);
   backend->retention = *policy;
+  // A transaction must survive service restarts without reopening direct IPP
+  // admission before its health check commits. PAPPL does not persist Disable-
+  // Printer in system.state, so the administrator helper owns this sidecar.
+  char update_hold[PATH_MAX];
+  int length = snprintf(update_hold, sizeof(update_hold), "%s.update-held",
+                        backend->state_path);
+  if (length < 0 || (size_t)length >= sizeof(update_hold)) {
+    return false;
+  }
+  if (access(update_hold, F_OK) == 0) {
+    papplPrinterDisable(backend->printer);
+  }
   return true;
 }
 
