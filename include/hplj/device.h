@@ -43,6 +43,14 @@ struct hplj_usb_descriptor {
   uint16_t product_id;
 };
 
+struct hplj_output_status {
+  bool supported;
+  unsigned int status_code;
+  bool online;
+  uint64_t generation;
+  uint64_t completed_documents;
+};
+
 struct hplj_device_ops {
   /* All callbacks borrow context. The device owns no hardware handle. */
   enum hplj_error_category (*discover)(void *context,
@@ -64,6 +72,8 @@ struct hplj_device_ops {
                                        size_t byte_count);
   enum hplj_error_category (*read_status)(void *context,
                                           unsigned int *conditions);
+  /* Snapshot after read_status; counters are scoped to the USB connection. */
+  struct hplj_output_status (*output_status)(void *context);
   void (*release)(void *context);
   void *context;
 };

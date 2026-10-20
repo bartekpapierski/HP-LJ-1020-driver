@@ -7,6 +7,7 @@ from __future__ import annotations
 import http.client
 import hashlib
 import json
+import re
 import signal
 import socket
 import subprocess
@@ -101,6 +102,7 @@ def submit_raster(
             check=False,
             capture_output=True,
             text=True,
+            timeout=15,
         )
         if result.returncode == 0:
             return
@@ -227,6 +229,49 @@ def submit_golden_corpus(
     return expected_pages
 
 
+def assert_monitor_and_job_completion_progress(
+    executable: Path, raster_maker: Path, submit_test: Path
+) -> None:
+    with tempfile.TemporaryDirectory(prefix="hplj1020-monitor-contention-") as directory:
+        root = Path(directory)
+        install_test_firmware(root)
+        process, port = start_service(executable, root)
+        uri = f"ipp://127.0.0.1:{port}/ipp/print"
+        raster = root / "contention.pwg"
+        subprocess.run([raster_maker, "pwg", raster], check=True)
+
+        def probe_http() -> None:
+            # Exercise client deletion (system write lock) while the monitor
+            # and job completion contend for the printer and system locks.
+            for _ in range(60):
+                connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                try:
+                    connection.request("GET", "/")
+                    response = connection.getresponse()
+                    response.read()
+                    assert response.status == 404, response.status
+                finally:
+                    connection.close()
+                time.sleep(0.025)
+
+        try:
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                probes = executor.submit(probe_http)
+                jobs = [executor.submit(submit_raster, uri, raster,
+                                        test_file=submit_test) for _ in range(8)]
+                for job in jobs:
+                    job.result(timeout=20)
+                probes.result(timeout=20)
+            assert (root / "device").read_bytes().count(b"JZJZ") == 8
+        finally:
+            try:
+                stop_service(process)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=5)
+                raise
+
+
 def assert_ordered_page_streams(output: bytes, expected_pages: int) -> None:
     prefix = b"\x1b%-12345X@PJL JOB\n"
     trailer = b"\x1b%-12345X@PJL EOJ\n\x1b%-12345X"
@@ -295,6 +340,50 @@ def assert_media_condition_recovers(
     while device.stat().st_size == baseline_size and time.monotonic() < deadline:
         time.sleep(0.05)
     assert device.stat().st_size > baseline_size
+    return device.stat().st_size
+
+
+def assert_completion_waits_for_output(
+    uri: str, raster_maker: Path, root: Path
+) -> int:
+    device = root / "device"
+    conditions = root / "device.conditions"
+    raster = root / "awaiting-output.pwg"
+    subprocess.run([raster_maker, "pwg", raster], check=True)
+    pending_test = root / "pending-output.test"
+    pending_test.write_text("""{
+OPERATION Get-Jobs
+GROUP operation-attributes-tag
+ATTR charset attributes-charset utf-8
+ATTR language attributes-natural-language en
+ATTR uri printer-uri $uri
+ATTR keyword which-jobs not-completed
+ATTR keyword requested-attributes job-id,job-state,job-state-message
+STATUS successful-ok
+}""")
+    for condition in ("output-pending", "media-after-write"):
+        baseline = device.stat().st_size
+        conditions.write_text(f"{condition}\n")
+        try:
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                submission = executor.submit(submit_raster, uri, raster)
+                deadline = time.monotonic() + 5
+                while device.stat().st_size == baseline and time.monotonic() < deadline:
+                    time.sleep(0.02)
+                assert device.stat().st_size > baseline
+                if condition == "media-after-write":
+                    wait_for_printer_reason(uri, "media-empty")
+                time.sleep(0.2)
+                assert not submission.done(), "transmission was mistaken for output completion"
+                result = subprocess.run(
+                    ["/usr/bin/ipptool", "-tv", uri, pending_test],
+                    capture_output=True, text=True, check=True, timeout=5,
+                )
+                assert "job-state (enum) = processing" in result.stdout, result.stdout
+                conditions.unlink()
+                submission.result(timeout=10)
+        finally:
+            conditions.unlink(missing_ok=True)
     return device.stat().st_size
 
 
@@ -369,6 +458,10 @@ def main() -> int:
     malformed_job = Path(sys.argv[5]).resolve()
     corpus = Path(sys.argv[6]).resolve()
     submit_test = Path(sys.argv[7]).resolve()
+    try:
+        assert_monitor_and_job_completion_progress(executable, raster_maker, submit_test)
+    except PermissionError:
+        return 77
     # The physical printer retains its firmware across service restarts. Local
     # uninstall removes the image, so import can happen after a warm discovery.
     with tempfile.TemporaryDirectory(prefix="hplj1020-warm-import-") as directory:
@@ -438,6 +531,12 @@ def main() -> int:
             assert trace.index("firmware-upload") < trace.index("identity-ready")
             assert trace.index("identity-ready") < trace.index("print-write")
             baseline_size = (root / "device").stat().st_size
+            transfer_log = (root / "log/service.log").read_text()
+            assert re.search(
+                rf"transfer-state=job-completed bytes-sent={baseline_size} "
+                r"pages-transmitted=1\b",
+                transfer_log,
+            ), transfer_log
             for condition, expected_reason in (
                 ("media-empty", "media-empty"),
                 ("manual-feed", "media-needed"),
@@ -449,6 +548,7 @@ def main() -> int:
             baseline_size = assert_cancellation_while_waiting_allows_next_job(
                 uri, raster_maker, root
             )
+            baseline_size = assert_completion_waits_for_output(uri, raster_maker, root)
             for condition in ("disconnect", "power-cycle", "sleep-wake"):
                 baseline_size = assert_transport_recovery_allows_next_job(
                     uri, raster_maker, root, condition
@@ -544,6 +644,14 @@ def main() -> int:
         assert b"JZJZ" not in retained
         assert b"@PJL JOB" not in retained
 
+        state = root / "state/system.state"
+        state.write_text(
+            "\n".join(
+                re.sub(r" (?:bottom|left|right|top)=\d+", "", line)
+                if line.lstrip().startswith("media-col-default ") else line
+                for line in state.read_text().splitlines()
+            ) + "\n"
+        )
         process, port = start_service(executable, root)
         try:
             result = subprocess.run(
@@ -569,6 +677,16 @@ def main() -> int:
                 if "document-format-default" in line
             )
             assert "printer-resolution-supported (resolution) = 600dpi" in result.stdout
+            default_media = next(
+                line for line in result.stdout.splitlines()
+                if "media-col-default (collection)" in line
+            )
+            for edge in ("top", "bottom", "left", "right"):
+                assert (
+                    f"media-{edge}-margin-supported (integer) = 400"
+                    in result.stdout
+                ), result.stdout
+                assert f"media-{edge}-margin=400" in default_media, default_media
             assert "pwg-raster-document-type-supported (keyword) = black_1" in result.stdout
             assert "image/pwg-raster" in format_attributes
             assert "image/urf" in format_attributes

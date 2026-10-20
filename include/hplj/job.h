@@ -59,6 +59,7 @@ struct hplj_error hplj_job_prepare(struct hplj_job *job,
 struct hplj_error hplj_job_submit_page(struct hplj_job *job,
                                        const struct hplj_raster *raster);
 struct hplj_error hplj_job_complete(struct hplj_job *job);
+void hplj_job_output_failed(struct hplj_job *job, const char *detail);
 struct hplj_error hplj_job_retry(struct hplj_job *job);
 struct hplj_error hplj_job_wait_for_media(struct hplj_job *job,
                                           unsigned int conditions);

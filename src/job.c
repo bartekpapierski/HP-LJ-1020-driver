@@ -292,6 +292,17 @@ struct hplj_error hplj_job_resume_media(struct hplj_job *job) {
   return job->metadata.error;
 }
 
+void hplj_job_output_failed(struct hplj_job *job, const char *detail) {
+  if (job != NULL && (job->metadata.state == HPLJ_JOB_PREPARING ||
+                      job->metadata.state == HPLJ_JOB_WAITING_FOR_MEDIA)) {
+    hplj_job_fail(job,
+                  hplj_job_error(HPLJ_ERROR_TRANSFER_INCOMPLETE,
+                                  HPLJ_RETRY_EXPLICIT, HPLJ_ACTION_RETRY_JOB,
+                                  detail),
+                  0);
+  }
+}
+
 void hplj_job_cancel(struct hplj_job *job) {
   if (job == NULL || job->metadata.state == HPLJ_JOB_COMPLETED ||
       job->metadata.state == HPLJ_JOB_CANCELED ||

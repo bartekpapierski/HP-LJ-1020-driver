@@ -475,7 +475,23 @@ static void test_failures_cancellation_limits_and_shutdown_release_resources(voi
   assert(fake.releases > 0);
 }
 
+static void test_unconfirmed_output_requires_explicit_retry(void) {
+  struct fake_pipeline fake = {
+      .identity = "MFG:HP;MDL:HP LaserJet 1020;FWVER:20050309;"};
+  struct hplj_device device;
+  struct hplj_job job = make_job(&fake, &device);
+  assert(hplj_job_prepare(&job, NULL, 0, "20050309").category == HPLJ_ERROR_NONE);
+  struct hplj_raster raster = valid_raster();
+  assert(hplj_job_submit_page(&job, &raster).category == HPLJ_ERROR_NONE);
+  hplj_job_output_failed(&job, "output completion unverified");
+  assert(job.metadata.state == HPLJ_JOB_FAILED_PARTIAL);
+  assert(job.metadata.error.retry == HPLJ_RETRY_EXPLICIT);
+  assert(job.metadata.bytes_sent > 0);
+  assert(hplj_job_complete(&job).category != HPLJ_ERROR_NONE);
+}
+
 int main(void) {
+  test_unconfirmed_output_requires_explicit_retry();
   test_job_waits_for_firmware_then_completes_after_transmission();
   test_partial_transmission_requires_explicit_retry();
   test_zero_byte_failure_retries_but_partial_cancel_never_does();

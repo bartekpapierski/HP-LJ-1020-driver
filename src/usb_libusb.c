@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "hplj/usb_libusb.h"
+#include "hplj/pjl_status.h"
 
 #include <libusb.h>
 
@@ -27,6 +28,9 @@ struct hplj_libusb_transport {
   uint8_t configuration_value;
   uint8_t configuration_index;
   uint8_t bulk_out_endpoint;
+  uint8_t bulk_in_endpoint;
+  struct hplj_pjl_status pjl_status;
+  uint64_t output_generation;
   bool interface_claimed;
 };
 
@@ -53,6 +57,9 @@ static void hplj_libusb_release(void *context) {
     (void)libusb_release_interface(transport->handle, transport->interface_number);
   }
   transport->interface_claimed = false;
+  transport->bulk_in_endpoint = 0;
+  transport->output_generation++;
+  memset(&transport->pjl_status, 0, sizeof(transport->pjl_status));
   if (transport->handle != NULL) {
     libusb_close(transport->handle);
     transport->handle = NULL;
@@ -133,6 +140,18 @@ static enum hplj_error_category hplj_libusb_claim(void *context) {
           transport->alternate_setting = alternate->bAlternateSetting;
           transport->configuration_value = configuration->bConfigurationValue;
           transport->bulk_out_endpoint = endpoint->bEndpointAddress;
+          for (uint8_t input_index = 0; input_index < alternate->bNumEndpoints;
+               input_index++) {
+            const struct libusb_endpoint_descriptor *input =
+                &alternate->endpoint[input_index];
+            if ((input->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK) ==
+                    LIBUSB_TRANSFER_TYPE_BULK &&
+                (input->bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) ==
+                    LIBUSB_ENDPOINT_IN) {
+              transport->bulk_in_endpoint = input->bEndpointAddress;
+              break;
+            }
+          }
           found = true;
           break;
         }
@@ -281,7 +300,45 @@ static enum hplj_error_category hplj_libusb_status(
   if ((status & (1U << 3)) == 0) {
     *conditions |= HPLJ_DEVICE_CONDITION_FAULT;
   }
+  if (transport->bulk_in_endpoint != 0) {
+    // Drain queued PJL frames before using the latest status. A quiet input
+    // endpoint is normal; bound each poll even if the device keeps sending.
+    unsigned int packet;
+    for (packet = 0; packet < 256U; packet++) {
+      unsigned char response[512];
+      int received = 0;
+      int result = libusb_bulk_transfer(
+          transport->handle, transport->bulk_in_endpoint, response,
+          sizeof(response), &received, 2U);
+      if (received > 0) {
+        hplj_pjl_status_feed(&transport->pjl_status, response, (size_t)received);
+      }
+      if (result == LIBUSB_ERROR_TIMEOUT ||
+          (result == LIBUSB_SUCCESS && received == 0)) {
+        break;
+      }
+      if (result != LIBUSB_SUCCESS) {
+        return hplj_libusb_error(result);
+      }
+    }
+    *conditions |= transport->pjl_status.conditions;
+    if (packet == 256U) {
+      // Do not treat a partially drained historical ready message as current.
+      *conditions |= HPLJ_DEVICE_CONDITION_NOT_SELECTED;
+    }
+  }
   return HPLJ_ERROR_NONE;
+}
+
+static struct hplj_output_status hplj_libusb_output_status(void *context) {
+  struct hplj_libusb_transport *transport = context;
+  return (struct hplj_output_status){
+      .supported = transport->bulk_in_endpoint != 0 && transport->interface_claimed,
+      .status_code = transport->pjl_status.code,
+      .online = transport->pjl_status.online,
+      .generation = transport->output_generation,
+      .completed_documents = transport->pjl_status.completed_documents,
+  };
 }
 
 enum hplj_error_category hplj_libusb_transport_create(
@@ -324,6 +381,7 @@ void hplj_libusb_device_ops(struct hplj_libusb_transport *transport,
       .wait_milliseconds = hplj_libusb_wait,
       .write = hplj_libusb_write,
       .read_status = hplj_libusb_status,
+      .output_status = hplj_libusb_output_status,
       .release = hplj_libusb_release,
       .context = transport,
   };

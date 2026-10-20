@@ -7,6 +7,7 @@
 #include <pappl/pappl.h>
 
 #include <fcntl.h>
+#include <errno.h>
 #include <limits.h>
 #include <pthread.h>
 #include <stdatomic.h>
@@ -40,6 +41,11 @@ struct hplj_pappl_backend {
   bool owns_device;
   bool test_device;
   bool test_firmware_uploaded;
+  unsigned int last_status_code;
+  bool last_status_online;
+  uint64_t test_output_generation;
+  uint64_t test_completed_documents;
+  unsigned int test_pending_documents;
   int test_output;
   int test_trace;
   char test_output_path[PATH_MAX];
@@ -303,6 +309,18 @@ static pappl_preason_t hplj_backend_status_reasons(
     pthread_mutex_unlock(&backend->device_mutex);
     return PAPPL_PREASON_OFFLINE;
   }
+  bool status_changed = false;
+  struct hplj_output_status output = {0};
+  if (backend->device.ops.output_status != NULL) {
+    output =
+        backend->device.ops.output_status(backend->device.ops.context);
+    if (output.status_code != backend->last_status_code ||
+        output.online != backend->last_status_online) {
+      backend->last_status_code = output.status_code;
+      backend->last_status_online = output.online;
+      status_changed = true;
+    }
+  }
   if (observed_conditions != NULL) {
     *observed_conditions = conditions;
   }
@@ -326,6 +344,11 @@ static pappl_preason_t hplj_backend_status_reasons(
     reasons |= PAPPL_PREASON_COVER_OPEN | PAPPL_PREASON_DOOR_OPEN;
   }
   pthread_mutex_unlock(&backend->device_mutex);
+  if (status_changed) {
+    papplLog(backend->system, PAPPL_LOGLEVEL_INFO,
+             "printer-status code=%u online=%u conditions=%u",
+             output.status_code, (unsigned int)output.online, conditions);
+  }
   return reasons;
 }
 
@@ -408,6 +431,72 @@ static bool hplj_monitor_device(pappl_system_t *system, void *data) {
         false);
   }
   return true;
+}
+
+static struct hplj_output_status hplj_backend_output_status(
+    struct hplj_pappl_backend *backend) {
+  return backend->device.ops.output_status != NULL
+             ? backend->device.ops.output_status(backend->device.ops.context)
+             : (struct hplj_output_status){0};
+}
+
+static double hplj_monotonic_seconds(void) {
+  struct timespec now;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  return (double)now.tv_sec + (double)now.tv_nsec / 1000000000.0;
+}
+
+static bool hplj_wait_for_output(struct hplj_pappl_backend *backend,
+                                 pappl_job_t *job, struct hplj_job *lifecycle,
+                                 struct hplj_output_status before) {
+  double deadline = hplj_monotonic_seconds() + 60.0;
+  const struct timespec interval = {.tv_sec = 0, .tv_nsec = 100000000};
+  while (!papplJobIsCanceled(job) && !atomic_load(&backend->stopping) &&
+         !papplSystemIsShutdown(backend->system)) {
+    unsigned int conditions = HPLJ_DEVICE_CONDITION_NONE;
+    struct hplj_error error = {0};
+    pappl_preason_t reasons =
+        hplj_backend_status_reasons(backend, &conditions, &error);
+    pthread_mutex_lock(&backend->device_mutex);
+    struct hplj_output_status after = hplj_backend_output_status(backend);
+    pthread_mutex_unlock(&backend->device_mutex);
+    if (!after.supported || after.generation != before.generation) {
+      hplj_job_output_failed(lifecycle,
+                             "output unverified: USB connection changed after transmission; retry explicitly");
+      return false;
+    }
+    if (after.completed_documents > before.completed_documents) {
+      if (lifecycle->metadata.state == HPLJ_JOB_WAITING_FOR_MEDIA) {
+        (void)hplj_job_resume_media(lifecycle);
+      }
+      return true;
+    }
+    papplPrinterSetReasons(backend->printer, reasons,
+                           PAPPL_PREASON_DEVICE_STATUS & ~reasons);
+    if (reasons != PAPPL_PREASON_NONE) {
+      papplJobSetMessage(job, "%s", error.detail);
+      if (lifecycle->metadata.state == HPLJ_JOB_PREPARING &&
+          (conditions & (HPLJ_DEVICE_CONDITION_MEDIA_EMPTY |
+                         HPLJ_DEVICE_CONDITION_MANUAL_FEED |
+                         HPLJ_DEVICE_CONDITION_COVER_OPEN)) != 0) {
+        (void)hplj_job_wait_for_media(lifecycle, conditions);
+      }
+      deadline = hplj_monotonic_seconds() + 60.0;
+    } else {
+      if (lifecycle->metadata.state == HPLJ_JOB_WAITING_FOR_MEDIA) {
+        (void)hplj_job_resume_media(lifecycle);
+      }
+      papplJobSetMessage(job, "waiting for printer output completion");
+      if (hplj_monotonic_seconds() >= deadline) {
+        hplj_job_output_failed(lifecycle,
+                               "output unverified: printer completion timed out; retry explicitly");
+        return false;
+      }
+    }
+    (void)nanosleep(&interval, NULL);
+  }
+  hplj_job_cancel(lifecycle);
+  return false;
 }
 
 static bool hplj_rotate_log_by_age(pappl_system_t *system, void *data) {
@@ -572,6 +661,12 @@ static struct hplj_transfer_result hplj_test_write(
   }
   atomic_store(&backend->test_write_in_progress, false);
   hplj_test_trace(backend, "print-write\n");
+  const char end_document[] = "@PJL EOJ\n";
+  for (size_t index = 0; index + sizeof(end_document) - 1 <= byte_count; index++) {
+    if (memcmp(bytes + index, end_document, sizeof(end_document) - 1) == 0) {
+      backend->test_pending_documents++;
+    }
+  }
   return (struct hplj_transfer_result){HPLJ_ERROR_NONE, total};
 }
 
@@ -601,6 +696,12 @@ static enum hplj_error_category hplj_test_status(
     *conditions = HPLJ_DEVICE_CONDITION_MANUAL_FEED;
   } else if (strcmp(value, "cover-open\n") == 0) {
     *conditions = HPLJ_DEVICE_CONDITION_COVER_OPEN;
+  } else if (strcmp(value, "output-pending\n") == 0) {
+    *conditions = HPLJ_DEVICE_CONDITION_NONE;
+  } else if (strcmp(value, "media-after-write\n") == 0) {
+    *conditions = backend->test_pending_documents > 0
+                      ? HPLJ_DEVICE_CONDITION_MEDIA_EMPTY
+                      : HPLJ_DEVICE_CONDITION_NONE;
   } else if (strcmp(value, "disconnect\n") == 0) {
     hplj_test_trace(backend, "disconnect\n");
     return HPLJ_ERROR_DEVICE_DISCONNECTED;
@@ -617,8 +718,34 @@ static enum hplj_error_category hplj_test_status(
   return HPLJ_ERROR_NONE;
 }
 
+static struct hplj_output_status hplj_test_output_status(void *context) {
+  struct hplj_pappl_backend *backend = context;
+  char value[32] = {0};
+  int descriptor = open(backend->test_conditions_path, O_RDONLY);
+  bool acknowledge = descriptor < 0 && errno == ENOENT;
+  if (descriptor >= 0) {
+    ssize_t length = read(descriptor, value, sizeof(value) - 1);
+    close(descriptor);
+    acknowledge = length >= 0 && strcmp(value, "output-pending\n") != 0 &&
+                  strcmp(value, "media-after-write\n") != 0;
+  }
+  if (acknowledge && backend->test_pending_documents > 0) {
+    backend->test_completed_documents += backend->test_pending_documents;
+    backend->test_pending_documents = 0;
+    hplj_test_trace(backend, "output-completed\n");
+  }
+  return (struct hplj_output_status){
+      .supported = true,
+      .generation = backend->test_output_generation,
+      .completed_documents = backend->test_completed_documents,
+  };
+}
+
 static void hplj_test_release(void *context) {
   struct hplj_pappl_backend *backend = context;
+  backend->test_output_generation++;
+  backend->test_pending_documents = 0;
+  backend->test_completed_documents = 0;
   if (backend->test_output >= 0) {
     close(backend->test_output);
     backend->test_output = -1;
@@ -654,6 +781,12 @@ static void hplj_pappl_job_state(void *context,
       hplj_status_from_job(metadata->state, metadata->error);
   papplJobSetMessage(job, "%s: %s", hplj_status_name(status.code),
                      metadata->error.detail);
+  char transfer_record[160];
+  snprintf(transfer_record, sizeof(transfer_record),
+           "transfer-state=%s bytes-sent=%zu pages-transmitted=%u",
+           hplj_status_name(status.code), metadata->bytes_sent,
+           metadata->pages_completed);
+  papplLogJob(job, PAPPL_LOGLEVEL_INFO, "%s", transfer_record);
 }
 
 static bool hplj_printfile(pappl_job_t *job, pappl_pr_options_t *options,
@@ -882,8 +1015,13 @@ static bool hplj_rendpage(pappl_job_t *job, pappl_pr_options_t *options,
   pappl_pr_driver_data_t driver_data;
   papplPrinterGetDriverData(papplJobGetPrinter(job), &driver_data);
   struct hplj_pappl_backend *backend = driver_data.extension;
+  struct hplj_output_status output_before = {0};
   if (backend != NULL && backend->owns_device) {
+    if (!hplj_wait_for_ready(backend, job, &data->lifecycle)) {
+      return false;
+    }
     pthread_mutex_lock(&backend->device_mutex);
+    output_before = hplj_backend_output_status(backend);
   }
   const struct hplj_error result =
       hplj_job_submit_page(&data->lifecycle, &raster);
@@ -896,6 +1034,10 @@ static bool hplj_rendpage(pappl_job_t *job, pappl_pr_options_t *options,
   data->rows_received = 0;
   if (result.category != HPLJ_ERROR_NONE) {
     papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "%s", result.detail);
+    return false;
+  }
+  if (backend != NULL && backend->owns_device &&
+      !hplj_wait_for_output(backend, job, &data->lifecycle, output_before)) {
     return false;
   }
   papplDeviceFlush(device);
@@ -943,11 +1085,21 @@ static bool hplj_driver(pappl_system_t *system, const char *driver_name,
   data->color_supported =
       PAPPL_COLOR_MODE_BI_LEVEL | PAPPL_COLOR_MODE_MONOCHROME;
   data->color_default = PAPPL_COLOR_MODE_BI_LEVEL;
+  // The pinned LaserJet 1020 PPD defines 4 mm physical margins. Advertising
+  // borderless media also makes the encoder send the untrimmed page origin.
+  data->left_right = 400;
+  data->bottom_top = 400;
   data->num_media = 2;
   data->media[0] = "iso_a4_210x297mm";
   data->media[1] = "na_letter_8.5x11in";
   papplCopyString(data->media_default.size_name, data->media[0],
                   sizeof(data->media_default.size_name));
+  data->media_default.size_width = 21000;
+  data->media_default.size_length = 29700;
+  data->media_default.left_margin = data->left_right;
+  data->media_default.right_margin = data->left_right;
+  data->media_default.top_margin = data->bottom_top;
+  data->media_default.bottom_margin = data->bottom_top;
   data->num_source = 1;
   data->source[0] = "auto";
   papplCopyString(data->media_default.source, data->source[0],
@@ -1015,6 +1167,7 @@ static void *hplj_backend_create(void *context,
           .upload_firmware = hplj_test_upload,
           .write = hplj_test_write,
           .read_status = hplj_test_status,
+          .output_status = hplj_test_output_status,
           .release = hplj_test_release,
           .context = backend,
       };
@@ -1076,6 +1229,28 @@ static void hplj_find_queue(pappl_printer_t *printer, void *data) {
   }
 }
 
+static bool hplj_reconcile_media_margins(pappl_printer_t *printer) {
+  pappl_pr_driver_data_t data;
+  if (papplPrinterGetDriverData(printer, &data) == NULL) {
+    return false;
+  }
+  // Loaded state can still contain the old borderless media defaults.
+  data.media_default.left_margin = data.left_right;
+  data.media_default.right_margin = data.left_right;
+  data.media_default.top_margin = data.bottom_top;
+  data.media_default.bottom_margin = data.bottom_top;
+  for (int i = 0; i < data.num_source; i++) {
+    if (data.media_ready[i].size_name[0] == '\0') {
+      continue;
+    }
+    data.media_ready[i].left_margin = data.left_right;
+    data.media_ready[i].right_margin = data.left_right;
+    data.media_ready[i].top_margin = data.bottom_top;
+    data.media_ready[i].bottom_margin = data.bottom_top;
+  }
+  return papplPrinterSetDriverData(printer, &data, NULL);
+}
+
 static bool hplj_backend_reconcile(void *service, const char *queue_name,
                                    const char *driver_name,
                                    const char *device_uri) {
@@ -1089,6 +1264,9 @@ static bool hplj_backend_reconcile(void *service, const char *queue_name,
     bool matches =
         strcmp(papplPrinterGetDriverName(lookup.printer), driver_name) == 0 &&
         strcmp(papplPrinterGetDeviceURI(lookup.printer), runtime_device_uri) == 0;
+    if (matches && !hplj_reconcile_media_margins(lookup.printer)) {
+      return false;
+    }
     if (matches && backend->owns_device) {
       hplj_monitor_device(backend->system, backend);
     }
@@ -1128,9 +1306,34 @@ static bool hplj_backend_configure_policy(
   return true;
 }
 
+static void *hplj_device_monitor_thread(void *context) {
+  struct hplj_pappl_backend *backend = context;
+  const struct timespec interval = {.tv_sec = 0, .tv_nsec = 100000000};
+  unsigned int ticks = 0;
+  while (!atomic_load(&backend->stopping)) {
+    (void)nanosleep(&interval, NULL);
+    if (++ticks == 10) {
+      ticks = 0;
+      (void)hplj_monitor_device(backend->system, backend);
+    }
+  }
+  return NULL;
+}
+
 static bool hplj_backend_run(void *service) {
   struct hplj_pappl_backend *backend = service;
+  pthread_t monitor;
+  // PAPPL invokes timers with its system lock held. Device monitoring calls
+  // printer APIs that job completion also uses, so run it outside that lock.
+  if (backend->owns_device &&
+      pthread_create(&monitor, NULL, hplj_device_monitor_thread, backend) != 0) {
+    return false;
+  }
   papplSystemRun(backend->system);
+  atomic_store(&backend->stopping, true);
+  if (backend->owns_device) {
+    (void)pthread_join(monitor, NULL);
+  }
   return true;
 }
 
@@ -1179,12 +1382,6 @@ int hplj_pappl_serve(const struct hplj_service_config *config) {
   time_t now = time(NULL);
   if (!papplSystemAddTimerCallback(backend->system, now, 0,
                                    hplj_report_ready, NULL)) {
-    (void)hplj_service_finish(&service);
-    return 1;
-  }
-  if (backend->owns_device &&
-      !papplSystemAddTimerCallback(backend->system, now + 1, 1,
-                                   hplj_monitor_device, backend)) {
     (void)hplj_service_finish(&service);
     return 1;
   }

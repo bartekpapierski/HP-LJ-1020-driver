@@ -84,6 +84,7 @@ add_library(hplj1020_core
   src/firmware_store.c
   src/job.c
   src/pappl.c
+  src/pjl_status.c
   src/usb_libusb.c
   src/version.c)
 target_include_directories(hplj1020_core PUBLIC include)
@@ -120,6 +121,10 @@ add_dependencies(hplj1020 locked-sources)
 
 include(CTest)
 if(BUILD_TESTING)
+  add_executable(hplj1020-pjl-status-contracts tests/pjl_status_contracts.c)
+  target_link_libraries(hplj1020-pjl-status-contracts PRIVATE
+    hplj1020_build_options hplj1020_core)
+  add_test(NAME hplj1020-pjl-status-contracts COMMAND hplj1020-pjl-status-contracts)
   add_executable(hplj1020-smoke tests/smoke.c)
   target_link_libraries(hplj1020-smoke PRIVATE hplj1020_build_options)
   add_test(NAME hplj1020-smoke COMMAND hplj1020-smoke)
@@ -159,9 +164,18 @@ if(BUILD_TESTING)
     hplj1020_build_options ${HPLJ1020_CUPS_LIBRARY}
     ${HPLJ1020_APPKIT_FRAMEWORK})
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  # Compile the same runtime on a test-only port; never bind the installed
+  # provider's port while validating an installation candidate.
+  add_executable(hplj1020-test-service
+    src/main.c src/pappl_runtime.c src/pappl.c)
+  target_compile_definitions(hplj1020-test-service PRIVATE HPLJ_TEST_SERVICE=1)
+  target_include_directories(hplj1020-test-service PRIVATE
+    "${HPLJ1020_PAPPL_PREFIX}/include")
+  target_link_libraries(hplj1020-test-service PRIVATE
+    hplj1020_build_options hplj1020_pappl)
   add_test(NAME hplj1020-pappl-integration
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_pappl_integration.py
-      $<TARGET_FILE:hplj1020> $<TARGET_FILE:hplj1020-make-test-raster>
+      $<TARGET_FILE:hplj1020-test-service> $<TARGET_FILE:hplj1020-make-test-raster>
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/invalid-resolution.test
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/invalid-quality.test
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/malformed-raster.test
