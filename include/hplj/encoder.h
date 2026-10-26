@@ -3,6 +3,7 @@
 #define HPLJ_ENCODER_H
 
 #include "hplj/error.h"
+#include "hplj/media.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -12,8 +13,6 @@ enum hplj_bit_order {
   HPLJ_MOST_SIGNIFICANT_BIT_FIRST,
   HPLJ_LEAST_SIGNIFICANT_BIT_FIRST,
 };
-enum hplj_media { HPLJ_MEDIA_A4, HPLJ_MEDIA_LETTER };
-enum hplj_source { HPLJ_SOURCE_AUTO, HPLJ_SOURCE_MANUAL };
 enum hplj_quality { HPLJ_QUALITY_DRAFT, HPLJ_QUALITY_NORMAL, HPLJ_QUALITY_HIGH };
 
 struct hplj_raster {
@@ -35,6 +34,7 @@ struct hplj_raster {
   enum hplj_bit_order bit_order;
   unsigned int page_count;
   enum hplj_media media;
+  unsigned int media_width, media_length;
   enum hplj_source source;
   enum hplj_quality quality;
   unsigned int density;

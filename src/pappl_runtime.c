@@ -71,6 +71,7 @@ struct hplj_pappl_job_data {
   unsigned char *page_bits;
   size_t page_size;
   unsigned int rows_received;
+  enum hplj_source source;
   struct hplj_device transport;
   struct hplj_job lifecycle;
   pappl_device_t *pappl_device;
@@ -769,8 +770,10 @@ static void hplj_pappl_job_state(void *context,
   pappl_job_t *job = context;
   struct hplj_status status =
       hplj_status_from_job(metadata->state, metadata->error);
-  papplJobSetMessage(job, "%s: %s", hplj_status_name(status.code),
-                     metadata->error.detail);
+  struct hplj_pappl_job_data *data = papplJobGetData(job);
+  papplJobSetMessage(job, "%s: %s; %s", hplj_status_name(status.code),
+                     metadata->error.detail,
+                     hplj_source_description(data ? data->source : HPLJ_SOURCE_AUTO));
   pappl_pr_driver_data_t driver_data;
   papplPrinterGetDriverData(papplJobGetPrinter(job), &driver_data);
   struct hplj_pappl_backend *backend = driver_data.extension;
@@ -786,10 +789,64 @@ static bool hplj_printfile(pappl_job_t *job, pappl_pr_options_t *options,
   return false;
 }
 
+static enum hplj_media hplj_selected_media(pappl_pr_options_t *options) {
+  enum hplj_media media = hplj_media_from_name(options->media.size_name);
+  if (media == HPLJ_MEDIA_CUSTOM) {
+    for (int i = 0; i < HPLJ_MEDIA_CUSTOM; i++) {
+      const struct hplj_media_size *size = hplj_media_size((enum hplj_media)i);
+      if (options->media.size_width == (int)size->width &&
+          options->media.size_length == (int)size->length) return (enum hplj_media)i;
+    }
+  }
+  return media;
+}
+
+/* Reject request conflicts before firmware preparation or page transmission.
+ * PAPPL may normalize media-col, so inspect both explicit representations. */
+static bool hplj_media_options_valid(pappl_job_t *job,
+                                      pappl_pr_options_t *options) {
+  enum hplj_media media = hplj_selected_media(options);
+  struct hplj_media_geometry geometry;
+  bool valid = options->media.size_width > 0 && options->media.size_length > 0 &&
+      hplj_media_geometry(media, (unsigned)options->media.size_width,
+                            (unsigned)options->media.size_length, &geometry) &&
+      hplj_source_code(hplj_source_from_name(options->media.source)) != 0 &&
+      options->media.left_margin == HPLJ_MEDIA_MARGIN &&
+      options->media.right_margin == HPLJ_MEDIA_MARGIN &&
+      options->media.top_margin == HPLJ_MEDIA_MARGIN &&
+      options->media.bottom_margin == HPLJ_MEDIA_MARGIN &&
+      options->media.left_offset == 0 && options->media.top_offset == 0;
+  ipp_attribute_t *attr = papplJobGetAttribute(job, "media");
+  const char *name = ippGetString(attr, 0, NULL);
+  if (name != NULL) {
+    pwg_media_t *requested = pwgMediaForPWG(name);
+    if (requested == NULL || requested->width != options->media.size_width ||
+        requested->length != options->media.size_length) valid = false;
+  }
+  ipp_t *col = ippGetCollection(papplJobGetAttribute(job, "media-col"), 0);
+  if (col != NULL) {
+    ipp_t *size = ippGetCollection(ippFindAttribute(col, "media-size", IPP_TAG_BEGIN_COLLECTION), 0);
+    if (size != NULL &&
+        (ippGetInteger(ippFindAttribute(size, "x-dimension", IPP_TAG_INTEGER), 0) != options->media.size_width ||
+         ippGetInteger(ippFindAttribute(size, "y-dimension", IPP_TAG_INTEGER), 0) != options->media.size_length)) valid = false;
+    const char *source = ippGetString(ippFindAttribute(col, "media-source", IPP_TAG_KEYWORD), 0, NULL);
+    if (source != NULL && strcmp(source, options->media.source) != 0) valid = false;
+  }
+  const char *source = ippGetString(papplJobGetAttribute(job, "media-source"), 0, NULL);
+  if (source != NULL && strcmp(source, options->media.source) != 0) valid = false;
+  if (!valid) {
+    papplJobSetMessage(job, "Unsupported or conflicting media geometry/source; use 4 mm margins");
+    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "%s", papplJobGetMessage(job));
+    return false;
+  }
+  papplJobSetMessage(job, "%s", hplj_source_description(hplj_source_from_name(options->media.source)));
+  return true;
+}
+
 static bool hplj_rstartjob(pappl_job_t *job, pappl_pr_options_t *options,
                            pappl_device_t *device) {
-  (void)options;
   (void)device;
+  if (!hplj_media_options_valid(job, options)) return false;
   struct hplj_pappl_job_data *data = calloc(1, sizeof(*data));
   if (data == NULL) {
     papplLogJob(job, PAPPL_LOGLEVEL_ERROR,
@@ -800,6 +857,7 @@ static bool hplj_rstartjob(pappl_job_t *job, pappl_pr_options_t *options,
   papplPrinterGetDriverData(papplJobGetPrinter(job), &driver_data);
   struct hplj_pappl_backend *backend = driver_data.extension;
   data->pappl_device = device;
+  data->source = hplj_source_from_name(options->media.source);
   struct hplj_device *transport;
   const unsigned char *firmware = NULL;
   size_t firmware_size = 0;
@@ -870,23 +928,28 @@ static bool hplj_rendjob(pappl_job_t *job, pappl_pr_options_t *options,
   return completed;
 }
 
-static enum hplj_media hplj_media_from_name(const char *name) {
-  return name != NULL && strcmp(name, "na_letter_8.5x11in") == 0
-             ? HPLJ_MEDIA_LETTER
-             : HPLJ_MEDIA_A4;
-}
-
 static bool hplj_rstartpage(pappl_job_t *job, pappl_pr_options_t *options,
                             pappl_device_t *device, unsigned page) {
   (void)device;
   (void)page;
   cups_page_header_t *header = &options->header;
+  if (!hplj_media_options_valid(job, options)) return false;
+  struct hplj_media_geometry geometry;
+  if (!hplj_media_geometry(hplj_selected_media(options),
+                            (unsigned)options->media.size_width,
+                            (unsigned)options->media.size_length, &geometry) ||
+      header->cupsWidth != geometry.width || header->cupsHeight != geometry.height) {
+    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "raster dimensions conflict with selected media");
+    return false;
+  }
   struct hplj_job_attributes attributes = {
       .format = HPLJ_DOCUMENT_PWG_RASTER,
       .resolution_dpi = header->HWResolution[0],
       .bits_per_pixel = header->cupsBitsPerPixel,
-      .media = hplj_media_from_name(options->media.size_name),
-      .source = HPLJ_SOURCE_AUTO,
+      .media = hplj_selected_media(options),
+      .media_width = (unsigned int)options->media.size_width,
+      .media_length = (unsigned int)options->media.size_length,
+      .source = hplj_source_from_name(options->media.source),
       .quality = options->print_quality == IPP_QUALITY_NORMAL
                      ? HPLJ_QUALITY_NORMAL
                      : HPLJ_QUALITY_HIGH,
@@ -994,8 +1057,10 @@ static bool hplj_rendpage(pappl_job_t *job, pappl_pr_options_t *options,
       .bit_polarity = HPLJ_BLACK_IS_ONE,
       .bit_order = HPLJ_MOST_SIGNIFICANT_BIT_FIRST,
       .page_count = 1,
-      .media = hplj_media_from_name(options->media.size_name),
-      .source = HPLJ_SOURCE_AUTO,
+      .media = hplj_selected_media(options),
+      .media_width = (unsigned int)options->media.size_width,
+      .media_length = (unsigned int)options->media.size_length,
+      .source = hplj_source_from_name(options->media.source),
       .quality = HPLJ_QUALITY_NORMAL,
       .density = 3,
   };
@@ -1075,11 +1140,14 @@ static bool hplj_driver(pappl_system_t *system, const char *driver_name,
   data->color_default = PAPPL_COLOR_MODE_BI_LEVEL;
   // The pinned LaserJet 1020 PPD defines 4 mm physical margins. Advertising
   // borderless media also makes the encoder send the untrimmed page origin.
-  data->left_right = 400;
-  data->bottom_top = 400;
-  data->num_media = 2;
-  data->media[0] = "iso_a4_210x297mm";
-  data->media[1] = "na_letter_8.5x11in";
+  data->left_right = HPLJ_MEDIA_MARGIN;
+  data->bottom_top = HPLJ_MEDIA_MARGIN;
+  data->num_media = 0;
+  for (int i = 0; i < HPLJ_MEDIA_CUSTOM; i++) {
+    data->media[data->num_media++] = hplj_media_size((enum hplj_media)i)->name;
+  }
+  data->media[data->num_media++] = "custom_min_76x127mm";
+  data->media[data->num_media++] = "custom_max_216x356mm";
   papplCopyString(data->media_default.size_name, data->media[0],
                   sizeof(data->media_default.size_name));
   data->media_default.size_width = 21000;
@@ -1088,8 +1156,10 @@ static bool hplj_driver(pappl_system_t *system, const char *driver_name,
   data->media_default.right_margin = data->left_right;
   data->media_default.top_margin = data->bottom_top;
   data->media_default.bottom_margin = data->bottom_top;
-  data->num_source = 1;
+  data->num_source = 3;
   data->source[0] = "auto";
+  data->source[1] = "main";
+  data->source[2] = "manual";
   papplCopyString(data->media_default.source, data->source[0],
                   sizeof(data->media_default.source));
   data->sides_supported = PAPPL_SIDES_ONE_SIDED;

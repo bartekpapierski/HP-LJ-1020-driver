@@ -30,10 +30,6 @@ static bool hplj_pappl_supports_format(enum hplj_document_format format) {
          format == HPLJ_DOCUMENT_APPLE_RASTER;
 }
 
-static bool hplj_pappl_supports_media(enum hplj_media media) {
-  return media == HPLJ_MEDIA_A4 || media == HPLJ_MEDIA_LETTER;
-}
-
 struct hplj_error hplj_pappl_validate_job(const struct hplj_job_attributes *job) {
   const struct hplj_capability_profile *profile = hplj_pappl_capabilities();
   if (job == NULL) {
@@ -48,11 +44,12 @@ struct hplj_error hplj_pappl_validate_job(const struct hplj_job_attributes *job)
     return hplj_pappl_error(HPLJ_ERROR_RASTER_INVALID,
                             "raster must be one-bit 600 by 600 dpi");
   }
-  if (!hplj_pappl_supports_media(job->media) ||
-      job->source != profile->source || job->quality != profile->quality ||
+  struct hplj_media_geometry geometry;
+  if (!hplj_media_geometry(job->media, job->media_width, job->media_length, &geometry) ||
+      hplj_source_code(job->source) == 0 || job->quality != profile->quality ||
       job->density != profile->density) {
     return hplj_pappl_error(HPLJ_ERROR_RASTER_INVALID,
-                            "job options are outside the verified capability envelope");
+                            "job options are unsupported");
   }
   return hplj_pappl_error(HPLJ_ERROR_NONE, "job attributes accepted");
 }

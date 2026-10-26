@@ -3,11 +3,11 @@
   "schemaVersion": "1.0.0",
   "matrixVersion": 1,
   "scopeIdentities": {
-    "build-inputs": "88bb07674179b4034e3237913936ab9cfdcb78e83ad0d242b22b01adce0b86c5",
+    "build-inputs": "e6e5006becfb69738a5ab3180b9129fbdfb9ff3866a57cc5c3095d0c42498481",
     "golden-corpus": "357e7008569b4fa9165d62d2a6b4d37abd8ae5e3727ef93afb22f6b7c77d659f",
-    "implementation-contract": "023d62deb58abd365734c621767f7a35c324e91a07607c3a17f7b7e16afe44ba",
-    "product-source": "3305fd12f8203de1960e0922f40d714c8c160de373c2e4ed3f60023f124fe907",
-    "validation-tooling": "0eecd16917cd8ae421ca2bad19cbf8f2cf1fad01a8a4f8526b2a90d8620feaab"
+    "implementation-contract": "658705936da03f00f9bcccae78b953949782480e4a546f4ff3eec832208b5f63",
+    "product-source": "775b1e201656a8ebad297f8ea6ccb4b6933a3e3fa67da693e078721acd562aee",
+    "validation-tooling": "cabf2e0ab863399719f73dae7e07f3f30d6d8a1afc8d193eadef2d4576e3954a"
   },
   "scenarios": [
     {
@@ -2132,6 +2132,99 @@
       "intermittencyExplanation": null,
       "reliabilityRequirements": null,
       "requiresArtifactEvidence": false
+    },
+    {
+      "scenarioId": "SCN-MEDIA-GEOMETRY",
+      "behavior": "Media geometry",
+      "milestone": "CAPABILITY",
+      "requirementIds": [
+        "JOB-013"
+      ],
+      "provenance": [
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Media admission MUST enforce 76\u00d7127\u2013216\u00d7356 mm in physical feed axes, canonical standard dimensions, explicit custom dimensions, 4 mm margins, consistent raster and ZjStream geometry, and rejection of conflicting media/source requests before page transmission; content orientation MUST be composed by the client without swapping feed axes.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
+    },
+    {
+      "scenarioId": "SCN-MEDIA-OUTPUT",
+      "behavior": "Media output",
+      "milestone": "CAPABILITY",
+      "requirementIds": [
+        "JOB-014"
+      ],
+      "provenance": [
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Every advertised standard size and custom boundary MUST pass page-scale error at most 1 percent, fiducial displacement at most 2 mm, correct orientation, and no clipping inside the 4 mm printable region on both connection paths before a media support claim; scans MUST support measurements and human inspection MUST judge artifact quality as detailed in `docs/media-validation.md`.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
+    },
+    {
+      "scenarioId": "SCN-MEDIA-SOURCE-SELECTION",
+      "behavior": "Media source",
+      "milestone": "CAPABILITY",
+      "requirementIds": [
+        "JOB-015"
+      ],
+      "provenance": [
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Automatic, main-tray, and one-sheet priority-feed requests MUST map deterministically to ZjStream source codes 7, 1, and 4 and actionable user-visible messages; reference-printer evidence on both connection paths MUST establish selection, empty-feed waiting, replenishment, cancellation, and subsequent-job recovery without service restart before any source support claim.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-MODULE-CONTRACTS",

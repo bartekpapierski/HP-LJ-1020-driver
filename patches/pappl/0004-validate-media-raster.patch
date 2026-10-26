@@ -1,0 +1,154 @@
+--- a/pappl/job-process.c
++++ b/pappl/job-process.c
+@@ -9,6 +9,18 @@
+ 
+ #include "pappl-private.h"
+ 
++
++// HP-LJ-1020-driver: never silently crop/pad or rescale a client raster.
++// The client composes orientation into pixels using the physical feed axes.
++static bool hplj_raster_matches(const cups_page_header_t *input,
++                                const cups_page_header_t *output)
++{
++  return input->cupsWidth == output->cupsWidth &&
++         input->cupsHeight == output->cupsHeight &&
++         input->HWResolution[0] == output->HWResolution[0] &&
++         input->HWResolution[1] == output->HWResolution[1] &&
++         (input->MediaPosition == 0 || input->MediaPosition == output->MediaPosition);
++}
+ 
+ //
+ // Local functions...
+@@ -199,6 +211,11 @@
+       papplCopyString(options->media.source, printer->driver_data.media_default.source, sizeof(options->media.source));
+   }
+ 
++  // HP-LJ-1020-driver: preserve explicit source intent. The driver rejects
++  // conflicts with media-col instead of choosing a different feed silently.
++  if ((attr = ippFindAttribute(job->attrs, "media-source", IPP_TAG_KEYWORD)) != NULL)
++    papplCopyString(options->media.source, ippGetString(attr, 0, NULL), sizeof(options->media.source));
++
+   // orientation-requested
+   if ((attr = ippFindAttribute(job->attrs, "orientation-requested", IPP_TAG_ENUM)) != NULL)
+     options->orientation_requested = (ipp_orient_t)ippGetInteger(attr, 0);
+@@ -630,6 +647,14 @@
+ 
+   options = papplJobCreatePrintOptions(job, (unsigned)job->impressions, header.cupsBitsPerPixel > 8);
+ 
++  if (!hplj_raster_matches(&header, &options->header))
++  {
++    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Raster geometry/source conflicts with selected media.");
++    papplJobSetReasons(job, PAPPL_JREASON_DOCUMENT_FORMAT_ERROR, PAPPL_JREASON_NONE);
++    job->state = IPP_JSTATE_ABORTED;
++    goto complete_job;
++  }
++
+   if (!(printer->driver_data.rstartjob_cb)(job, options, job->printer->device))
+   {
+     job->state = IPP_JSTATE_ABORTED;
+@@ -652,7 +677,7 @@
+     papplJobDeletePrintOptions(options);
+     options = papplJobCreatePrintOptions(job, (unsigned)job->impressions, header.cupsBitsPerPixel > 8);
+ 
+-    if (header.cupsWidth == 0 || header.cupsHeight == 0 || (header.cupsBitsPerColor != 1 && header.cupsBitsPerColor != 8) || header.cupsColorOrder != CUPS_ORDER_CHUNKED || (header.cupsBytesPerLine != ((header.cupsWidth * header.cupsBitsPerPixel + 7) / 8)))
++    if (!hplj_raster_matches(&header, &options->header) || header.cupsWidth == 0 || header.cupsHeight == 0 || (header.cupsBitsPerColor != 1 && header.cupsBitsPerColor != 8) || header.cupsColorOrder != CUPS_ORDER_CHUNKED || (header.cupsBytesPerLine != ((header.cupsWidth * header.cupsBitsPerPixel + 7) / 8)))
+     {
+       papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Bad raster data seen.");
+       papplJobSetReasons(job, PAPPL_JREASON_DOCUMENT_FORMAT_ERROR, PAPPL_JREASON_NONE);
+--- a/pappl/printer-ipp.c
++++ b/pappl/printer-ipp.c
+@@ -2238,16 +2238,9 @@
+ 
+       if (!ippContainsString(supported, ippGetString(attr, 0, NULL)))
+       {
+-        if (exact)
+-        {
+-	  papplClientRespondIPPUnsupported(client, attr);
+-	  valid = false;
+-	}
+-	else
+-	{
+-	  _papplClientRespondIPPIgnored(client, attr);
+-	  ippDeleteAttribute(client->request, attr);
+-	}
++        // HP-LJ-1020-driver: explicit media is never substituted.
++        papplClientRespondIPPUnsupported(client, attr);
++        valid = false;
+       }
+     }
+   }
+@@ -2283,16 +2276,9 @@
+ 
+ 	if (!ippContainsString(supported, ippGetString(member, 0, NULL)))
+ 	{
+-	  if (exact)
+-	  {
+-	    papplClientRespondIPPUnsupported(client, attr);
+-	    valid = false;
+-	  }
+-	  else
+-	  {
+-	    _papplClientRespondIPPIgnored(client, attr);
+-	    ippDeleteAttribute(client->request, attr);
+-	  }
++	  // HP-LJ-1020-driver: explicit media is never substituted.
++          papplClientRespondIPPUnsupported(client, attr);
++          valid = false;
+ 	}
+       }
+     }
+@@ -2331,16 +2317,9 @@
+ 
+ 	  if (i >= count)
+ 	  {
+-	    if (exact)
+-	    {
+-	      papplClientRespondIPPUnsupported(client, attr);
+-	      valid = false;
+-	    }
+-	    else
+-	    {
+-	      _papplClientRespondIPPIgnored(client, attr);
+-	      ippDeleteAttribute(client->request, attr);
+-	    }
++	    // HP-LJ-1020-driver: explicit media is never substituted.
++            papplClientRespondIPPUnsupported(client, attr);
++            valid = false;
+ 	  }
+ 	}
+       }
+--- a/pappl/printer-support.c
++++ b/pappl/printer-support.c
+@@ -534,9 +534,11 @@
+     ipp_t             *col,		// I - IPP "media-col" value
+     pappl_media_col_t *media)		// O - Media values
+ {
++  // HP-LJ-1020-driver: CUPS 2 ippFindAttribute does not traverse collections.
++  ipp_t *size = ippGetCollection(ippFindAttribute(col, "media-size", IPP_TAG_BEGIN_COLLECTION), 0);
+   ipp_attribute_t	*size_name = ippFindAttribute(col, "media-size-name", IPP_TAG_ZERO),
+-			*x_dimension = ippFindAttribute(col, "media-size/x-dimension", IPP_TAG_INTEGER),
+-			*y_dimension = ippFindAttribute(col, "media-size/y-dimension", IPP_TAG_INTEGER),
++			*x_dimension = ippFindAttribute(size, "x-dimension", IPP_TAG_INTEGER),
++			*y_dimension = ippFindAttribute(size, "y-dimension", IPP_TAG_INTEGER),
+ 			*bottom_margin = ippFindAttribute(col, "media-bottom-margin", IPP_TAG_INTEGER),
+ 			*left_margin = ippFindAttribute(col, "media-left-margin", IPP_TAG_INTEGER),
+ 			*left_offset = ippFindAttribute(col, "media-left-offset", IPP_TAG_INTEGER),
+@@ -559,11 +561,13 @@
+   }
+   else if (x_dimension && y_dimension)
+   {
+-    pwg_media_t	*pwg_media = pwgMediaForSize(ippGetInteger(x_dimension, 0), ippGetInteger(y_dimension, 0));
+-
+-    papplCopyString(media->size_name, pwg_media->pwg, sizeof(media->size_name));
+-    media->size_width  = pwg_media->width;
+-    media->size_length = pwg_media->length;
++    // Preserve exact custom dimensions, including sizes close to standards.
++    int width = ippGetInteger(x_dimension, 0);
++    int length = ippGetInteger(y_dimension, 0);
++    snprintf(media->size_name, sizeof(media->size_name), "custom_hplj_%d.%02dx%d.%02dmm",
++             width / 100, width % 100, length / 100, length % 100);
++    media->size_width  = width;
++    media->size_length = length;
+   }
+ 
+   if (bottom_margin)

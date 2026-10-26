@@ -88,6 +88,7 @@ add_library(hplj1020_core
   src/firmware.c
   src/firmware_store.c
   src/job.c
+  src/media.c
   src/pappl.c
   src/pjl_status.c
   src/usb_libusb.c
@@ -127,6 +128,10 @@ add_dependencies(hplj1020 locked-sources)
 
 include(CTest)
 if(BUILD_TESTING)
+  add_executable(hplj1020-media-contracts tests/media_contracts.c)
+  target_link_libraries(hplj1020-media-contracts PRIVATE
+    hplj1020_build_options hplj1020_core ${HPLJ1020_CUPS_LIBRARY})
+  add_test(NAME hplj1020-media-contracts COMMAND hplj1020-media-contracts)
   add_executable(hplj1020-pjl-status-contracts tests/pjl_status_contracts.c)
   target_link_libraries(hplj1020-pjl-status-contracts PRIVATE
     hplj1020_build_options hplj1020_core)
@@ -189,6 +194,10 @@ if(BUILD_TESTING)
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/submit-raster.test)
   set_tests_properties(hplj1020-pappl-integration PROPERTIES
     SKIP_RETURN_CODE 77 TIMEOUT 90)
+  add_test(NAME hplj1020-media-integration
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_media_integration.py
+      $<TARGET_FILE:hplj1020-test-service> $<TARGET_FILE:hplj1020-make-test-raster>)
+  set_tests_properties(hplj1020-media-integration PROPERTIES TIMEOUT 60)
   add_test(NAME hplj1020-queue-reconciliation
     COMMAND ${Python3_EXECUTABLE} -m unittest tests.test_queue_reconciliation)
   set_tests_properties(hplj1020-queue-reconciliation PROPERTIES

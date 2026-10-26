@@ -12,7 +12,7 @@
  * any later version. This program is distributed without any warranty; see
  * the GNU General Public License for details.
  *
- * Modified by HP-LJ-1020-driver contributors, 2026-09-07.
+ * Modified by HP-LJ-1020-driver contributors, 2026-10-26.
  */
 #include "hplj/encoder.h"
 
@@ -164,8 +164,7 @@ static bool append_start_document(struct byte_buffer *stream) {
 
 static bool append_start_page(struct byte_buffer *stream,
                               const struct hplj_raster *raster) {
-  const uint32_t paper = raster->media == HPLJ_MEDIA_LETTER ? DMPAPER_LETTER
-                                                            : DMPAPER_A4;
+  const uint32_t paper = hplj_media_size(raster->media)->paper_code;
   return append_chunk(stream, ZJT_START_PAGE, MODEL_1_START_PAGE_RESERVED, 13,
                       13 * 12) &&
          append_item(stream, ZJI_ECONOMODE, 0) &&
@@ -181,7 +180,7 @@ static bool append_start_page(struct byte_buffer *stream,
          append_item(stream, ZJI_NBIE, 1) &&
          append_item(stream, ZJI_RESOLUTION_X, 600) &&
          append_item(stream, ZJI_RESOLUTION_Y, 600) &&
-         append_item(stream, ZJI_DMDEFAULTSOURCE, DMBIN_AUTO) &&
+         append_item(stream, ZJI_DMDEFAULTSOURCE, hplj_source_code(raster->source)) &&
          append_item(stream, ZJI_DMCOPIES, 1) &&
          append_item(stream, ZJI_DMPAPER, paper) &&
          append_item(stream, ZJI_DMMEDIATYPE, DMMEDIA_STANDARD);

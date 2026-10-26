@@ -21,6 +21,10 @@
         {
           "path": "patches/pappl/0003-bound-job-history-admission.patch",
           "sha256": "0dc686dd0da2adf3cd38f507cbb72a4f7d7992afeecca69819ce4eca9ff8c4ec"
+        },
+        {
+          "path": "patches/pappl/0004-validate-media-raster.patch",
+          "sha256": "b331ff0f0d44df3d10910a8e1fedb53cd92381d24b6633d1a47430fff633a368"
         }
       ]
     },

@@ -108,11 +108,22 @@ static const unsigned char *find_bytes(const unsigned char *haystack,
   return NULL;
 }
 
+/* Tiny vectors deliberately exercise the pinned codec primitive independently
+ * of physical media admission. Production always uses hplj_encode_raster. */
+static struct hplj_encode_result encode_primitive(
+    const struct hplj_foo2zjs_adapter *encoder, const struct hplj_raster *raster,
+    const struct hplj_encoder_sink *sink, bool cancelled) {
+  struct hplj_encode_result result = {0};
+  result.error.category = encoder->encode_zjstream(
+      encoder->context, raster, sink, cancelled, &result.bytes_emitted);
+  return result;
+}
+
 static void test_model_1_stream_has_exact_record_shape(void) {
   const unsigned char pattern[] = {0xaa, 0xa8, 0x55, 0x50};
   const struct hplj_raster raster = tiny_raster(pattern);
   struct capture capture = {0};
-  const struct hplj_encode_result result = hplj_encode_raster(
+  const struct hplj_encode_result result = encode_primitive(
       hplj_foo2zjs_model_1(), &raster,
       &(struct hplj_encoder_sink){.emit = capture_emit, .context = &capture}, false);
 
@@ -143,45 +154,55 @@ static void test_model_1_stream_has_exact_record_shape(void) {
                     (const unsigned char *)"@PJL EOJ\n", 9) != NULL);
 }
 
-static void test_raster_header_is_fully_validated_before_encoding(void) {
-  const unsigned char pattern[] = {0xaa, 0xa8, 0x55, 0x50};
-  struct hplj_raster raster = tiny_raster(pattern);
-  struct fake_encoder encoder = {0};
+static struct hplj_raster physical_raster(void) {
+  static const unsigned char bits[620U * 7015U] = {0};
+  return (struct hplj_raster){
+      .width_pixels = 4960, .height_rows = 7015,
+      .page_width_pixels = 4960, .page_height_rows = 7015,
+      .resolution_dpi = 600, .painted_resolution_dpi = 600,
+      .printable_x_pixels = 94, .printable_y_rows = 94,
+      .printable_width_pixels = 4772, .printable_height_rows = 6827,
+      .row_stride_bytes = 620, .bits = bits, .bits_size = sizeof(bits),
+      .bit_polarity = HPLJ_BLACK_IS_ONE,
+      .bit_order = HPLJ_MOST_SIGNIFICANT_BIT_FIRST,
+      .page_count = 1, .media = HPLJ_MEDIA_A4,
+      .source = HPLJ_SOURCE_AUTO, .quality = HPLJ_QUALITY_NORMAL, .density = 3,
+  };
+}
 
-#define EXPECT_INVALID(field, value, restore)                             \
+static void test_raster_header_is_fully_validated_before_encoding(void) {
+  struct hplj_raster raster = physical_raster();
+  struct fake_encoder encoder = {0};
+#define EXPECT_INVALID(field, value)                                     \
   do {                                                                    \
     raster.field = (value);                                               \
-    assert(encode_with_fake(&raster, &encoder, false).error.category ==   \
+    assert(encode_with_fake(&raster, &encoder, false).error.category ==     \
            HPLJ_ERROR_RASTER_INVALID);                                    \
     assert(encoder.calls == 0);                                           \
-    raster.field = (restore);                                             \
+    raster = physical_raster();                                          \
   } while (0)
-
-  EXPECT_INVALID(width_pixels, 0, 13);
-  EXPECT_INVALID(height_rows, 0, 2);
-  EXPECT_INVALID(resolution_dpi, 300, 600);
-  EXPECT_INVALID(painted_resolution_dpi, 300, 600);
-  EXPECT_INVALID(page_width_pixels, 12, 13);
-  EXPECT_INVALID(page_height_rows, 1, 2);
-  EXPECT_INVALID(printable_width_pixels, 0, 13);
-  EXPECT_INVALID(printable_height_rows, 0, 2);
-  EXPECT_INVALID(printable_x_pixels, 1, 0);
-  EXPECT_INVALID(printable_y_rows, 1, 0);
-  EXPECT_INVALID(row_stride_bytes, 1, 2);
-  EXPECT_INVALID(bits_size, 3, 4);
-  EXPECT_INVALID(bit_order, (enum hplj_bit_order)99,
-                 HPLJ_MOST_SIGNIFICANT_BIT_FIRST);
-  EXPECT_INVALID(bit_polarity, (enum hplj_bit_polarity)99,
-                 HPLJ_BLACK_IS_ONE);
-  EXPECT_INVALID(page_count, 0, 1);
-  EXPECT_INVALID(media, (enum hplj_media)99, HPLJ_MEDIA_A4);
-  EXPECT_INVALID(source, HPLJ_SOURCE_MANUAL, HPLJ_SOURCE_AUTO);
-  EXPECT_INVALID(quality, HPLJ_QUALITY_DRAFT, HPLJ_QUALITY_NORMAL);
-  EXPECT_INVALID(density, 2, 3);
+  EXPECT_INVALID(width_pixels, 4959);
+  EXPECT_INVALID(height_rows, 7014);
+  EXPECT_INVALID(resolution_dpi, 300);
+  EXPECT_INVALID(painted_resolution_dpi, 300);
+  EXPECT_INVALID(page_width_pixels, 13);
+  EXPECT_INVALID(page_height_rows, 2);
+  EXPECT_INVALID(printable_width_pixels, 4774);
+  EXPECT_INVALID(printable_height_rows, 6826);
+  EXPECT_INVALID(printable_x_pixels, 0);
+  EXPECT_INVALID(printable_y_rows, 95);
+  EXPECT_INVALID(row_stride_bytes, 619);
+  EXPECT_INVALID(bits_size, 4);
+  EXPECT_INVALID(bit_order, (enum hplj_bit_order)99);
+  EXPECT_INVALID(bit_polarity, (enum hplj_bit_polarity)99);
+  EXPECT_INVALID(page_count, 0);
+  EXPECT_INVALID(media, HPLJ_MEDIA_INVALID);
+  EXPECT_INVALID(media_width, 21600);
+  EXPECT_INVALID(source, HPLJ_SOURCE_INVALID);
+  EXPECT_INVALID(quality, HPLJ_QUALITY_DRAFT);
+  EXPECT_INVALID(density, 2);
 #undef EXPECT_INVALID
-
-  assert(encode_with_fake(&raster, &encoder, false).error.category ==
-         HPLJ_ERROR_NONE);
+  assert(encode_with_fake(&raster, &encoder, false).error.category == HPLJ_ERROR_NONE);
   assert(encoder.calls == 1);
 }
 
@@ -192,11 +213,11 @@ static void test_normalization_ignores_padding_and_canonicalizes_bits(void) {
   struct hplj_raster second = tiny_raster(alternate);
   struct capture first_capture = {0};
   struct capture second_capture = {0};
-  assert(hplj_encode_raster(
+  assert(encode_primitive(
              hplj_foo2zjs_model_1(), &first,
              &(struct hplj_encoder_sink){capture_emit, &first_capture}, false)
              .error.category == HPLJ_ERROR_NONE);
-  assert(hplj_encode_raster(
+  assert(encode_primitive(
              hplj_foo2zjs_model_1(), &second,
              &(struct hplj_encoder_sink){capture_emit, &second_capture}, false)
              .error.category == HPLJ_ERROR_NONE);
@@ -208,7 +229,7 @@ static void test_normalization_ignores_padding_and_canonicalizes_bits(void) {
   second.bit_order = HPLJ_LEAST_SIGNIFICANT_BIT_FIRST;
   second.bit_polarity = HPLJ_BLACK_IS_ZERO;
   second_capture.size = 0;
-  assert(hplj_encode_raster(
+  assert(encode_primitive(
              hplj_foo2zjs_model_1(), &second,
              &(struct hplj_encoder_sink){capture_emit, &second_capture}, false)
              .error.category == HPLJ_ERROR_NONE);
@@ -219,7 +240,7 @@ static void test_normalization_ignores_padding_and_canonicalizes_bits(void) {
 static uint64_t encode_golden(const unsigned char *bits) {
   const struct hplj_raster raster = tiny_raster(bits);
   struct capture capture = {0};
-  const struct hplj_encode_result result = hplj_encode_raster(
+  const struct hplj_encode_result result = encode_primitive(
       hplj_foo2zjs_model_1(), &raster,
       &(struct hplj_encoder_sink){capture_emit, &capture}, false);
   assert(result.error.category == HPLJ_ERROR_NONE);
@@ -228,7 +249,7 @@ static uint64_t encode_golden(const unsigned char *bits) {
 
 static uint64_t encode_raster_golden(const struct hplj_raster *raster) {
   struct capture capture = {0};
-  const struct hplj_encode_result result = hplj_encode_raster(
+  const struct hplj_encode_result result = encode_primitive(
       hplj_foo2zjs_model_1(), raster,
       &(struct hplj_encoder_sink){capture_emit, &capture}, false);
   assert(result.error.category == HPLJ_ERROR_NONE);
@@ -263,7 +284,7 @@ static void test_multi_page_and_clipped_page_are_structurally_complete(void) {
   raster.printable_y_rows = 4;
   raster.row_stride_bytes = 3;
   struct capture capture = {0};
-  const struct hplj_encode_result result = hplj_encode_raster(
+  const struct hplj_encode_result result = encode_primitive(
       hplj_foo2zjs_model_1(), &raster,
       &(struct hplj_encoder_sink){capture_emit, &capture}, false);
   assert(result.error.category == HPLJ_ERROR_NONE);
@@ -311,8 +332,7 @@ static void test_clipped_vector_matches_pinned_upstream(void) {
 }
 
 static void test_cancellation_allocation_and_io_failures_emit_no_payload(void) {
-  const unsigned char pattern[] = {0xaa, 0xa8, 0x55, 0x50};
-  struct hplj_raster raster = tiny_raster(pattern);
+  struct hplj_raster raster = physical_raster();
   struct fake_encoder encoder = {.result = HPLJ_ERROR_ENCODING_FAILED};
   struct hplj_encode_result result = encode_with_fake(&raster, &encoder, true);
   assert(result.error.category == HPLJ_ERROR_CANCELLED);
@@ -323,7 +343,7 @@ static void test_cancellation_allocation_and_io_failures_emit_no_payload(void) {
   assert(result.bytes_emitted == 0);
 
   struct capture failing_sink = {.failure = HPLJ_ERROR_DEVICE_DISCONNECTED};
-  result = hplj_encode_raster(
+  result = encode_primitive(
       hplj_foo2zjs_model_1(), &raster,
       &(struct hplj_encoder_sink){capture_emit, &failing_sink}, false);
   assert(result.error.category == HPLJ_ERROR_DEVICE_DISCONNECTED);

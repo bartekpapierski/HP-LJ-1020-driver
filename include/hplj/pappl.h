@@ -73,6 +73,7 @@ struct hplj_job_attributes {
   unsigned int resolution_dpi;
   unsigned int bits_per_pixel;
   enum hplj_media media;
+  unsigned int media_width, media_length;
   enum hplj_source source;
   enum hplj_quality quality;
   unsigned int density;

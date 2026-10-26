@@ -26,6 +26,22 @@ Support claims apply only to the reference printer, macOS version, and
 connection path verified under the validation contract. This repository does
 not currently produce a public binary release.
 
+## Media controls under validation
+
+The local development service implements the pinned exact-model PPD's 16
+standard sizes plus custom media from 76×127 through 216×356 mm, with 4 mm
+margins. Use `media-col` dimensions for custom sizes. The client composes
+orientation into the raster; feed width and length remain the physical sheet
+axes. Unsupported or conflicting geometry/source requests fail before page
+transmission.
+
+Sources are `auto` (7), `main` (1), and `manual` (4). Main-tray selection tells
+the user to remove any sheet from the priority feed; manual selection asks
+for one sheet in the priority feed. These are protocol mappings under
+validation, not verified physical source isolation. Physical geometry and
+feed behavior require the reference printer on both connection paths before
+any support claim. See [media validation](docs/media-validation.md).
+
 ## Development service
 
 The PAPPL application runs in the foreground with every writable path supplied

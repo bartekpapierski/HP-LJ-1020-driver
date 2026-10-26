@@ -20,6 +20,7 @@ struct fake_pipeline {
   enum hplj_job_state states[16];
   unsigned char output[128 * 1024];
   size_t output_size;
+  size_t encoded_size;
 };
 
 static enum hplj_error_category fake_discover(
@@ -110,10 +111,10 @@ static enum hplj_error_category fake_encode(
     return fake->encode_after_prefix_error;
   }
   if (category == HPLJ_ERROR_NONE) {
-    category = sink->emit(sink->context, raster->bits, raster->bits_size);
+    category = sink->emit(sink->context, raster->bits, fake->encoded_size ? fake->encoded_size : 2);
   }
   *bytes_emitted = category == HPLJ_ERROR_NONE
-                       ? sizeof(prefix) + raster->bits_size
+                       ? sizeof(prefix) + (fake->encoded_size ? fake->encoded_size : 2)
                        : 0;
   return category;
 }
@@ -131,17 +132,19 @@ static void record_state(void *context,
 }
 
 static struct hplj_raster valid_raster(void) {
-  static const unsigned char bits[] = {0x80, 0x00};
+  static const unsigned char bits[620U * 7015U] = {0x80, 0x00};
   return (struct hplj_raster){
-      .width_pixels = 8,
-      .height_rows = 2,
+      .width_pixels = 4960,
+      .height_rows = 7015,
       .resolution_dpi = 600,
       .painted_resolution_dpi = 600,
-      .page_width_pixels = 8,
-      .page_height_rows = 2,
-      .printable_width_pixels = 8,
-      .printable_height_rows = 2,
-      .row_stride_bytes = 1,
+      .page_width_pixels = 4960,
+      .page_height_rows = 7015,
+      .printable_x_pixels = 94,
+      .printable_y_rows = 94,
+      .printable_width_pixels = 4772,
+      .printable_height_rows = 6827,
+      .row_stride_bytes = 620,
       .bits = bits,
       .bits_size = sizeof(bits),
       .bit_polarity = HPLJ_BLACK_IS_ONE,
@@ -367,10 +370,8 @@ static void test_cancellation_during_chunked_transfer_records_sent_bytes(void) {
   struct hplj_job job = make_job(&fake, &device);
   assert(hplj_job_prepare(&job, NULL, 0, "20050309").category ==
          HPLJ_ERROR_NONE);
-  static unsigned char large_bits[64U * 1024U + 1U];
+  fake.encoded_size = 64U * 1024U + 1U;
   struct hplj_raster raster = valid_raster();
-  raster.bits = large_bits;
-  raster.bits_size = sizeof(large_bits);
   struct hplj_error error = hplj_job_submit_page(&job, &raster);
   assert(error.category == HPLJ_ERROR_CANCELLED);
   assert(error.retry == HPLJ_RETRY_EXPLICIT);
@@ -409,10 +410,8 @@ static void test_later_chunk_failure_does_not_retry_after_job_bytes_sent(void) {
   struct hplj_job job = make_job(&fake, &device);
   assert(hplj_job_prepare(&job, NULL, 0, "20050309").category ==
          HPLJ_ERROR_NONE);
-  static unsigned char large_bits[64U * 1024U + 1U];
+  fake.encoded_size = 64U * 1024U + 1U;
   struct hplj_raster raster = valid_raster();
-  raster.bits = large_bits;
-  raster.bits_size = sizeof(large_bits);
 
   struct hplj_error error = hplj_job_submit_page(&job, &raster);
   assert(error.category == HPLJ_ERROR_DEVICE_TIMEOUT);

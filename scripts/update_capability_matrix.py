@@ -38,7 +38,7 @@ SCOPE_PATHS = {
         "scripts/build",
     ),
     "golden-corpus": ("validation/golden-corpus",),
-    "implementation-contract": ("CONTEXT.md", "docs/IMPLEMENTATION-SPEC.md"),
+    "implementation-contract": ("CONTEXT.md", "docs/IMPLEMENTATION-SPEC.md", "docs/media-validation.md"),
     "product-source": (
         "CMakeLists.txt",
         "include",
@@ -48,6 +48,7 @@ SCOPE_PATHS = {
         "scripts/reconcile_macos_queue.py",
         "scripts/seal_lifecycle_evidence.py",
         "src",
+        "third_party/foo2zjs/encoder.c",
     ),
     "validation-tooling": (
         "docs/spec",
@@ -61,6 +62,10 @@ SCOPE_PATHS = {
         "scripts/update_capability_matrix.py",
         "scripts/validation_gate.py",
         "tests/test_pappl_integration.py",
+        "tests/test_media_integration.py",
+        "tests/media_contracts.c",
+        "tests/encoder_contracts.c",
+        "tests/make_test_raster.m",
         "tests/test_personal_release.py",
         "tests/test_personal_update.py",
         "validation/fixtures/lifecycle-calibration.pdf",

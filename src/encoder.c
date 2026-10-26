@@ -22,6 +22,20 @@ struct hplj_encode_result hplj_encode_raster(const struct hplj_foo2zjs_adapter *
     return hplj_encode_error(HPLJ_ERROR_CANCELLED, HPLJ_RETRY_NEVER, HPLJ_ACTION_NONE,
                              "job was cancelled before encoding", 0);
   }
+  struct hplj_media_geometry geometry;
+  if (raster == NULL ||
+      !hplj_media_geometry(raster->media, raster->media_width,
+                            raster->media_length, &geometry) ||
+      raster->page_width_pixels != geometry.width ||
+      raster->page_height_rows != geometry.height ||
+      raster->printable_x_pixels != geometry.left ||
+      raster->printable_y_rows != geometry.top ||
+      raster->printable_width_pixels != geometry.printable_width ||
+      raster->printable_height_rows != geometry.printable_height) {
+    return hplj_encode_error(HPLJ_ERROR_RASTER_INVALID, HPLJ_RETRY_NEVER,
+                             HPLJ_ACTION_CORRECT_RASTER,
+                             "raster does not match media and 4 mm margins", 0);
+  }
   const bool geometry_overflows =
       raster != NULL &&
       (raster->printable_x_pixels > raster->page_width_pixels ||
@@ -45,8 +59,7 @@ struct hplj_encode_result hplj_encode_raster(const struct hplj_foo2zjs_adapter *
        raster->bit_order != HPLJ_LEAST_SIGNIFICANT_BIT_FIRST) ||
       (raster->bit_polarity != HPLJ_BLACK_IS_ONE &&
        raster->bit_polarity != HPLJ_BLACK_IS_ZERO) ||
-      (raster->media != HPLJ_MEDIA_A4 && raster->media != HPLJ_MEDIA_LETTER) ||
-      raster->source != HPLJ_SOURCE_AUTO || raster->quality != HPLJ_QUALITY_NORMAL ||
+      hplj_source_code(raster->source) == 0 || raster->quality != HPLJ_QUALITY_NORMAL ||
       raster->density != 3 ||
       raster->width_pixels > SIZE_MAX - 7 ||
       raster->width_pixels > UINT32_MAX - 127U || raster->height_rows > UINT32_MAX ||
