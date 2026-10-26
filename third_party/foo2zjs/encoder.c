@@ -136,12 +136,16 @@ static void capture_jbig(unsigned char *bytes, size_t byte_count, void *context)
   (void)append_bytes(context, bytes, byte_count);
 }
 
-static bool append_start_document(struct byte_buffer *stream) {
+static bool append_start_document(struct byte_buffer *stream,
+                                   const struct hplj_raster *raster) {
   static const char prefix[] =
       "\033%-12345X@PJL JOB\n"
       "@PJL SET JAMRECOVERY=OFF\n"
-      "@PJL SET DENSITY=3\n"
-      "@PJL SET ECONOMODE=OFF\n"
+      "@PJL SET DENSITY=";
+  const char density[] = {(char)('0' + raster->density), '\n'};
+  const char *economode = raster->economode
+      ? "@PJL SET ECONOMODE=ON\n" : "@PJL SET ECONOMODE=OFF\n";
+  static const char settings[] =
       "@PJL SET RET=MEDIUM\n"
       "@PJL INFO STATUS\n"
       "@PJL USTATUS DEVICE = ON\n"
@@ -153,6 +157,9 @@ static bool append_start_document(struct byte_buffer *stream) {
   static const char enter_zjstream[] = "\033%-12345XJZJZ";
   static const char timestamp[] = "00000000000000";
   return append_bytes(stream, prefix, sizeof(prefix) - 1) &&
+         append_bytes(stream, density, sizeof(density)) &&
+         append_bytes(stream, economode, strlen(economode)) &&
+         append_bytes(stream, settings, sizeof(settings) - 1) &&
          append_bytes(stream, timestamp, 14) &&
          append_bytes(stream, suffix, sizeof(suffix) - 1) && append_u8(stream, 0) &&
          append_bytes(stream, enter_zjstream, sizeof(enter_zjstream) - 1) &&
@@ -167,12 +174,13 @@ static bool append_start_page(struct byte_buffer *stream,
   const uint32_t paper = hplj_media_size(raster->media)->paper_code;
   return append_chunk(stream, ZJT_START_PAGE, MODEL_1_START_PAGE_RESERVED, 13,
                       13 * 12) &&
-         append_item(stream, ZJI_ECONOMODE, 0) &&
+         append_item(stream, ZJI_ECONOMODE, raster->economode ? 1 : 0) &&
          append_item(stream, ZJI_VIDEO_X,
-                     (uint32_t)raster->printable_width_pixels) &&
+                     (uint32_t)raster->printable_width_pixels /
+                         (raster->resolution_dpi / 600U)) &&
          append_item(stream, ZJI_VIDEO_Y,
                      (uint32_t)raster->printable_height_rows) &&
-         append_item(stream, ZJI_VIDEO_BPP, 1) &&
+         append_item(stream, ZJI_VIDEO_BPP, raster->resolution_dpi / 600U) &&
          append_item(stream, ZJI_RASTER_X,
                      (uint32_t)raster->printable_width_pixels) &&
          append_item(stream, ZJI_RASTER_Y,
@@ -341,7 +349,7 @@ static enum hplj_error_category encode_model_1(
     return HPLJ_ERROR_CANCELLED;
   }
   struct byte_buffer stream = {0};
-  bool ok = append_start_document(&stream);
+  bool ok = append_start_document(&stream, raster);
   for (unsigned int page = 0; ok && page < raster->page_count; ++page) {
     ok = append_page(&stream, raster, page);
   }

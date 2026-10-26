@@ -9,7 +9,7 @@
     {
       "path": "encoder.c",
       "upstreamPath": "foo2zjs.c",
-      "sha256": "e3ed0bc1f11828481105cb3a243302246eb3d7a393ddbc6aeefc1f3e292c9643",
+      "sha256": "0e2c883b3796617fc92ee0432229912aa2fb39104dccff81e3796973aede8def",
       "modifiedNotice": "Modified by HP-LJ-1020-driver contributors"
     }
   ]

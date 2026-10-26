@@ -200,7 +200,9 @@ static void test_raster_header_is_fully_validated_before_encoding(void) {
   EXPECT_INVALID(media_width, 21600);
   EXPECT_INVALID(source, HPLJ_SOURCE_INVALID);
   EXPECT_INVALID(quality, HPLJ_QUALITY_DRAFT);
-  EXPECT_INVALID(density, 2);
+  EXPECT_INVALID(density, 0);
+  EXPECT_INVALID(density, 6);
+  EXPECT_INVALID(quality, HPLJ_QUALITY_HIGH);
 #undef EXPECT_INVALID
   assert(encode_with_fake(&raster, &encoder, false).error.category == HPLJ_ERROR_NONE);
   assert(encoder.calls == 1);
@@ -352,7 +354,42 @@ static void test_cancellation_allocation_and_io_failures_emit_no_payload(void) {
   assert(failing_sink.size == 0);
 }
 
+/* Independent pinned foo2zjs vectors, -z1 -P -L0 -r{600,1200}x600
+ * -g13x2 -p9 -T{1..5} with/without -t. Only JobAttr4 is normalized. */
+static void test_quality_density_economode_match_pinned_upstream(void) {
+  static const uint64_t expected[2][5][2] = {
+    {
+      {UINT64_C(0x302f1e23f0c69f54), UINT64_C(0xb2db7b2fde0ea713)},
+      {UINT64_C(0xfcb514f1326d4cdd), UINT64_C(0xc8dd279792381e04)},
+      {UINT64_C(0xae273fd0dffe5c66), UINT64_C(0x601b46464fdaf995)},
+      {UINT64_C(0xf2f7fcecc7fcad6f), UINT64_C(0x72234b381950a536)},
+      {UINT64_C(0x132460272427b908), UINT64_C(0x726e591a8a875e17)},
+    },
+    {
+      {UINT64_C(0x966c3df3f8b2b7e4), UINT64_C(0x71d1ed37884cfbd3)},
+      {UINT64_C(0x8c48e117d5cfebcd), UINT64_C(0xe28dc2590c974dd4)},
+      {UINT64_C(0x749db66b8c459246), UINT64_C(0x1456c645f2157155)},
+      {UINT64_C(0x3304ae458424145f), UINT64_C(0x59e5fd9887f0b196)},
+      {UINT64_C(0x3f7aa6b417710158), UINT64_C(0xc54db235625a7317)},
+    },
+  };
+  const unsigned char bits[] = {0xaa, 0xa8, 0x55, 0x50};
+  for (unsigned int mode = 0; mode < 2; mode++) {
+    for (unsigned int density = 1; density <= 5; density++) {
+      for (unsigned int econ = 0; econ < 2; econ++) {
+        struct hplj_raster raster = tiny_raster(bits);
+        raster.resolution_dpi = mode ? 1200 : 600;
+        raster.quality = mode ? HPLJ_QUALITY_HIGH : HPLJ_QUALITY_NORMAL;
+        raster.density = density;
+        raster.economode = econ != 0;
+        assert(encode_raster_golden(&raster) == expected[mode][density - 1][econ]);
+      }
+    }
+  }
+}
+
 int main(void) {
+  test_quality_density_economode_match_pinned_upstream();
   test_model_1_stream_has_exact_record_shape();
   test_raster_header_is_fully_validated_before_encoding();
   test_normalization_ignores_padding_and_canonicalizes_bits();

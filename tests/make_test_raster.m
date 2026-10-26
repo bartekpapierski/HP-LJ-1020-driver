@@ -117,12 +117,15 @@ int main(int argc, char *argv[]) {
     }
     const char *media_name = "iso_a4_210x297mm";
     unsigned int source = 0;
+    unsigned int x_dpi = 600;
     int first_source = 3;
     while (first_source < argc) {
       if (strncmp(argv[first_source], "--media=", 8) == 0) {
         media_name = argv[first_source] + 8;
       } else if (strncmp(argv[first_source], "--source=", 9) == 0) {
         source = (unsigned int)strtoul(argv[first_source] + 9, NULL, 10);
+      } else if (strncmp(argv[first_source], "--x-dpi=", 8) == 0) {
+        x_dpi = (unsigned int)strtoul(argv[first_source] + 8, NULL, 10);
       } else break;
       first_source++;
     }
@@ -131,7 +134,7 @@ int main(int argc, char *argv[]) {
     bool noise = argc == first_source + 1 && strcmp(argv[first_source], "--noise") == 0;
     unsigned int pages = argc > first_source && !noise ? (unsigned int)(argc - first_source) : 1U;
     if (media == NULL ||
-        !cupsRasterInitPWGHeader(&header, media, "black_1", 600, 600,
+        !cupsRasterInitPWGHeader(&header, media, "black_1", x_dpi, 600,
                                  "one-sided", NULL)) {
       return 1;
     }

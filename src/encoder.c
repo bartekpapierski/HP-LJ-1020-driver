@@ -3,6 +3,13 @@
 
 #include <stdint.h>
 
+bool hplj_quality_valid(enum hplj_quality quality, unsigned int input_dpi,
+                         unsigned int density) {
+  return density >= 1 && density <= 5 &&
+         ((quality == HPLJ_QUALITY_NORMAL && input_dpi == 600) ||
+          (quality == HPLJ_QUALITY_HIGH && input_dpi == 1200));
+}
+
 static struct hplj_encode_result hplj_encode_error(enum hplj_error_category category,
                                                     enum hplj_retry_safety retry,
                                                     enum hplj_human_action action,
@@ -24,8 +31,8 @@ struct hplj_encode_result hplj_encode_raster(const struct hplj_foo2zjs_adapter *
   }
   struct hplj_media_geometry geometry;
   if (raster == NULL ||
-      !hplj_media_geometry(raster->media, raster->media_width,
-                            raster->media_length, &geometry) ||
+      !hplj_media_geometry_for_resolution(raster->media, raster->media_width,
+                            raster->media_length, raster->resolution_dpi, &geometry) ||
       raster->page_width_pixels != geometry.width ||
       raster->page_height_rows != geometry.height ||
       raster->printable_x_pixels != geometry.left ||
@@ -47,8 +54,7 @@ struct hplj_encode_result hplj_encode_raster(const struct hplj_foo2zjs_adapter *
   if (encoder == NULL || encoder->encode_zjstream == NULL || raster == NULL || sink == NULL ||
       sink->emit == NULL || raster->bits == NULL ||
       raster->width_pixels == 0 || raster->height_rows == 0 || raster->page_count == 0 ||
-      raster->resolution_dpi != 600 || raster->painted_resolution_dpi != 600 ||
-      raster->painted_resolution_dpi != raster->resolution_dpi ||
+      raster->painted_resolution_dpi != 600 ||
       raster->page_width_pixels == 0 || raster->page_height_rows == 0 ||
       raster->page_width_pixels != raster->width_pixels ||
       raster->page_height_rows != raster->height_rows ||
@@ -59,8 +65,7 @@ struct hplj_encode_result hplj_encode_raster(const struct hplj_foo2zjs_adapter *
        raster->bit_order != HPLJ_LEAST_SIGNIFICANT_BIT_FIRST) ||
       (raster->bit_polarity != HPLJ_BLACK_IS_ONE &&
        raster->bit_polarity != HPLJ_BLACK_IS_ZERO) ||
-      hplj_source_code(raster->source) == 0 || raster->quality != HPLJ_QUALITY_NORMAL ||
-      raster->density != 3 ||
+      hplj_source_code(raster->source) == 0 || !hplj_quality_valid(raster->quality, raster->resolution_dpi, raster->density) ||
       raster->width_pixels > SIZE_MAX - 7 ||
       raster->width_pixels > UINT32_MAX - 127U || raster->height_rows > UINT32_MAX ||
       raster->page_width_pixels > UINT32_MAX || raster->page_height_rows > UINT32_MAX ||

@@ -34,7 +34,10 @@ The hash-pinned patches in `patches/pappl/` narrow advertised document formats,
 the default document format, and print quality to the production capability
 envelope, expose synchronized conditional log rotation, and reserve history
 capacity at job admission to enforce a strict 20-record bound while preserving
-PAPPL's 60-second lifetime safety window. Every modified upstream file carries
+PAPPL's 60-second lifetime safety window. They also enforce exact media/raster
+geometry and quality negotiation, validate density/EconoMode at admission, and
+keep asymmetric FastRes input exclusive to PWG Raster while preserving URF's
+600 dpi capabilities. Every modified upstream file carries
 a project modification marker.
 
 PAPPL's NOTICE grants an optional exception for object-form embedded portions

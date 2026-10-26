@@ -194,6 +194,10 @@ if(BUILD_TESTING)
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/submit-raster.test)
   set_tests_properties(hplj1020-pappl-integration PROPERTIES
     SKIP_RETURN_CODE 77 TIMEOUT 90)
+  add_test(NAME hplj1020-quality-integration
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_quality_integration.py
+      $<TARGET_FILE:hplj1020-test-service> $<TARGET_FILE:hplj1020-make-test-raster>)
+  set_tests_properties(hplj1020-quality-integration PROPERTIES TIMEOUT 90)
   add_test(NAME hplj1020-media-integration
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_media_integration.py
       $<TARGET_FILE:hplj1020-test-service> $<TARGET_FILE:hplj1020-make-test-raster>)

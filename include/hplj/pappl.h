@@ -59,6 +59,7 @@ struct hplj_capabilities {
   enum hplj_source source;
   enum hplj_quality quality;
   unsigned int density;
+  bool economode;
 };
 
 enum hplj_document_format {
@@ -77,6 +78,7 @@ struct hplj_job_attributes {
   enum hplj_source source;
   enum hplj_quality quality;
   unsigned int density;
+  bool economode;
 };
 
 struct hplj_capability_profile {
@@ -85,6 +87,7 @@ struct hplj_capability_profile {
   enum hplj_source source;
   enum hplj_quality quality;
   unsigned int density;
+  bool economode;
 };
 
 enum hplj_service_state {

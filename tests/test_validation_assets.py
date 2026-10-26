@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import json
+import shutil
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -58,6 +60,31 @@ class ValidationSchemaChecks(unittest.TestCase):
 class GoldenCorpusChecks(unittest.TestCase):
     def test_repository_corpus_is_complete_and_privacy_safe(self) -> None:
         corpus_checker.check_corpus(ROOT / "validation/golden-corpus")
+
+
+    def test_missing_quality_control_combination_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "corpus"
+            shutil.copytree(ROOT / "validation/golden-corpus", root)
+            manifest = root / "manifest.json"
+            data = json.loads(manifest.read_text())
+            data["printCases"] = [case for case in data["printCases"]
+                                  if case["caseId"] != "CASE-QUALITY-1200-D5-E1"]
+            manifest.write_text(json.dumps(data))
+            with self.assertRaisesRegex(corpus_checker.CorpusError, "combinations"):
+                corpus_checker.check_corpus(root)
+
+    def test_malformed_density_or_economode_is_rejected(self) -> None:
+        for field, value in (("density", True), ("density", 6), ("economode", "true")):
+            with self.subTest(field=field, value=value), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory) / "corpus"
+                shutil.copytree(ROOT / "validation/golden-corpus", root)
+                manifest = root / "manifest.json"
+                data = json.loads(manifest.read_text())
+                data["printCases"][0][field] = value
+                manifest.write_text(json.dumps(data))
+                with self.assertRaisesRegex(corpus_checker.CorpusError, "invalid density or EconoMode"):
+                    corpus_checker.check_corpus(root)
 
 
 class CapabilityMatrixChecks(unittest.TestCase):

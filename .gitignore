@@ -4,3 +4,4 @@ build/
 build-stale-*/
 .cache/
 validation/runs/
+.DS_Store

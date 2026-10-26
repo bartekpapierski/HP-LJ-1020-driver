@@ -19,8 +19,8 @@ explicit dimensions. All four margins are 400; borderless, offsets, negative
 margins, larger or impossible image boxes are rejected. Physical width and
 length stay in feed axes: landscape and reverse orientations are client-side
 composition within that sheet raster, not a rotated sheet-size declaration.
-The pinned CUPS 2 conversion truncates each sheet dimension and margin to 600
-dpi pixels. ZjStream VIDEO/RASTER dimensions are the cropped printable region;
+The pinned CUPS 2 conversion truncates each sheet dimension and margin to the
+selected horizontal input dpi and 600 vertical dpi (see `docs/quality-validation.md`). ZjStream VIDEO/RASTER dimensions are the cropped printable region;
 JBIG width alone is padded to a 128-pixel boundary, with white padding. Custom
 paper uses code 256 as in the pinned model-1 path; no Minolta-specific custom
 items are emitted.

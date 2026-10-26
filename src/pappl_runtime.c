@@ -72,6 +72,9 @@ struct hplj_pappl_job_data {
   size_t page_size;
   unsigned int rows_received;
   enum hplj_source source;
+  enum hplj_quality quality;
+  unsigned int density;
+  bool economode;
   struct hplj_device transport;
   struct hplj_job lifecycle;
   pappl_device_t *pappl_device;
@@ -415,7 +418,8 @@ static bool hplj_monitor_device(pappl_system_t *system, void *data) {
                            PAPPL_PREASON_DEVICE_STATUS & ~reasons);
     if (reasons == PAPPL_PREASON_NONE) {
       papplPrinterReleaseHeldNewJobs(backend->printer, NULL);
-      hplj_update_active_jobs(backend->printer, "queued", true);
+      // Readiness polls must not overwrite processing/completion messages.
+      hplj_update_active_jobs(backend->printer, NULL, true);
     } else {
       papplPrinterReleaseHeldNewJobs(backend->printer, NULL);
       hplj_update_active_jobs(backend->printer, observed_error.detail, false);
@@ -771,9 +775,12 @@ static void hplj_pappl_job_state(void *context,
   struct hplj_status status =
       hplj_status_from_job(metadata->state, metadata->error);
   struct hplj_pappl_job_data *data = papplJobGetData(job);
-  papplJobSetMessage(job, "%s: %s; %s", hplj_status_name(status.code),
-                     metadata->error.detail,
-                     hplj_source_description(data ? data->source : HPLJ_SOURCE_AUTO));
+  papplJobSetMessage(job, "%s: %s; %s; %s; density %u; EconoMode %s",
+                     hplj_status_name(status.code), metadata->error.detail,
+                     hplj_source_description(data ? data->source : HPLJ_SOURCE_AUTO),
+                     data && data->quality == HPLJ_QUALITY_HIGH
+                         ? "FastRes 1200 (1200x600 input, 600x600 device)" : "600x600 dpi with REt",
+                     data ? data->density : 3, data && data->economode ? "on" : "off");
   pappl_pr_driver_data_t driver_data;
   papplPrinterGetDriverData(papplJobGetPrinter(job), &driver_data);
   struct hplj_pappl_backend *backend = driver_data.extension;
@@ -843,10 +850,43 @@ static bool hplj_media_options_valid(pappl_job_t *job,
   return true;
 }
 
+static unsigned int hplj_job_density(const pappl_pr_options_t *options) {
+  const char *value = cupsGetOption("hplj-density", options->num_vendor, options->vendor);
+  if (value == NULL) return 3;
+  return value[0] >= '1' && value[0] <= '5' && value[1] == '\0'
+             ? (unsigned int)(value[0] - '0') : 0;
+}
+
+static bool hplj_job_economode(const pappl_pr_options_t *options) {
+  const char *value = cupsGetOption("hplj-economode", options->num_vendor, options->vendor);
+  return value != NULL && strcmp(value, "true") == 0;
+}
+
+static enum hplj_quality hplj_job_quality(const pappl_pr_options_t *options) {
+  return options->print_quality == IPP_QUALITY_NORMAL ? HPLJ_QUALITY_NORMAL :
+         options->print_quality == IPP_QUALITY_HIGH ? HPLJ_QUALITY_HIGH : HPLJ_QUALITY_DRAFT;
+}
+
+static bool hplj_quality_options_valid(pappl_job_t *job, pappl_pr_options_t *options) {
+  if (!hplj_quality_valid(hplj_job_quality(options), options->printer_resolution[0],
+                           hplj_job_density(options)) || options->printer_resolution[1] != 600) {
+    papplJobSetReasons(job, PAPPL_JREASON_DOCUMENT_FORMAT_ERROR, PAPPL_JREASON_NONE);
+    papplJobSetMessage(job, "Unsupported or conflicting resolution/quality/density");
+    return false;
+  }
+  papplJobSetMessage(job, "%s; %s; density %u; EconoMode %s",
+      hplj_source_description(hplj_source_from_name(options->media.source)),
+      options->print_quality == IPP_QUALITY_HIGH
+          ? "FastRes 1200 (1200x600 input, 600x600 device)" : "600x600 dpi with REt",
+      hplj_job_density(options), hplj_job_economode(options) ? "on" : "off");
+  return true;
+}
+
 static bool hplj_rstartjob(pappl_job_t *job, pappl_pr_options_t *options,
                            pappl_device_t *device) {
   (void)device;
-  if (!hplj_media_options_valid(job, options)) return false;
+  if (!hplj_media_options_valid(job, options) ||
+      !hplj_quality_options_valid(job, options)) return false;
   struct hplj_pappl_job_data *data = calloc(1, sizeof(*data));
   if (data == NULL) {
     papplLogJob(job, PAPPL_LOGLEVEL_ERROR,
@@ -858,6 +898,9 @@ static bool hplj_rstartjob(pappl_job_t *job, pappl_pr_options_t *options,
   struct hplj_pappl_backend *backend = driver_data.extension;
   data->pappl_device = device;
   data->source = hplj_source_from_name(options->media.source);
+  data->quality = hplj_job_quality(options);
+  data->density = hplj_job_density(options);
+  data->economode = hplj_job_economode(options);
   struct hplj_device *transport;
   const unsigned char *firmware = NULL;
   size_t firmware_size = 0;
@@ -933,11 +976,12 @@ static bool hplj_rstartpage(pappl_job_t *job, pappl_pr_options_t *options,
   (void)device;
   (void)page;
   cups_page_header_t *header = &options->header;
-  if (!hplj_media_options_valid(job, options)) return false;
+  if (!hplj_media_options_valid(job, options) ||
+      !hplj_quality_options_valid(job, options)) return false;
   struct hplj_media_geometry geometry;
-  if (!hplj_media_geometry(hplj_selected_media(options),
+  if (!hplj_media_geometry_for_resolution(hplj_selected_media(options),
                             (unsigned)options->media.size_width,
-                            (unsigned)options->media.size_length, &geometry) ||
+                            (unsigned)options->media.size_length, header->HWResolution[0], &geometry) ||
       header->cupsWidth != geometry.width || header->cupsHeight != geometry.height) {
     papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "raster dimensions conflict with selected media");
     return false;
@@ -950,10 +994,9 @@ static bool hplj_rstartpage(pappl_job_t *job, pappl_pr_options_t *options,
       .media_width = (unsigned int)options->media.size_width,
       .media_length = (unsigned int)options->media.size_length,
       .source = hplj_source_from_name(options->media.source),
-      .quality = options->print_quality == IPP_QUALITY_NORMAL
-                     ? HPLJ_QUALITY_NORMAL
-                     : HPLJ_QUALITY_HIGH,
-      .density = 3,
+      .quality = hplj_job_quality(options),
+      .density = hplj_job_density(options),
+      .economode = hplj_job_economode(options),
   };
   struct hplj_error error = hplj_pappl_validate_job(&attributes);
   if (error.category != HPLJ_ERROR_NONE) {
@@ -1061,8 +1104,9 @@ static bool hplj_rendpage(pappl_job_t *job, pappl_pr_options_t *options,
       .media_width = (unsigned int)options->media.size_width,
       .media_length = (unsigned int)options->media.size_length,
       .source = hplj_source_from_name(options->media.source),
-      .quality = HPLJ_QUALITY_NORMAL,
-      .density = 3,
+      .quality = hplj_job_quality(options),
+      .density = hplj_job_density(options),
+      .economode = hplj_job_economode(options),
   };
   (void)device;
   pappl_pr_driver_data_t driver_data;
@@ -1097,6 +1141,16 @@ static bool hplj_rendpage(pappl_job_t *job, pappl_pr_options_t *options,
   return true;
 }
 
+static ipp_t *hplj_quality_attributes(void) {
+  ipp_t *attrs = ippNew();
+  ippAddRange(attrs, IPP_TAG_PRINTER, "hplj-density-supported", 1, 5);
+  ippAddInteger(attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "hplj-density-default", 3);
+  const char econ_values[] = {0, 1};
+  ippAddBooleans(attrs, IPP_TAG_PRINTER, "hplj-economode-supported", 2, econ_values);
+  ippAddBoolean(attrs, IPP_TAG_PRINTER, "hplj-economode-default", false);
+  return attrs;
+}
+
 static bool hplj_driver(pappl_system_t *system, const char *driver_name,
                         const char *device_uri, const char *device_id,
                         pappl_pr_driver_data_t *data, ipp_t **driver_attrs,
@@ -1104,8 +1158,6 @@ static bool hplj_driver(pappl_system_t *system, const char *driver_name,
   (void)system;
   (void)device_uri;
   (void)device_id;
-  (void)driver_attrs;
-  (void)context;
   if (driver_name == NULL || strcmp(driver_name, HPLJ_DRIVER_NAME) != 0 ||
       data == NULL) {
     return false;
@@ -1126,7 +1178,13 @@ static bool hplj_driver(pappl_system_t *system, const char *driver_name,
   data->quality_default = profile->quality == HPLJ_QUALITY_NORMAL
                               ? IPP_QUALITY_NORMAL
                               : IPP_QUALITY_DRAFT;
-  data->num_resolution = 1;
+  data->num_resolution = 2;
+  data->x_resolution[1] = 1200;
+  data->y_resolution[1] = 600;
+  data->num_vendor = 2;
+  data->vendor[0] = "hplj-density";
+  data->vendor[1] = "hplj-economode";
+  *driver_attrs = hplj_quality_attributes();
   data->x_resolution[0] = (int)profile->resolution_dpi;
   data->y_resolution[0] = (int)profile->resolution_dpi;
   data->x_default = (int)profile->resolution_dpi;
@@ -1314,7 +1372,10 @@ static bool hplj_reconcile_media_margins(pappl_printer_t *printer) {
     data.media_ready[i].top_margin = data.bottom_top;
     data.media_ready[i].bottom_margin = data.bottom_top;
   }
-  return papplPrinterSetDriverData(printer, &data, NULL);
+  ipp_t *attrs = hplj_quality_attributes();
+  bool updated = papplPrinterSetDriverData(printer, &data, attrs);
+  ippDelete(attrs);
+  return updated;
 }
 
 static bool hplj_backend_reconcile(void *service, const char *queue_name,

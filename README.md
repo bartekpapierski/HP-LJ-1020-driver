@@ -42,6 +42,16 @@ validation, not verified physical source isolation. Physical geometry and
 feed behavior require the reference printer on both connection paths before
 any support claim. See [media validation](docs/media-validation.md).
 
+## Quality controls under validation
+
+The local service defaults to true 600×600 with REt. High quality uses FastRes
+1200: 1200×600 PWG input samples encoded at 600×600 device resolution with two
+horizontal video bits. Density (`hplj-density`, integer 1–5, default 3) and
+EconoMode (`hplj-economode`, boolean, default false) are independent controls.
+Apple Raster remains 600×600. Explicit quality and input resolution must agree. All controls have host
+coverage; physical output on both connection paths remains unverified. See
+[quality validation](docs/quality-validation.md) for mappings and output oracles.
+
 ## Development service
 
 The PAPPL application runs in the foreground with every writable path supplied

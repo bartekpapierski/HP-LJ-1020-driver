@@ -1,0 +1,193 @@
+--- a/pappl/printer.c
++++ b/pappl/printer.c
+@@ -219,7 +219,8 @@
+   };
+   static const int print_quality[] =	// print-quality-supported
+   {
+-    IPP_QUALITY_NORMAL
++    IPP_QUALITY_NORMAL,
++    IPP_QUALITY_HIGH
+   };
+   static const char * const print_scaling[] =
+   {					// print-scaling-supported
+--- a/pappl/job-process.c
++++ b/pappl/job-process.c
+@@ -345,7 +345,7 @@
+   else if (options->print_quality == IPP_QUALITY_NORMAL)
+   {
+     // print-quality=normal
+-    i = (cups_len_t)printer->driver_data.num_resolution / 2;
++    i = 0; // HP-LJ-1020-driver: true 600 dpi is the normal baseline.
+     options->printer_resolution[0] = printer->driver_data.x_resolution[i];
+     options->printer_resolution[1] = printer->driver_data.y_resolution[i];
+   }
+@@ -356,6 +356,10 @@
+     options->printer_resolution[0] = printer->driver_data.x_resolution[i];
+     options->printer_resolution[1] = printer->driver_data.y_resolution[i];
+   }
++
++  // HP-LJ-1020-driver: resolution-only requests select the matching quality.
++  if (!ippFindAttribute(job->attrs, "print-quality", IPP_TAG_ZERO))
++    options->print_quality = options->printer_resolution[0] == 1200 ? IPP_QUALITY_HIGH : IPP_QUALITY_NORMAL;
+ 
+   // sides
+   if ((attr = ippFindAttribute(job->attrs, "sides", IPP_TAG_KEYWORD)) != NULL)
+--- a/pappl/printer-ipp.c
++++ b/pappl/printer-ipp.c
+@@ -2453,9 +2453,25 @@
+     }
+   }
+ 
++  // HP-LJ-1020-driver: validate vendor controls at IPP admission, including
++  // Validate-Job/Create-Job, before firmware or document bytes can be sent.
++  if ((attr = ippFindAttribute(client->request, "hplj-density", IPP_TAG_ZERO)) != NULL &&
++      (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_INTEGER ||
++       ippGetInteger(attr, 0) < 1 || ippGetInteger(attr, 0) > 5))
++  {
++    papplClientRespondIPPUnsupported(client, attr);
++    valid = false;
++  }
++  if ((attr = ippFindAttribute(client->request, "hplj-economode", IPP_TAG_ZERO)) != NULL &&
++      (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_BOOLEAN))
++  {
++    papplClientRespondIPPUnsupported(client, attr);
++    valid = false;
++  }
++
+   if ((attr = ippFindAttribute(client->request, "print-quality", IPP_TAG_ZERO)) != NULL)
+   {
+-    if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_ENUM || ippGetInteger(attr, 0) != IPP_QUALITY_NORMAL)
++    if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_ENUM || (ippGetInteger(attr, 0) != IPP_QUALITY_NORMAL && ippGetInteger(attr, 0) != IPP_QUALITY_HIGH))
+     {
+       papplClientRespondIPPUnsupported(client, attr);
+       valid = false;
+@@ -2516,18 +2532,18 @@
+           break;
+       }
+ 
++      // HP-LJ-1020-driver: never substitute an explicit input resolution.
+       if (i >= (cups_len_t)client->printer->driver_data.num_resolution)
+       {
+-        if (exact)
+-        {
+-	  papplClientRespondIPPUnsupported(client, attr);
+-	  valid = false;
+-	}
+-	else
+-	{
+-	  _papplClientRespondIPPIgnored(client, attr);
+-	  ippDeleteAttribute(client->request, attr);
+-	}
++        papplClientRespondIPPUnsupported(client, attr);
++        valid = false;
++      }
++      ipp_attribute_t *quality = ippFindAttribute(client->request, "print-quality", IPP_TAG_ENUM);
++      if (quality && ((ippGetInteger(quality, 0) == IPP_QUALITY_NORMAL && xdpi != 600) ||
++                      (ippGetInteger(quality, 0) == IPP_QUALITY_HIGH && xdpi != 1200)))
++      {
++        papplClientRespondIPPUnsupported(client, attr);
++        valid = false;
+       }
+     }
+   }
+--- a/pappl/printer-ipp.c
++++ b/pappl/printer-ipp.c
+@@ -72,6 +72,23 @@
+   const char	*webscheme = (httpAddrIsLocalhost(httpGetAddress(client->http)) || !papplSystemGetTLSOnly(client->system)) ? "http" : "https";
+ 					// URL scheme for resources
+ 
++
++  // HP-LJ-1020-driver: CUPS 2 expands "all" into standard attribute names,
++  // omitting vendor controls when "all" accompanies media-col-database.
++  if (ra && ippContainsString(ippFindAttribute(client->request, "requested-attributes", IPP_TAG_KEYWORD), "all"))
++  {
++    for (int vendor = 0; vendor < data->num_vendor; vendor++)
++    {
++      const char *suffixes[] = { "-supported", "-default" };
++      for (int suffix = 0; suffix < 2; suffix++)
++      {
++        char name[128];
++        snprintf(name, sizeof(name), "%s%s", data->vendor[vendor], suffixes[suffix]);
++        if (!cupsArrayFind(ra, name))
++          ippCopyAttribute(client->response, ippFindAttribute(printer->driver_attrs, name, IPP_TAG_ZERO), 0);
++      }
++    }
++  }
+ 
+   _papplCopyAttributes(client->response, printer->attrs, ra, IPP_TAG_ZERO, true);
+   _papplCopyAttributes(client->response, printer->driver_attrs, ra, IPP_TAG_ZERO, false);
+--- a/pappl/printer-driver.c
++++ b/pappl/printer-driver.c
+@@ -1247,7 +1247,7 @@
+       svalues[num_values ++] = "DEVCMYK32-64";
+     else if (data->raster_types & PAPPL_PWG_RASTER_TYPE_CMYK_8)
+       svalues[num_values ++] = "DEVCMYK32";
+-    svalues[num_values ++] = "PQ3-4-5";
++    svalues[num_values ++] = "PQ4"; // URF only carries square 600 dpi input.
+     if (data->duplex)
+     {
+       snprintf(dm, sizeof(dm), "DM%d", (int)data->duplex);
+@@ -1447,10 +1447,7 @@
+     if (data->output_face_up)
+       svalues[num_values ++] = "OFU0";
+ 
+-    if (data->num_resolution == 1)
+-      snprintf(rs, sizeof(rs), "RS%d", data->x_resolution[0]);
+-    else
+-      snprintf(rs, sizeof(rs), "RS%d-%d", data->x_resolution[data->num_resolution - 2], data->x_resolution[data->num_resolution - 1]);
++    snprintf(rs, sizeof(rs), "RS600"); // FastRes requires PWG asymmetric input.
+ 
+     svalues[num_values ++] = rs;
+ 
+--- a/pappl/printer-ipp.c
++++ b/pappl/printer-ipp.c
+@@ -92,6 +92,22 @@
+ 
+   _papplCopyAttributes(client->response, printer->attrs, ra, IPP_TAG_ZERO, true);
+   _papplCopyAttributes(client->response, printer->driver_attrs, ra, IPP_TAG_ZERO, false);
++  // HP-LJ-1020-driver: Apple Raster has one square resolution field.
++  // FastRes 1200 requires asymmetric PWG input; do not imply native 1200.
++  if (format && !strcmp(format, "image/urf"))
++  {
++    ipp_attribute_t *attr;
++    if ((attr = ippFindAttribute(client->response, "print-quality-supported", IPP_TAG_ENUM)) != NULL)
++    {
++      ippDeleteAttribute(client->response, attr);
++      ippAddInteger(client->response, IPP_TAG_PRINTER, IPP_TAG_ENUM, "print-quality-supported", IPP_QUALITY_NORMAL);
++    }
++    if ((attr = ippFindAttribute(client->response, "printer-resolution-supported", IPP_TAG_RESOLUTION)) != NULL)
++    {
++      ippDeleteAttribute(client->response, attr);
++      ippAddResolution(client->response, IPP_TAG_PRINTER, "printer-resolution-supported", IPP_RES_PER_INCH, 600, 600);
++    }
++  }
+   _papplPrinterCopyStateNoLock(printer, IPP_TAG_PRINTER, client->response, client, ra);
+ 
+   if (!ra || cupsArrayFind(ra, "copies-supported"))
+@@ -2470,6 +2486,26 @@
+     }
+   }
+ 
++  // HP-LJ-1020-driver: reject high/asymmetric Apple Raster requests.
++  const char *hplj_format = ippGetString(ippFindAttribute(client->request, "document-format", IPP_TAG_MIMETYPE), 0, NULL);
++  if (hplj_format && !strcmp(hplj_format, "image/urf"))
++  {
++    ipp_attribute_t *quality = ippFindAttribute(client->request, "print-quality", IPP_TAG_ENUM);
++    ipp_attribute_t *resolution = ippFindAttribute(client->request, "printer-resolution", IPP_TAG_RESOLUTION);
++    int y;
++    ipp_res_t units;
++    if (quality && ippGetInteger(quality, 0) != IPP_QUALITY_NORMAL)
++    {
++      papplClientRespondIPPUnsupported(client, quality);
++      valid = false;
++    }
++    if (resolution && (ippGetResolution(resolution, 0, &y, &units) != 600 || y != 600))
++    {
++      papplClientRespondIPPUnsupported(client, resolution);
++      valid = false;
++    }
++  }
++
+   // HP-LJ-1020-driver: validate vendor controls at IPP admission, including
+   // Validate-Job/Create-Job, before firmware or document bytes can be sent.
+   if ((attr = ippFindAttribute(client->request, "hplj-density", IPP_TAG_ZERO)) != NULL &&

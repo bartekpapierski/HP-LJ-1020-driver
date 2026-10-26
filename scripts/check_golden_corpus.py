@@ -90,6 +90,7 @@ def check_corpus(root: Path) -> None:
         if numbers != list(range(1, len(numbers) + 1)):
             raise CorpusError(f"{document_id} pages are not sequential")
 
+    control_combinations: set[tuple[str, int, bool]] = set()
     qualities: set[str] = set()
     media: set[str] = set()
     duplex = False
@@ -104,11 +105,20 @@ def check_corpus(root: Path) -> None:
             raise CorpusError(f"{case['caseId']} has an invalid quality mode")
         if not isinstance(case.get("manualDuplex"), bool):
             raise CorpusError(f"{case['caseId']} has no manual-duplex setting")
+        density, econ = case.get("density", 3), case.get("economode", False)
+        if type(density) is not int or not 1 <= density <= 5 or type(econ) is not bool:
+            raise CorpusError(f"{case['caseId']} has invalid density or EconoMode")
+        control_combinations.add((case["quality"], density, econ))
         qualities.add(case["quality"])
         media.add(case["media"])
         duplex = duplex or case["manualDuplex"]
     if qualities != {"600x600", "1200x600"} or len(media) < 2 or not duplex:
         raise CorpusError("print cases do not exercise quality, media, and manual duplex controls")
+    expected_controls = {(quality, density, econ)
+                         for quality in ("600x600", "1200x600")
+                         for density in range(1, 6) for econ in (False, True)}
+    if control_combinations != expected_controls:
+        raise CorpusError("print cases lack quality/density/EconoMode combinations")
     if coverage != REQUIRED_COVERAGE:
         missing = REQUIRED_COVERAGE - coverage
         raise CorpusError(f"golden corpus lacks coverage: {', '.join(sorted(missing))}")

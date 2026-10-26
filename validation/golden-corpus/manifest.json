@@ -6,7 +6,9 @@
     {
       "documentId": "GOLDEN-TEXT",
       "containsPrivateContent": false,
-      "coverage": ["text"],
+      "coverage": [
+        "text"
+      ],
       "pages": [
         {
           "number": 1,
@@ -18,7 +20,12 @@
     {
       "documentId": "GOLDEN-VECTORS-MARGINS",
       "containsPrivateContent": false,
-      "coverage": ["vectors", "margins", "media-controls", "quality-modes"],
+      "coverage": [
+        "vectors",
+        "margins",
+        "media-controls",
+        "quality-modes"
+      ],
       "pages": [
         {
           "number": 1,
@@ -30,7 +37,9 @@
     {
       "documentId": "GOLDEN-RASTER",
       "containsPrivateContent": false,
-      "coverage": ["raster-images"],
+      "coverage": [
+        "raster-images"
+      ],
       "pages": [
         {
           "number": 1,
@@ -42,7 +51,9 @@
     {
       "documentId": "GOLDEN-MULTI-PAGE",
       "containsPrivateContent": false,
-      "coverage": ["multi-page-output"],
+      "coverage": [
+        "multi-page-output"
+      ],
       "pages": [
         {
           "number": 1,
@@ -64,7 +75,9 @@
     {
       "documentId": "GOLDEN-MANUAL-DUPLEX",
       "containsPrivateContent": false,
-      "coverage": ["manual-duplex"],
+      "coverage": [
+        "manual-duplex"
+      ],
       "pages": [
         {
           "number": 1,
@@ -106,6 +119,186 @@
       "documentId": "GOLDEN-MULTI-PAGE",
       "media": "iso_a4_210x297mm",
       "quality": "1200x600",
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-600-D1-E0",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "600x600",
+      "density": 1,
+      "economode": false,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-600-D1-E1",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "600x600",
+      "density": 1,
+      "economode": true,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-600-D2-E0",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "600x600",
+      "density": 2,
+      "economode": false,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-600-D2-E1",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "600x600",
+      "density": 2,
+      "economode": true,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-600-D3-E0",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "600x600",
+      "density": 3,
+      "economode": false,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-600-D3-E1",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "600x600",
+      "density": 3,
+      "economode": true,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-600-D4-E0",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "600x600",
+      "density": 4,
+      "economode": false,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-600-D4-E1",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "600x600",
+      "density": 4,
+      "economode": true,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-600-D5-E0",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "600x600",
+      "density": 5,
+      "economode": false,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-600-D5-E1",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "600x600",
+      "density": 5,
+      "economode": true,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-1200-D1-E0",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "1200x600",
+      "density": 1,
+      "economode": false,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-1200-D1-E1",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "1200x600",
+      "density": 1,
+      "economode": true,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-1200-D2-E0",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "1200x600",
+      "density": 2,
+      "economode": false,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-1200-D2-E1",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "1200x600",
+      "density": 2,
+      "economode": true,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-1200-D3-E0",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "1200x600",
+      "density": 3,
+      "economode": false,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-1200-D3-E1",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "1200x600",
+      "density": 3,
+      "economode": true,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-1200-D4-E0",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "1200x600",
+      "density": 4,
+      "economode": false,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-1200-D4-E1",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "1200x600",
+      "density": 4,
+      "economode": true,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-1200-D5-E0",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "1200x600",
+      "density": 5,
+      "economode": false,
+      "manualDuplex": false
+    },
+    {
+      "caseId": "CASE-QUALITY-1200-D5-E1",
+      "documentId": "GOLDEN-TEXT",
+      "media": "iso_a4_210x297mm",
+      "quality": "1200x600",
+      "density": 5,
+      "economode": true,
       "manualDuplex": false
     }
   ]

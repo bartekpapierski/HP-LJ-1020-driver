@@ -26,11 +26,11 @@ static uint32_t be32(const unsigned char *p) {
          (uint32_t)p[2] << 8 | p[3];
 }
 
-static struct hplj_raster raster_for(enum hplj_media media, unsigned width,
-                                      unsigned length) {
-  static unsigned char bits[638U * 8410U];
+static struct hplj_raster raster_for_resolution(enum hplj_media media, unsigned width,
+                                                 unsigned length, unsigned dpi) {
+  static unsigned char bits[1276U * 8410U];
   struct hplj_media_geometry g;
-  assert(hplj_media_geometry(media, width, length, &g));
+  assert(hplj_media_geometry_for_resolution(media, width, length, dpi, &g));
   return (struct hplj_raster){
       .width_pixels = g.width, .height_rows = g.height,
       .page_width_pixels = g.width, .page_height_rows = g.height,
@@ -39,10 +39,16 @@ static struct hplj_raster raster_for(enum hplj_media media, unsigned width,
       .printable_height_rows = g.printable_height,
       .row_stride_bytes = (g.width + 7) / 8,
       .bits = bits, .bits_size = sizeof(bits),
-      .resolution_dpi = 600, .painted_resolution_dpi = 600,
+      .resolution_dpi = dpi, .painted_resolution_dpi = 600,
       .page_count = 1, .media = media, .media_width = width, .media_length = length,
-      .source = HPLJ_SOURCE_AUTO, .quality = HPLJ_QUALITY_NORMAL, .density = 3,
+      .source = HPLJ_SOURCE_AUTO,
+      .quality = dpi == 600 ? HPLJ_QUALITY_NORMAL : HPLJ_QUALITY_HIGH, .density = 3,
   };
+}
+
+static struct hplj_raster raster_for(enum hplj_media media, unsigned width,
+                                      unsigned length) {
+  return raster_for_resolution(media, width, length, 600);
 }
 
 static struct hplj_encode_result encode(struct hplj_raster *r,
@@ -73,11 +79,13 @@ static void assert_page_metadata(struct hplj_raster *r) {
           case 3: assert(value == hplj_media_size(r->media)->paper_code); checked++; break;
           case 5: assert(value == hplj_source_code(r->source)); checked++; break;
           case 8: case 9: assert(value == 600); checked++; break;
-          case 12: case 17: assert(value == r->printable_width_pixels); checked++; break;
+          case 12: assert(value == r->printable_width_pixels); checked++; break;
+          case 17: assert(value == r->printable_width_pixels / (r->resolution_dpi / 600)); checked++; break;
+          case 16: assert(value == r->resolution_dpi / 600); checked++; break;
           case 13: case 18: assert(value == r->printable_height_rows); checked++; break;
         }
       }
-      assert(checked == 8);
+      assert(checked == 9);
     } else if (type == 4) {
       bih = true;
       assert(be32(p + 20) == ((r->printable_width_pixels + 127U) & ~127U));
@@ -96,11 +104,13 @@ static void test_standard_sizes_match_cups_and_zjstream(void) {
     assert(hplj_media_from_name(size->name) == media);
     pwg_media_t *pwg = pwgMediaForPWG(size->name);
     assert(pwg && pwg->width == (int)size->width && pwg->length == (int)size->length);
-    cups_page_header2_t header;
-    assert(cupsRasterInitPWGHeader(&header, pwg, "black_1", 600, 600, "one-sided", NULL));
-    struct hplj_raster r = raster_for(media, size->width, size->length);
-    assert(header.cupsWidth == r.width_pixels && header.cupsHeight == r.height_rows);
-    assert_page_metadata(&r);
+    for (unsigned dpi = 600; dpi <= 1200; dpi += 600) {
+      cups_page_header2_t header;
+      assert(cupsRasterInitPWGHeader(&header, pwg, "black_1", dpi, 600, "one-sided", NULL));
+      struct hplj_raster r = raster_for_resolution(media, size->width, size->length, dpi);
+      assert(header.cupsWidth == r.width_pixels && header.cupsHeight == r.height_rows);
+      assert_page_metadata(&r);
+    }
   }
 }
 
@@ -123,6 +133,8 @@ static void test_custom_boundaries_rounding_and_orientation(void) {
   assert(g.width == 1796 && g.height == 3000);
   for (unsigned i = 0; i < 2; i++) {
     struct hplj_raster r = raster_for(HPLJ_MEDIA_CUSTOM, i ? 21600 : 7600, i ? 35600 : 12700);
+    assert_page_metadata(&r);
+    r = raster_for_resolution(HPLJ_MEDIA_CUSTOM, i ? 21600 : 7600, i ? 35600 : 12700, 1200);
     assert_page_metadata(&r);
   }
   struct hplj_raster r = raster_for(HPLJ_MEDIA_A4, 0, 0);

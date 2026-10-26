@@ -39,15 +39,14 @@ struct hplj_error hplj_pappl_validate_job(const struct hplj_job_attributes *job)
     return hplj_pappl_error(HPLJ_ERROR_RASTER_INVALID,
                             "document format is not supported");
   }
-  if (job->resolution_dpi != profile->resolution_dpi ||
+  if (!hplj_quality_valid(job->quality, job->resolution_dpi, job->density) ||
       job->bits_per_pixel != profile->bits_per_pixel) {
     return hplj_pappl_error(HPLJ_ERROR_RASTER_INVALID,
-                            "raster must be one-bit 600 by 600 dpi");
+                            "raster must be one-bit normal 600x600 or FastRes 1200 input 1200x600");
   }
   struct hplj_media_geometry geometry;
   if (!hplj_media_geometry(job->media, job->media_width, job->media_length, &geometry) ||
-      hplj_source_code(job->source) == 0 || job->quality != profile->quality ||
-      job->density != profile->density) {
+      hplj_source_code(job->source) == 0) {
     return hplj_pappl_error(HPLJ_ERROR_RASTER_INVALID,
                             "job options are unsupported");
   }

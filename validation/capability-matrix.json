@@ -3,11 +3,11 @@
   "schemaVersion": "1.0.0",
   "matrixVersion": 1,
   "scopeIdentities": {
-    "build-inputs": "e6e5006becfb69738a5ab3180b9129fbdfb9ff3866a57cc5c3095d0c42498481",
-    "golden-corpus": "357e7008569b4fa9165d62d2a6b4d37abd8ae5e3727ef93afb22f6b7c77d659f",
-    "implementation-contract": "658705936da03f00f9bcccae78b953949782480e4a546f4ff3eec832208b5f63",
-    "product-source": "775b1e201656a8ebad297f8ea6ccb4b6933a3e3fa67da693e078721acd562aee",
-    "validation-tooling": "cabf2e0ab863399719f73dae7e07f3f30d6d8a1afc8d193eadef2d4576e3954a"
+    "build-inputs": "63daa39f922abb7b155192187954dca1ec5f9829b9d8d652da9b91855906cac0",
+    "golden-corpus": "fba9acae409d0390140bc7482e613a975ffd4023edff5f420ace87c41be7ddfb",
+    "implementation-contract": "6d1daec2306125b928f21121b8a7b8220335fc9a29f9e669de09256430759749",
+    "product-source": "f74f7ca8c34aaf54ba5c73de50530487e522136ac5aee2c74f162fb605c3446a",
+    "validation-tooling": "ca145e809292a6c9798d6162e4439683f3d3e063d9b6ad791310fdd242c3c419"
   },
   "scenarios": [
     {
@@ -743,6 +743,68 @@
       "requiresArtifactEvidence": false
     },
     {
+      "scenarioId": "SCN-DENSITY-ENCODING",
+      "behavior": "Density",
+      "milestone": "CAPABILITY",
+      "requirementIds": [
+        "JOB-017"
+      ],
+      "provenance": [
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Density MUST accept exactly integer levels 1\u20135, default to 3, and map deterministically to exact-model PJL DENSITY in both quality modes and both EconoMode states.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
+    },
+    {
+      "scenarioId": "SCN-DENSITY-OUTPUT",
+      "behavior": "Quality output",
+      "milestone": "CAPABILITY",
+      "requirementIds": [
+        "JOB-020"
+      ],
+      "provenance": [
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Every mode \u00d7 density \u00d7 EconoMode combination MUST pass the objective measurement and human visual oracles in `docs/quality-validation.md` on both connection paths and the full-envelope gate before a quality, density or EconoMode support claim.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
+    },
+    {
       "scenarioId": "SCN-DEPENDENCY-LOCK",
       "behavior": "Build input; Dependencies",
       "milestone": "BASIC",
@@ -1060,6 +1122,68 @@
       "intermittencyExplanation": null,
       "reliabilityRequirements": null,
       "requiresArtifactEvidence": false
+    },
+    {
+      "scenarioId": "SCN-ECONOMODE-ENCODING",
+      "behavior": "EconoMode",
+      "milestone": "CAPABILITY",
+      "requirementIds": [
+        "JOB-018"
+      ],
+      "provenance": [
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Independent EconoMode MUST default off and map to matching exact-model PJL and page-record values without host pixel thinning for every quality and density setting.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
+    },
+    {
+      "scenarioId": "SCN-ECONOMODE-OUTPUT",
+      "behavior": "Quality output",
+      "milestone": "CAPABILITY",
+      "requirementIds": [
+        "JOB-020"
+      ],
+      "provenance": [
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Every mode \u00d7 density \u00d7 EconoMode combination MUST pass the objective measurement and human visual oracles in `docs/quality-validation.md` on both connection paths and the full-envelope gate before a quality, density or EconoMode support claim.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
     },
     {
       "scenarioId": "SCN-ENCODER-CONTRACT",
@@ -2875,6 +2999,99 @@
       "state": "deferred",
       "affectedScopes": [
         "implementation-contract"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
+    },
+    {
+      "scenarioId": "SCN-QUALITY-ENCODING",
+      "behavior": "Quality modes",
+      "milestone": "CAPABILITY",
+      "requirementIds": [
+        "JOB-016"
+      ],
+      "provenance": [
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "The quality path MUST default to true 600\u00d7600 with REt and map high quality only to FastRes 1200 using 1200\u00d7600 one-bit PWG input, 600\u00d7600 device resolution, and two horizontal video bits while Apple Raster remains normal/600\u00d7600; it MUST NOT advertise native 1200\u00d71200.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": false
+    },
+    {
+      "scenarioId": "SCN-QUALITY-OUTPUT",
+      "behavior": "Quality output",
+      "milestone": "CAPABILITY",
+      "requirementIds": [
+        "JOB-020"
+      ],
+      "provenance": [
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "both",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Every mode \u00d7 density \u00d7 EconoMode combination MUST pass the objective measurement and human visual oracles in `docs/quality-validation.md` on both connection paths and the full-envelope gate before a quality, density or EconoMode support claim.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
+    },
+    {
+      "scenarioId": "SCN-QUALITY-REJECTION",
+      "behavior": "Quality admission",
+      "milestone": "CAPABILITY",
+      "requirementIds": [
+        "JOB-019"
+      ],
+      "provenance": [
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "host-only",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Invalid, malformed, multi-valued, or conflicting quality, resolution, density and EconoMode requests MUST fail before firmware preparation or page transmission; raster geometry MUST match the negotiated mode without rescaling.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
       ],
       "invalidatedBy": [],
       "attempts": [],

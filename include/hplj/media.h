@@ -44,4 +44,9 @@ const char *hplj_source_description(enum hplj_source source);
 bool hplj_media_geometry(enum hplj_media media, unsigned int width,
                          unsigned int length, struct hplj_media_geometry *out);
 
+/* Input raster geometry; device resolution remains 600 by 600. */
+bool hplj_media_geometry_for_resolution(enum hplj_media media, unsigned int width,
+                                        unsigned int length, unsigned int x_dpi,
+                                        struct hplj_media_geometry *out);
+
 #endif

@@ -25,6 +25,10 @@
         {
           "path": "patches/pappl/0004-validate-media-raster.patch",
           "sha256": "b331ff0f0d44df3d10910a8e1fedb53cd92381d24b6633d1a47430fff633a368"
+        },
+        {
+          "path": "patches/pappl/0005-print-quality-controls.patch",
+          "sha256": "3088f3bba3c44f0b9b76668cce01f8793a1714e8457a895677b7ca23d1e4f109"
         }
       ]
     },

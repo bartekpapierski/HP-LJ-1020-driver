@@ -38,7 +38,7 @@ SCOPE_PATHS = {
         "scripts/build",
     ),
     "golden-corpus": ("validation/golden-corpus",),
-    "implementation-contract": ("CONTEXT.md", "docs/IMPLEMENTATION-SPEC.md", "docs/media-validation.md"),
+    "implementation-contract": ("CONTEXT.md", "docs/IMPLEMENTATION-SPEC.md", "docs/media-validation.md", "docs/quality-validation.md"),
     "product-source": (
         "CMakeLists.txt",
         "include",
@@ -63,6 +63,7 @@ SCOPE_PATHS = {
         "scripts/validation_gate.py",
         "tests/test_pappl_integration.py",
         "tests/test_media_integration.py",
+        "tests/test_quality_integration.py",
         "tests/media_contracts.c",
         "tests/encoder_contracts.c",
         "tests/make_test_raster.m",

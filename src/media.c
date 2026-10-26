@@ -73,8 +73,14 @@ const char *hplj_source_description(enum hplj_source source) {
 
 bool hplj_media_geometry(enum hplj_media media, unsigned int width,
                          unsigned int length, struct hplj_media_geometry *out) {
+  return hplj_media_geometry_for_resolution(media, width, length, 600, out);
+}
+
+bool hplj_media_geometry_for_resolution(enum hplj_media media, unsigned int width,
+                                        unsigned int length, unsigned int x_dpi,
+                                        struct hplj_media_geometry *out) {
   const struct hplj_media_size *size = hplj_media_size(media);
-  if (size == NULL || out == NULL) return false;
+  if (size == NULL || out == NULL || (x_dpi != 600 && x_dpi != 1200)) return false;
   if (media != HPLJ_MEDIA_CUSTOM) {
     if (width == 0 && length == 0) {
       width = size->width;
@@ -88,9 +94,9 @@ bool hplj_media_geometry(enum hplj_media media, unsigned int width,
     return false;
   }
   *out = (struct hplj_media_geometry){
-      .width = width * 600U / 2540U,
+      .width = width * x_dpi / 2540U,
       .height = length * 600U / 2540U,
-      .left = HPLJ_MEDIA_MARGIN * 600U / 2540U,
+      .left = HPLJ_MEDIA_MARGIN * x_dpi / 2540U,
       .top = HPLJ_MEDIA_MARGIN * 600U / 2540U,
   };
   out->printable_width = out->width - 2U * out->left;

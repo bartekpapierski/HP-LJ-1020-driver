@@ -780,7 +780,7 @@ def main() -> int:
                 line for line in result.stdout.splitlines()
                 if "document-format-default" in line
             )
-            assert "printer-resolution-supported (resolution) = 600dpi" in result.stdout
+            assert "printer-resolution-supported (1setOf resolution) = 600dpi,1200x600dpi" in result.stdout
             default_media = next(
                 line for line in result.stdout.splitlines()
                 if "media-col-default (collection)" in line

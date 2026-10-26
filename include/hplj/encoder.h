@@ -15,11 +15,17 @@ enum hplj_bit_order {
 };
 enum hplj_quality { HPLJ_QUALITY_DRAFT, HPLJ_QUALITY_NORMAL, HPLJ_QUALITY_HIGH };
 
+/* Only normal/600 and high/1200 input are defined; draft is unsupported. */
+bool hplj_quality_valid(enum hplj_quality quality, unsigned int input_dpi,
+                         unsigned int density);
+
 struct hplj_raster {
   /* Each page occupies row_stride_bytes * height_rows contiguous bytes. */
   size_t width_pixels;
   size_t height_rows;
+  /* Horizontal input dpi; FastRes uses 1200 samples at 600 device dpi. */
   unsigned int resolution_dpi;
+  /* Vertical input dpi, always 600. */
   unsigned int painted_resolution_dpi;
   size_t page_width_pixels;
   size_t page_height_rows;
@@ -38,6 +44,7 @@ struct hplj_raster {
   enum hplj_source source;
   enum hplj_quality quality;
   unsigned int density;
+  bool economode;
 };
 
 struct hplj_encoder_sink {
