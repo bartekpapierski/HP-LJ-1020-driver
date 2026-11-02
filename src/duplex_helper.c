@@ -118,14 +118,25 @@ static int ipp_command(int argc, char **argv) {
                     "check that the personal-use service is enabled\n", port, strerror(errno));
     return 1;
   }
-  httpSetTimeout(http, 15, NULL, NULL);
+
   ipp_op_t op;
   if (!strcmp(argv[1], "instance") && argc == 3) op = IPP_OP_GET_PRINTER_ATTRIBUTES;
   else if (!strcmp(argv[1], "create") && argc == 3) op = IPP_OP_CREATE_JOB;
-  else if (!strcmp(argv[1], "send") && argc == 5) op = IPP_OP_SEND_DOCUMENT;
+  else if (!strcmp(argv[1], "send") && (argc == 5 || argc == 6)) op = IPP_OP_SEND_DOCUMENT;
   else if (!strcmp(argv[1], "state") && argc == 4) op = IPP_OP_GET_JOB_ATTRIBUTES;
   else if (!strcmp(argv[1], "cancel") && argc == 4) op = IPP_OP_CANCEL_JOB;
   else { httpClose(http); return 2; }
+  double timeout = op == IPP_OP_SEND_DOCUMENT ? 600.0 : 15.0;
+  if (op == IPP_OP_SEND_DOCUMENT && argc == 6) {
+    char *end;
+    timeout = strtod(argv[5], &end);
+    if (end == argv[5] || *end != '\0' || !isfinite(timeout) || timeout <= 0) {
+      fprintf(stderr, "send timeout must be finite and positive\n");
+      httpClose(http);
+      return 2;
+    }
+  }
+  httpSetTimeout(http, timeout, NULL, NULL);
   char uri[128];
   snprintf(uri, sizeof(uri), "ipp://127.0.0.1:%d/ipp/print", port);
   ipp_t *request = ippNewRequest(op);
@@ -174,8 +185,16 @@ static int ipp_command(int argc, char **argv) {
     ok = attr != NULL;
     if (ok) printf("%d\n", ippGetInteger(attr, 0));
   }
-  if (!ok) fprintf(stderr, "IPP operation unsuccessful: %s\n",
-                    response == NULL ? cupsLastErrorString() : ippErrorString(ippGetStatusCode(response)));
+  if (!ok) {
+    if (response == NULL) {
+      fprintf(stderr, "IPP response unavailable (timeout or connection loss)%s\n",
+              op == IPP_OP_SEND_DOCUMENT
+                  ? "; pages may already have printed; upload was not retried"
+                  : "");
+    } else {
+      fprintf(stderr, "IPP operation unsuccessful: %s\n", ippErrorString(ippGetStatusCode(response)));
+    }
+  }
   ippDelete(response);
   httpClose(http);
   return ok ? 0 : 1;

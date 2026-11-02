@@ -25,8 +25,9 @@ class FakeBackend:
         self.jobs += 1
         return self.jobs
 
-    def send(self, job, path):
+    def send(self, job, path, *, timeout):
         self.sent.append((job, path))
+        self.send_timeout = timeout
 
     def state(self, job):
         return self.states[job - 1]
@@ -55,6 +56,31 @@ class ManualDuplexTests(unittest.TestCase):
              mock.patch.object(manual_duplex.sys, "stderr"):
             self.assertEqual(manual_duplex.main(["unused.pdf"]), 1)
         self.assertEqual(call.call_args_list, [mock.call("instance", 8631)])
+
+    def test_send_uses_the_workflow_timeout(self):
+        backend = FakeBackend()
+        self.execute(backend)
+        self.assertEqual(backend.send_timeout, 10)
+
+    def test_send_time_is_included_in_the_pass_deadline(self):
+        backend = FakeBackend((5, 9))
+        now = [0]
+        def slow_send(job, path, *, timeout):
+            backend.sent.append((job, path))
+            now[0] = 11
+        backend.send = slow_send
+        def unexpected_sleep(_):
+            self.fail("pass deadline was reset after Send-Document")
+        with self.assertRaisesRegex(RuntimeError, "timed out"):
+            self.execute(backend, clock=lambda: now[0], sleep=unexpected_sleep)
+        self.assertEqual(backend.canceled, [1])
+        self.assertEqual(len(backend.sent), 1)
+
+    def test_native_send_timeout_matches_subprocess_budget(self):
+        backend = Backend(Path("helper"), 8631)
+        with mock.patch.object(backend, "call", return_value="") as call:
+            backend.send(7, Path("front.pwg"), timeout=600)
+        call.assert_called_once_with("send", 8631, 7, Path("front.pwg"), 600, timeout=605)
 
     def test_every_page_matches_its_sheet_in_reverse_stack_order(self):
         for count in (2, 3, 4, 5, 199, 200):
@@ -140,7 +166,7 @@ class ManualDuplexTests(unittest.TestCase):
 
     def test_send_error_cancels_known_job_without_retry(self):
         backend = FakeBackend()
-        def fail(job, path):
+        def fail(job, path, *, timeout):
             raise RuntimeError("connection lost")
         backend.send = fail
         with self.assertRaisesRegex(RuntimeError, "connection lost"):

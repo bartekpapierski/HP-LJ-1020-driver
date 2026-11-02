@@ -42,10 +42,10 @@ class Backend:
         self.helper = helper
         self.port = port
 
-    def call(self, *args: object) -> str:
+    def call(self, *args: object, timeout: float = 120) -> str:
         try:
             result = subprocess.run([str(self.helper), *(str(arg) for arg in args)],
-                                    text=True, capture_output=True, timeout=120, check=True)
+                                    text=True, capture_output=True, timeout=timeout, check=True)
         except subprocess.CalledProcessError as error:
             detail = (error.stderr or "").strip() or f"exit status {error.returncode}"
             raise RuntimeError(f"duplex helper {args[0]} failed: {detail}") from error
@@ -60,8 +60,11 @@ class Backend:
             raise RuntimeError("provider did not return a job ID")
         return job
 
-    def send(self, job: int, raster: Path) -> None:
-        self.call("send", self.port, job, raster)
+    def send(self, job: int, raster: Path, *, timeout: float) -> None:
+        # PAPPL processes raster output before replying to Send-Document.
+        # Let the native client use the pass budget; keep a bounded outer
+        # watchdog with enough grace to receive its timeout diagnostic.
+        self.call("send", self.port, job, raster, timeout, timeout=timeout + 5)
 
     def state(self, job: int) -> int:
         return int(self.call("state", self.port, job))
@@ -97,8 +100,8 @@ def run_workflow(backend, front: Path, back: Path, confirm, *, timeout: float,
             check_instance()
             active = backend.create()  # Obtain an ID before any document transmission.
             check_instance()
-            backend.send(active, raster)
             deadline = clock() + timeout
+            backend.send(active, raster, timeout=timeout)
             while True:
                 check_instance()
                 state = backend.state(active)

@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 
@@ -65,9 +66,58 @@ def check_legacy_provider(helper):
             thread.join()
 
 
+def check_slow_send(helper):
+    class SlowProvider(BaseHTTPRequestHandler):
+        requests = 0
+        delay = 16
+
+        def do_POST(self):
+            body = self.rfile.read(int(self.headers['Content-Length']))
+            type(self).requests += 1
+            time.sleep(type(self).delay)
+            reply = b'\x02\x00\x00\x00' + body[4:8] + b'\x03'
+            try:
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/ipp')
+                self.send_header('Content-Length', str(len(reply)))
+                self.end_headers()
+                self.wfile.write(reply)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+
+        def log_message(self, *args):
+            pass
+
+    with HTTPServer(('127.0.0.1', 0), SlowProvider) as server, tempfile.TemporaryDirectory() as directory:
+        raster = Path(directory) / 'fixture.pwg'
+        raster.write_bytes(b'host-only upload fixture')
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            backend = Backend(helper, server.server_port)
+            # PAPPL can defer its response until physical output completes.
+            # Default direct-helper timeout must survive the former 15s limit.
+            result = subprocess.run([helper, 'send', str(server.server_port), '1', raster],
+                                    text=True, capture_output=True, timeout=25)
+            assert result.returncode == 0, result.stderr
+            assert SlowProvider.requests == 1, 'upload must not be replayed'
+            SlowProvider.delay = 0.5
+            try:
+                backend.send(1, raster, timeout=0.2)
+                raise AssertionError('send ignored the configured pass timeout')
+            except RuntimeError as error:
+                assert 'pages may already have printed' in str(error), str(error)
+                assert 'Undefined error' not in str(error), str(error)
+            assert SlowProvider.requests == 2, 'timed-out upload must not be replayed'
+        finally:
+            server.shutdown()
+            thread.join()
+
+
 def main():
     executable, helper, reader = (Path(arg).resolve() for arg in sys.argv[1:])
     check_legacy_provider(helper)
+    check_slow_send(helper)
     with tempfile.TemporaryDirectory(prefix="hplj-duplex-test-") as directory:
         root = Path(directory)
         install_test_firmware(root)

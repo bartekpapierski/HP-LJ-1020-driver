@@ -67,8 +67,13 @@ missing or unknown jobs as successful. Only after front completion does it show
 the refeed prompt; only the exact terminal response `REINSERTED` authorizes backs.
 Inspect all front sheets before confirming. EOF, other input, Ctrl-C or the
 reinsertion timeout leaves the document incomplete. The default timeout is 600
-seconds per pass and for the prompt; network operations have additional bounded
-I/O deadlines. `--timeout` changes the workflow deadline.
+seconds per pass and for the prompt. `--timeout` sets both the Send-Document
+I/O timeout and the pass deadline, starting before document transmission. PAPPL
+processes raster pages synchronously before replying, so Send-Document can span
+the whole physical pass; it must not use the shorter 15-second timeout reserved
+for status/control queries. The controller's send subprocess watchdog allows
+five additional seconds for timeout diagnostics and cleanup. A missing reply
+means output is uncertain and never triggers a repeated upload.
 
 A failure, cancellation or timeout cancels the known active job when the same
 service instance remains reachable; cancellation is best effort and can leave
