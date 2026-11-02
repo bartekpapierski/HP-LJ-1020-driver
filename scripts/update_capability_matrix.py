@@ -38,7 +38,7 @@ SCOPE_PATHS = {
         "scripts/build",
     ),
     "golden-corpus": ("validation/golden-corpus",),
-    "implementation-contract": ("CONTEXT.md", "docs/IMPLEMENTATION-SPEC.md", "docs/media-validation.md", "docs/quality-validation.md"),
+    "implementation-contract": ("CONTEXT.md", "docs/IMPLEMENTATION-SPEC.md", "docs/media-validation.md", "docs/quality-validation.md", "docs/manual-duplex-validation.md"),
     "product-source": (
         "CMakeLists.txt",
         "include",
@@ -46,6 +46,7 @@ SCOPE_PATHS = {
         "scripts/personal_install.py",
         "scripts/personal_update.py",
         "scripts/reconcile_macos_queue.py",
+        "scripts/manual_duplex.py",
         "scripts/seal_lifecycle_evidence.py",
         "src",
         "third_party/foo2zjs/encoder.c",
@@ -64,6 +65,9 @@ SCOPE_PATHS = {
         "tests/test_pappl_integration.py",
         "tests/test_media_integration.py",
         "tests/test_quality_integration.py",
+        "tests/test_manual_duplex.py",
+        "tests/test_duplex_integration.py",
+        "tests/duplex_raster_reader.c",
         "tests/media_contracts.c",
         "tests/encoder_contracts.c",
         "tests/make_test_raster.m",
@@ -81,7 +85,7 @@ def _files(paths: Iterable[str]) -> list[Path]:
         if path.is_file():
             files.add(path)
         elif path.is_dir():
-            files.update(candidate for candidate in path.rglob("*") if candidate.is_file())
+            files.update(candidate for candidate in path.rglob("*") if candidate.is_file() and candidate.name != ".DS_Store")
     return sorted(files)
 
 

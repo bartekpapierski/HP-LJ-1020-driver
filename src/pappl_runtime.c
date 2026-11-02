@@ -33,6 +33,7 @@ struct hplj_pappl_backend {
   unsigned char *firmware;
   size_t firmware_size;
   char firmware_version[HPLJ_FIRMWARE_VERSION_SIZE];
+  char instance[33];
   const char *firmware_path;
   struct hplj_retention_policy retention;
   pappl_printer_t *printer;
@@ -1141,8 +1142,13 @@ static bool hplj_rendpage(pappl_job_t *job, pappl_pr_options_t *options,
   return true;
 }
 
-static ipp_t *hplj_quality_attributes(void) {
+static ipp_t *hplj_quality_attributes(struct hplj_pappl_backend *backend) {
   ipp_t *attrs = ippNew();
+  if (backend != NULL)
+    ippAddString(attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT,
+                 "hplj-service-instance", NULL, backend->instance);
+  ippAddString(attrs, IPP_TAG_PRINTER, IPP_TAG_KEYWORD,
+               "hplj-manual-duplex-workflow", NULL, "experimental-host-guided-pdf");
   ippAddRange(attrs, IPP_TAG_PRINTER, "hplj-density-supported", 1, 5);
   ippAddInteger(attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "hplj-density-default", 3);
   const char econ_values[] = {0, 1};
@@ -1184,7 +1190,7 @@ static bool hplj_driver(pappl_system_t *system, const char *driver_name,
   data->num_vendor = 2;
   data->vendor[0] = "hplj-density";
   data->vendor[1] = "hplj-economode";
-  *driver_attrs = hplj_quality_attributes();
+  *driver_attrs = hplj_quality_attributes(context);
   data->x_resolution[0] = (int)profile->resolution_dpi;
   data->y_resolution[0] = (int)profile->resolution_dpi;
   data->x_default = (int)profile->resolution_dpi;
@@ -1236,6 +1242,10 @@ static void *hplj_backend_create(void *context,
     free(backend);
     return NULL;
   }
+  unsigned char instance[16];
+  arc4random_buf(instance, sizeof(instance));
+  for (size_t i = 0; i < sizeof(instance); i++)
+    snprintf(backend->instance + i * 2, 3, "%02x", instance[i]);
   atomic_init(&backend->stopping, false);
   atomic_init(&backend->device_error, HPLJ_ERROR_NONE);
   atomic_init(&backend->test_write_delayed, false);
@@ -1372,7 +1382,7 @@ static bool hplj_reconcile_media_margins(pappl_printer_t *printer) {
     data.media_ready[i].top_margin = data.bottom_top;
     data.media_ready[i].bottom_margin = data.bottom_top;
   }
-  ipp_t *attrs = hplj_quality_attributes();
+  ipp_t *attrs = hplj_quality_attributes(data.extension);
   bool updated = papplPrinterSetDriverData(printer, &data, attrs);
   ippDelete(attrs);
   return updated;

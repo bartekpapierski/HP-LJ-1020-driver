@@ -126,6 +126,12 @@ add_executable(hplj1020 src/main.c)
 target_link_libraries(hplj1020 PRIVATE hplj1020_build_options hplj1020_pappl)
 add_dependencies(hplj1020 locked-sources)
 
+find_library(HPLJ1020_COREGRAPHICS_FRAMEWORK CoreGraphics REQUIRED)
+add_executable(hplj1020-duplex-helper src/duplex_helper.c)
+target_link_libraries(hplj1020-duplex-helper PRIVATE hplj1020_build_options
+  ${HPLJ1020_CUPS_LIBRARY} ${HPLJ1020_COREGRAPHICS_FRAMEWORK}
+  ${HPLJ1020_COREFOUNDATION_FRAMEWORK})
+
 include(CTest)
 if(BUILD_TESTING)
   add_executable(hplj1020-media-contracts tests/media_contracts.c)
@@ -194,6 +200,18 @@ if(BUILD_TESTING)
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/submit-raster.test)
   set_tests_properties(hplj1020-pappl-integration PROPERTIES
     SKIP_RETURN_CODE 77 TIMEOUT 90)
+  add_executable(hplj1020-duplex-raster-reader tests/duplex_raster_reader.c)
+  target_link_libraries(hplj1020-duplex-raster-reader PRIVATE
+    hplj1020_build_options ${HPLJ1020_CUPS_LIBRARY})
+  add_test(NAME hplj1020-duplex-integration
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_duplex_integration.py
+      $<TARGET_FILE:hplj1020-test-service> $<TARGET_FILE:hplj1020-duplex-helper>
+      $<TARGET_FILE:hplj1020-duplex-raster-reader>)
+  set_tests_properties(hplj1020-duplex-integration PROPERTIES TIMEOUT 90)
+  add_test(NAME hplj1020-manual-duplex
+    COMMAND ${Python3_EXECUTABLE} -B -m unittest tests.test_manual_duplex)
+  set_tests_properties(hplj1020-manual-duplex PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
   add_test(NAME hplj1020-quality-integration
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_quality_integration.py
       $<TARGET_FILE:hplj1020-test-service> $<TARGET_FILE:hplj1020-make-test-raster>)

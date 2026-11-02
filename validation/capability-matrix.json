@@ -3,11 +3,11 @@
   "schemaVersion": "1.0.0",
   "matrixVersion": 1,
   "scopeIdentities": {
-    "build-inputs": "63daa39f922abb7b155192187954dca1ec5f9829b9d8d652da9b91855906cac0",
+    "build-inputs": "de6a48a9e2f511011a49026f6bd27c23a6738e213ce609377366b4a2384457c3",
     "golden-corpus": "fba9acae409d0390140bc7482e613a975ffd4023edff5f420ace87c41be7ddfb",
-    "implementation-contract": "6d1daec2306125b928f21121b8a7b8220335fc9a29f9e669de09256430759749",
-    "product-source": "f74f7ca8c34aaf54ba5c73de50530487e522136ac5aee2c74f162fb605c3446a",
-    "validation-tooling": "ca145e809292a6c9798d6162e4439683f3d3e063d9b6ad791310fdd242c3c419"
+    "implementation-contract": "64b943e462af051011c21d96303146165d68e08cdc0072e738bda15faa119781",
+    "product-source": "44f9aad34cc405f7123b80b46499af65ab14d44ea9d26442b75100a8f76f30dd",
+    "validation-tooling": "fe3006a14c7fdfddedbbeee8bf5a64aefade9071fd1beaeebe1d73b8ce365e8d"
   },
   "scenarios": [
     {
@@ -2210,7 +2210,69 @@
       "sourceCommit": null,
       "dependencyLockSha256": null,
       "printer": null,
-      "expectedResult": "Manual duplex MUST be represented as a guided host workflow and MUST NOT be advertised as automatic duplex.",
+      "expectedResult": "Manual duplex MUST remain an explicitly confirmed host workflow with simplex-only hardware advertisement, deterministic even/odd ordering, binding/orientation transforms, reinsertion prompts, cancellation, timeout and fail-closed restart behavior; no back pass may be sent before confirmation and no partial document may report success.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
+    },
+    {
+      "scenarioId": "SCN-MANUAL-DUPLEX-DIRECT",
+      "behavior": "Capability",
+      "milestone": "CAPABILITY",
+      "requirementIds": [
+        "JOB-012"
+      ],
+      "provenance": [
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "direct-usb-a-to-usb-c",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Manual duplex MUST remain an explicitly confirmed host workflow with simplex-only hardware advertisement, deterministic even/odd ordering, binding/orientation transforms, reinsertion prompts, cancellation, timeout and fail-closed restart behavior; no back pass may be sent before confirmation and no partial document may report success.",
+      "observedResult": null,
+      "executedAt": null,
+      "durationSeconds": null,
+      "evidence": [],
+      "state": "unverified",
+      "affectedScopes": [
+        "implementation-contract",
+        "product-source"
+      ],
+      "invalidatedBy": [],
+      "attempts": [],
+      "intermittencyExplanation": null,
+      "reliabilityRequirements": null,
+      "requiresArtifactEvidence": true
+    },
+    {
+      "scenarioId": "SCN-MANUAL-DUPLEX-DOCK",
+      "behavior": "Capability",
+      "milestone": "CAPABILITY",
+      "requirementIds": [
+        "JOB-012"
+      ],
+      "provenance": [
+        "Issue #3"
+      ],
+      "environment": null,
+      "connectionPath": "ugreen-thunderbolt-4-dock",
+      "sourceCommit": null,
+      "dependencyLockSha256": null,
+      "printer": null,
+      "expectedResult": "Manual duplex MUST remain an explicitly confirmed host workflow with simplex-only hardware advertisement, deterministic even/odd ordering, binding/orientation transforms, reinsertion prompts, cancellation, timeout and fail-closed restart behavior; no back pass may be sent before confirmation and no partial document may report success.",
       "observedResult": null,
       "executedAt": null,
       "durationSeconds": null,

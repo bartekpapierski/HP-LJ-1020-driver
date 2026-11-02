@@ -345,3 +345,17 @@ this tool never commits those records, pushes tags, publishes a GitHub Release,
 or operates public binary signing/distribution. Issue #32 supplies the host-tested
 operations; final reference-Mac validation and actual tag authorization belong to
 the promotion issue.
+
+### Guided manual duplex (experimental)
+
+With the personal-use service running, use an interactive terminal:
+
+```sh
+python3 scripts/manual_duplex.py document.pdf --binding long-edge --orientation portrait
+```
+
+A4 plain paper, 2–200 PDF pages, one copy. The workflow prints fronts, waits for
+explicit reinsertion confirmation, then prints backs. Both passes must complete
+before the controller reports document completion. Keep other jobs out of the
+printer until it finishes. See [ordering, recovery and validation](docs/manual-duplex-validation.md).
+Physical behavior remains unverified; the queue advertises simplex hardware.
