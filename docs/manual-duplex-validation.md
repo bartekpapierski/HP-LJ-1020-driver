@@ -23,7 +23,9 @@ runs before PDF rendering.
 
 This explicit host workflow accepts 2–200 PDF pages, A4 plain paper, the main tray,
 600 dpi, one copy, and long-edge or short-edge binding. It fits each PDF page
-(including its intrinsic rotation) inside the 4 mm imageable area. `--orientation
+(including its intrinsic rotation) inside the 4 mm imageable area. PDF points
+are converted explicitly at 600/72 pixels per point; pages shrink only as needed
+to fit the printable area. Smaller source pages retain their physical size. `--orientation
 landscape` adds a 90° composition rotation; physical feed axes stay A4 portrait.
 Use portrait for PDFs whose own rotation already supplies the desired orientation.
 Other media and composition controls are outside this workflow's current boundary.
@@ -92,8 +94,9 @@ failure; an ungraceful kill may leave the private temporary directory for remova
 Host simulations (`hplj1020-manual-duplex`) cover even/odd counts and the 100-sheet
 boundary, both orientations and bindings, confirmation gating, cancellation,
 front/back failure, timeout, interruption and provider restart. Native integration
-(`hplj1020-duplex-integration`) renders synthetic PDFs, checks pixel bounds,
-rotation and blank backs, verifies simplex-only advertisement, and submits both
+(`hplj1020-duplex-integration`) renders synthetic PDFs, checks absolute physical
+mark sizes from PDF points at 600 dpi, portrait/landscape composition, intrinsic
+PDF rotations and nonzero page-box origins, pixel bounds, rotation and blank backs, verifies simplex-only advertisement, and submits both
 passes through the real IPP/PAPPL pipeline to the fake device. These checks cannot
 establish how sheets physically feed or land.
 

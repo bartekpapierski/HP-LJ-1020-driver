@@ -15,13 +15,14 @@ from test_pappl_integration import install_test_firmware, start_service, stop_se
 from test_media_integration import run_ipp
 
 
-def make_pdf(path, count):
+def make_pdf(path, count, *, width=595, height=842, rotation=0, origin=(0, 0)):
     objects = [b"<< /Type /Catalog /Pages 2 0 R >>", b""]
     kids = []
     for index in range(count):
         kids.append(f"{len(objects) + 1} 0 R")
-        content = f"0 g {30 + index * 40} 40 20 60 re f".encode()
-        objects.append(f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents {len(objects) + 2} 0 R >>".encode())
+        x, y = origin
+        content = f"0 g {x + 30 + index * 40} {y + 40} 20 60 re f".encode()
+        objects.append(f"<< /Type /Page /Parent 2 0 R /MediaBox [{x} {y} {x + width} {y + height}] /Rotate {rotation} /Contents {len(objects) + 2} 0 R >>".encode())
         objects.append(f"<< /Length {len(content)} >>\nstream\n".encode() + content + b"\nendstream")
     objects[1] = f"<< /Type /Pages /Count {count} /Kids [{' '.join(kids)}] >>".encode()
     output = bytearray(b"%PDF-1.4\n")
@@ -114,8 +115,36 @@ def check_slow_send(helper):
             thread.join()
 
 
+def check_pdf_scale(helper, reader):
+    # A known physical mark provides an oracle independent of the renderer.
+    # PDF points are 1/72 inch, while PWG samples are 1/600 inch.
+    cases = [(595, 842, 0, 'portrait', (0, 0)),
+             (595, 842, 0, 'landscape', (0, 0)),
+             (842, 595, 0, 'portrait', (0, 0)),
+             (842, 595, 0, 'landscape', (0, 0)),
+             (595, 842, 90, 'portrait', (0, 0)),
+             (595, 842, 180, 'portrait', (0, 0)),
+             (595, 842, 270, 'portrait', (0, 0)),
+             (595, 842, 0, 'portrait', (20, 30))]
+    with tempfile.TemporaryDirectory(prefix='hplj-pdf-scale-') as directory:
+        root = Path(directory)
+        for index, (width, height, rotation, orientation, origin) in enumerate(cases):
+            pdf, raster = root / 'input.pdf', root / f'page-{index}.pwg'
+            make_pdf(pdf, 2, width=width, height=height, rotation=rotation, origin=origin)
+            subprocess.run([helper, 'render', pdf, raster, orientation, '0', '1'], check=True)
+            result = subprocess.run([reader, raster], text=True, capture_output=True, check=True)
+            left, top, right, bottom = map(int, result.stdout.split())
+            swapped = (rotation + (90 if orientation == 'landscape' else 0)) % 180 == 90
+            page_width, page_height = (height, width) if swapped else (width, height)
+            scale = min(600 / 72, (4960 - 2 * 94) / page_width, (7015 - 2 * 94) / page_height)
+            expected_width, expected_height = ((60, 20) if swapped else (20, 60))
+            assert abs((right - left + 1) - expected_width * scale) <= 2, (cases[index], result.stdout, scale)
+            assert abs((bottom - top + 1) - expected_height * scale) <= 2, (cases[index], result.stdout, scale)
+
+
 def main():
     executable, helper, reader = (Path(arg).resolve() for arg in sys.argv[1:])
+    check_pdf_scale(helper, reader)
     check_legacy_provider(helper)
     check_slow_send(helper)
     with tempfile.TemporaryDirectory(prefix="hplj-duplex-test-") as directory:

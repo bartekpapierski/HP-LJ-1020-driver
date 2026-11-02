@@ -57,12 +57,20 @@ static bool render_page(cups_raster_t *raster, cups_page_header2_t *header,
     // Fit content inside the runtime's 4 mm imageable margins. Landscape is
     // host composition; physical A4 feed axes and raster dimensions stay fixed.
     double margin = floor(400.0 * 600.0 / 2540.0);
-    CGRect target = CGRectMake(margin, margin, header->cupsWidth - 2 * margin,
-                               header->cupsHeight - 2 * margin);
+    double pixels_per_point_x = header->HWResolution[0] / 72.0;
+    double pixels_per_point_y = header->HWResolution[1] / 72.0;
+    CGRect target = CGRectMake(margin / pixels_per_point_x,
+                               margin / pixels_per_point_y,
+                               (header->cupsWidth - 2 * margin) / pixels_per_point_x,
+                               (header->cupsHeight - 2 * margin) / pixels_per_point_y);
     if (rotate) {
       CGContextTranslateCTM(context, header->cupsWidth, header->cupsHeight);
       CGContextRotateCTM(context, 3.14159265358979323846);
     }
+    // CoreGraphics' drawing transform scales down only. Express its target
+    // in PDF points, then convert those points to raster samples explicitly;
+    // otherwise a 72-point inch becomes only 72 pixels on a 600-dpi sheet.
+    CGContextScaleCTM(context, pixels_per_point_x, pixels_per_point_y);
     CGAffineTransform transform = CGPDFPageGetDrawingTransform(
         page, kCGPDFMediaBox, target, landscape ? 90 : 0, true);
     CGContextConcatCTM(context, transform);
